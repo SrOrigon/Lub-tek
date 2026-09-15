@@ -35,8 +35,13 @@ data/ai_cache/*
 !data/ai_cache/.htaccess
 !data/ai_cache/.gitkeep
 
+# Arquivos de build/deploy gerados
+deploy/*
+!deploy/.gitkeep
+
 # Logs de debug locais
 debug-*.log
+
 *.log
 
 # Arquivos de sistema
