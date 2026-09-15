@@ -1,0 +1,45 @@
+---
+description: Ativar e usar Headroom MCP quando o usuario pedir economia de tokens ou mencionar "use o mcp headroom"
+alwaysApply: false
+---
+
+# Headroom — ativacao sob demanda
+
+Repositorio: [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom)
+
+**Nao ha autostart.** Headroom so entra em acao quando o usuario pedir explicitamente (ex.: "use o mcp headroom", "ative o headroom", "economize tokens com headroom").
+
+## Gatilho do usuario
+
+Ao receber pedido explicito para usar Headroom:
+
+1. **`headroom_stats`** no MCP `user-headroom`.
+2. Se `namespaceStatus` = `loading` / `needsAuth` ou sem ferramentas → `mcp_auth` e repetir `headroom_stats`.
+3. Se proxy `unreachable`, ativar em background:
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.cursor\scripts\use-headroom.ps1"
+   ```
+   Ou, neste projeto: `.\scripts\start-headroom-proxy.ps1 -Background`
+4. Confirmar `GET http://127.0.0.1:8787/health` com `status=healthy` e `ready=true`.
+5. Durante a tarefa, comprimir contexto grande com **`headroom_compress`**; recuperar com **`headroom_retrieve`** se necessario.
+
+## Quando comprimir
+
+Chame `headroom_compress` **antes** de raciocinar sobre:
+
+- Exploracao de codebase (multiplos arquivos, buscas longas)
+- Arquivos/schemas/logs com **> ~80 linhas** ou **> ~2.000 tokens**
+- Refatoracoes, debug multi-arquivo, revisoes amplas
+
+## Camadas
+
+| Camada | Ferramenta | Funcao |
+|--------|------------|--------|
+| **MCP** (`user-headroom`) | `headroom_compress`, `headroom_retrieve`, `headroom_stats` | Compressao de tool outputs (principal para economia) |
+| **Proxy** (opcional) | `use-headroom.ps1` ou `scripts/start-headroom-proxy.ps1 -Background` | Compressao de trafego BYOK |
+
+MCP em `~/.cursor/mcp.json`. Composer nativo do Cursor **nao** usa proxy — so MCP.
+
+## Sem pedido explicito
+
+Nao chamar `headroom_stats` nem iniciar proxy automaticamente.

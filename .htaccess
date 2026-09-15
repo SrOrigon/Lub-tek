@@ -1,0 +1,128 @@
+# Rodrigo 3.0 - HTACCESS SECURITY HARDENED & ANTI-WEBCOPY
+RewriteEngine On
+
+AddDefaultCharset UTF-8
+
+# 1. FORÇAR HTTPS (Hostinger / Apache)
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# 2. BLOQUEIO RIGOROSO CONTRA WEBCOPY / HTTRACK / BOT SCRAPERS / CRAWLERS
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP_USER_AGENT} (webcopy|httrack|wget|teleport|offline\ explorer|website\ extractor|sitesucker|scrapy|python-urllib|go-http-client|java/|libwww-perl|autoit|ahrefsbot|semrushbot|mj12bot|ezooms|seekport|xenu|nikto|sqlmap|nmap|dirbuster) [NC]
+    RewriteRule ^ - [F,L]
+</IfModule>
+
+# 3. BLOQUEIO DE ACESSO DIRETO A DIRETÓRIOS E BANCOS INTERNOS
+<IfModule mod_rewrite.c>
+    RewriteRule ^banco%20de%20dados/ - [F,L]
+    RewriteRule ^banco de dados/ - [F,L]
+    RewriteRule ^databases/ - [F,L]
+    RewriteRule ^backups/ - [F,L]
+    RewriteRule ^data/ - [F,L]
+    RewriteRule ^includes/ - [F,L]
+    RewriteRule ^config/ - [F,L]
+    RewriteRule ^tools/ - [F,L]
+    RewriteRule ^scripts/ - [F,L]
+</IfModule>
+
+# 4. IMPEDIR DOWNLOAD DIRETO DE EXTENSÕES SENSÍVEIS (JSON sensível via /data/ já bloqueado)
+<FilesMatch "\.(sqlite|sqlite-wal|sqlite-shm|db|env|sql|log|sh|yml|yaml|git|md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Bloquear arquivos críticos na raiz
+<FilesMatch "^(config\.local\.php|config\.php|db\.php|data\.php|database\.sqlite|seed\.php|\.env.*)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Bloquear scripts de manutenção via web
+<FilesMatch "^(debug_|diagnose|clear_session|generate_hash|provision_tenant|migrate_all_tenants|backup_db|maintenance|generate_orders|sap_exporter)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Bloquear Controllers e scripts internos em /api/ (entrada unica: api.php)
+<IfModule mod_rewrite.c>
+    RewriteRule ^api/setup_documents\.php$ - [F,L]
+    RewriteRule ^api/.+Controller\.php$ - [F,L]
+</IfModule>
+
+# 5. IMPEDIR LISTAGEM DE DIRETÓRIOS
+Options -Indexes
+
+# 6. ROTEAMENTO PWA (manifest legado → arquivo estático em /assets/pwa/)
+RewriteRule ^manifest\.json$ assets/pwa/manifest.webmanifest [L,NC]
+RewriteRule ^manifest\.php$ assets/pwa/manifest.webmanifest [L,NC]
+RewriteRule ^sitemap\.xml$ sitemap.php [L,NC]
+
+# Manifest PWA — permitir acesso público
+<Files "manifest.json">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+<Files "manifest.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
+# 7. CACHE DE ASSETS
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 week"
+    ExpiresByType image/x-icon "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/html "access plus 0 seconds"
+    ExpiresByType application/json "access plus 0 seconds"
+</IfModule>
+
+# 8. COMPRESSÃO GZIP
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# 9. HEADERS RIGOROSOS DE CYBERSEGURANÇA & PROTEÇÃO ANTI-CÓPIA
+<IfModule mod_headers.c>
+    Header set Connection keep-alive
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+</IfModule>

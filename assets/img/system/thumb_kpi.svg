@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
+  <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#4f46e5"/><stop offset="100%" style="stop-color:#312e81"/></linearGradient></defs>
+  <rect width="400" height="200" fill="url(#g)"/>
+  <circle cx="200" cy="90" r="45" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="8"/>
+  <circle cx="200" cy="90" r="45" fill="none" stroke="#10b981" stroke-width="8" stroke-dasharray="200 283" stroke-linecap="round" transform="rotate(-90 200 90)"/>
+  <text x="200" y="95" text-anchor="middle" fill="white" font-family="Arial" font-size="22" font-weight="bold">87%</text>
+  <text x="200" y="170" text-anchor="middle" fill="white" font-family="Arial" font-size="14" opacity="0.8">KPIs & OEE</text>
+</svg>

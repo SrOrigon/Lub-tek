@@ -1,0 +1,5 @@
+AddType application/manifest+json .webmanifest
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=3600"
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

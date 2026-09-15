@@ -1,0 +1,51 @@
+<?php
+/**
+ * Configuração local — NÃO versionar este arquivo (copie de config.local.php.example)
+ * Obtenha chave Gemini em: https://aistudio.google.com/apikey
+ *
+ * RECOMENDADO EM PRODUÇÃO: use variáveis de ambiente no painel da Hostinger
+ * em vez de definir chaves aqui.
+ */
+
+// Preferência: variável de ambiente GEMINI_API_KEY (painel Hostinger > Variáveis de Ambiente)
+// define('GEMINI_API_KEY', 'SUA_CHAVE_AQUI');
+
+// Modelo recomendado (rápido e econômico)
+// define('GEMINI_MODEL', 'gemini-2.5-flash');
+
+// Modo debug — NUNCA true em produção (vaza caminhos e mensagens internas)
+// define('DEBUG_MODE', false);
+
+// URL canônica (opcional — auto-detecta pelo domínio se omitido)
+// define('SITE_URL', 'https://lubteksystem.com');
+
+// Modo demo ativo (exibe banner e permite seed_demo)
+// define('DEMO_MODE', false);
+
+// --- Backup off-site (backup_db.php) ---
+// Pasta externa para cópia automática (disco local, NAS ou mount na Hostinger)
+// define('BACKUP_EXPORT_DIR', 'D:/Backups/LUB-TEK');
+
+// E-mail de segurança — anexo apenas se backup < 10MB
+// define('BACKUP_EMAIL', 'seu-email-seguro@dominio.com');
+
+// --- FTP/FTPS (servidor barato só para armazenamento) ---
+// define('BACKUP_FTP_HOST', 'ftp.seu-servidor-backup.com');
+// define('BACKUP_FTP_USER', 'usuario');
+// define('BACKUP_FTP_PASS', 'senha-segura');
+// define('BACKUP_FTP_PORT', 21);
+// define('BACKUP_FTP_SSL', false);   // true = FTPS
+// define('BACKUP_FTP_PATH', '/lubtek/backups');  // pasta remota
+
+// --- S3 compatível (AWS, Cloudflare R2, Backblaze B2, MinIO) ---
+// define('BACKUP_S3_BUCKET', 'meu-bucket-backups');
+// define('BACKUP_S3_REGION', 'us-east-1');
+// define('BACKUP_S3_ACCESS_KEY', 'SUA_ACCESS_KEY');
+// define('BACKUP_S3_SECRET_KEY', 'SUA_SECRET_KEY');
+// define('BACKUP_S3_PREFIX', 'lubtek/backups');  // prefixo opcional no bucket
+
+// Para Cloudflare R2 ou MinIO (endpoint customizado):
+// define('BACKUP_S3_ENDPOINT', 'https://SEU_ACCOUNT_ID.r2.cloudflarestorage.com');
+// define('BACKUP_S3_PATH_STYLE', true);
+
+// Testar conexões: php backup_db.php --test-export

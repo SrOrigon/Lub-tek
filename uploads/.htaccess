@@ -1,0 +1,6 @@
+# Permite servir arquivos de upload, bloqueia execução de scripts
+<FilesMatch "\.(php|phtml|php3|php4|php5|phps|cgi|pl|py|asp|aspx)$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes

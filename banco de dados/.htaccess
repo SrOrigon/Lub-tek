@@ -1,0 +1,18 @@
+# LUB-TEK — Acesso HTTP negado (proteção de bancos SQLite e backups)
+Require all denied
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+Options -Indexes
+
+# Bloqueia download direto de SQLite mesmo se regras acima falharem
+<FilesMatch "\.(sqlite|sqlite-wal|sqlite-shm|db)$">
+    Require all denied
+</FilesMatch>

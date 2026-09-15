@@ -1,0 +1,25 @@
+{
+  "name": "LUB-TEK Industrial 4.0",
+  "short_name": "LUB-TEK",
+  "start_url": "index.php",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "description": "Plataforma de Confiabilidade Industrial, Lubrificação 4.0 e Gestão Preditiva",
+  "icons": [
+    {
+      "src": "assets/img/system/img_69581d7fcdbbf.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/img/system/img_69581d7fcdbbf.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

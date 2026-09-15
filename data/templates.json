@@ -1,0 +1,25 @@
+{
+    "Lavadora de Garrafas": {
+        "name": "Lavadora OMEGA Ind. 4.0",
+        "tag_prefix": "LAV",
+        "sections": [
+            "Entrada de Garrafas",
+            "Zona de Pré-Lavagem",
+            "Tanque de Soda Cáustica",
+            "Zona de Enxágue Final",
+            "Transportador de Saída"
+        ],
+        "description": "Template padrão para lavadoras industriais de alta capacidade."
+    },
+    "Enchedora Rotativa": {
+        "name": "Enchedora KRONES Volumétrica",
+        "tag_prefix": "ENCH",
+        "sections": [
+            "Carrossel Principal",
+            "Sistema de Válvulas",
+            "Torre de Alimentação",
+            "Tanque de Produto"
+        ],
+        "description": "Para linhas de envase de líquidos carbonatados."
+    }
+}

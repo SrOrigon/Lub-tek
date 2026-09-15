@@ -1,0 +1,45 @@
+# Arquivos locais com chaves e credenciais — nao versionar
+config.local.php
+.env
+.env.*
+
+# Banco de dados locais
+database.sqlite
+database.sqlite-journal
+database.sqlite-wal
+database.sqlite-shm
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.lock
+database.sqlite.migrate.lock
+banco de dados/*.sqlite
+banco de dados/*.sqlite-wal
+banco de dados/*.sqlite-shm
+databases/*.sqlite
+databases/*.sqlite-wal
+databases/*.sqlite-shm
+
+# Backups gerados
+backups/
+!backups/.htaccess
+!backups/manifest.json
+
+# Dados de sessao e caches temporarios de IA
+data/users.json
+data/sessions/*
+!data/sessions/.htaccess
+!data/sessions/.gitkeep
+data/ai_cache/*
+!data/ai_cache/.htaccess
+!data/ai_cache/.gitkeep
+
+# Logs de debug locais
+debug-*.log
+*.log
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
