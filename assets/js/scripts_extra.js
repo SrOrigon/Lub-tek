@@ -807,6 +807,20 @@
             notificarSucessoCampo(`✅ Tarefa do ${p.name} concluída com sucesso!`, 'success');
             saveRouteStatus(id, 'Concluido', typed || '');
             renderRoutes();
+
+            // Auto-advance to Next Point in Sequence
+            const currentIndex = routePoints.findIndex(x => x.id === id);
+            if (currentIndex >= 0 && currentIndex < routePoints.length - 1) {
+                const nextPoint = routePoints[currentIndex + 1];
+                setTimeout(() => {
+                    const nextCard = document.getElementById('route-card-' + nextPoint.id);
+                    if (nextCard) {
+                        nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        nextCard.style.outline = '3px solid #0284c7';
+                        setTimeout(() => nextCard.style.outline = '', 2000);
+                    }
+                }, 300);
+            }
         } else {
             openRouteAlertModal(id);
         }
@@ -1870,10 +1884,44 @@
         return Math.max(1, grams);
     }
 
-    function calcPumpsToGrams(pumps, gramsPerPump = 1.5) {
-        if (!pumps) return 0;
-        return roundNumber(pumps * gramsPerPump, 1);
+    function getGreaseGunGramPerPump() {
+        return parseFloat(localStorage.getItem('lub_grease_gun_grams_per_pump') || '1.4');
     }
+
+    function setGreaseGunGramPerPump(val) {
+        const num = parseFloat(val);
+        if (!isNaN(num) && num > 0) {
+            localStorage.setItem('lub_grease_gun_grams_per_pump', String(num));
+            if (typeof showToast === 'function') showToast(`Pistola ajustada para ${num} g/bombada.`, 'success');
+        }
+    }
+
+    function calcPumpsToGrams(pumps, gramsPerPump = null) {
+        if (!pumps) return 0;
+        const gpp = gramsPerPump || getGreaseGunGramPerPump();
+        return roundNumber(pumps * gpp, 1);
+    }
+
+    window.getGreaseGunGramPerPump = getGreaseGunGramPerPump;
+    // --- HIGH CONTRAST NIGHT / INDUSTRIAL FIELD MODE ---
+    function toggleHighContrastMode() {
+        const isHc = document.body.classList.toggle('high-contrast-mode');
+        localStorage.setItem('lub_high_contrast', isHc ? '1' : '0');
+        if (typeof showToast === 'function') {
+            showToast(isHc ? 'Modo Alto Contraste Ativado.' : 'Modo Padrão Ativado.', 'info');
+        }
+    }
+
+    function initHighContrastMode() {
+        if (localStorage.getItem('lub_high_contrast') === '1') {
+            document.body.classList.add('high-contrast-mode');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initHighContrastMode);
+    window.toggleHighContrastMode = toggleHighContrastMode;
+
+    window.setGreaseGunGramPerPump = setGreaseGunGramPerPump;
 
     function openFloatingDosageModal() {
         let modal = document.getElementById('floating-dosage-modal');
@@ -2013,7 +2061,84 @@
         }
     }
 
+    function calcContaminationTrend(feHistoryArray) {
+        if (!feHistoryArray || !Array.isArray(feHistoryArray) || feHistoryArray.length < 2) {
+            return { trendPct: 0, alert: false, message: 'Dados de histórico insuficientes.' };
+        }
+        const last = parseFloat(feHistoryArray[feHistoryArray.length - 1] || 0);
+        const prev = parseFloat(feHistoryArray[feHistoryArray.length - 2] || 0);
+        if (prev <= 0) return { trendPct: 0, alert: false, message: 'Sem variação base.' };
+
+        const increasePct = roundNumber(((last - prev) / prev) * 100, 1);
+        const isAlert = increasePct > 15;
+        return {
+            trendPct: increasePct,
+            alert: isAlert,
+            message: isAlert
+                ? `🚨 ALERTA PREDITIVO: Elevação de ${increasePct}% de Ferro (fe_ppm) em relação ao último laudo! Risco de desgaste acelerado.`
+                : `Tendência estável (${increasePct}%).`
+        };
+    }
+
+    window.calcContaminationTrend = calcContaminationTrend;
+
     window.loadAssetHealthTimeline = loadAssetHealthTimeline;
+
+    // --- KITTING SHIFT WAREHOUSE PICKLIST ---
+    async function openKittingShiftModal() {
+        try {
+            const tasks = await api('get_tasks');
+            const scheduled = tasks.filter(t => !t.done && t.situacao !== 'Concluído');
+            const summary = {};
+
+            scheduled.forEach(t => {
+                if (t.materiais_sap) {
+                    summary[t.materiais_sap] = (summary[t.materiais_sap] || 0) + (parseFloat(t.qtd_real || 1));
+                }
+            });
+
+            let modal = document.getElementById('kitting-shift-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'kitting-shift-modal';
+                modal.className = 'route-alert-overlay active';
+                modal.innerHTML = `
+                    <div class="route-alert-modal" style="max-width:520px;">
+                        <div class="route-alert-modal-header">
+                            <i data-lucide="package-check" style="width:22px;height:22px;color:var(--primary);"></i>
+                            <h2>Cesta do Dia - Lista de Separação</h2>
+                            <button type="button" class="route-alert-close" onclick="document.getElementById('kitting-shift-modal').classList.remove('active')">&times;</button>
+                        </div>
+                        <div style="margin-top:10px; max-height:300px; overflow-y:auto;" id="kitting-list-body"></div>
+                        <button type="button" class="btn btn-primary" style="width:100%; margin-top:12px;" onclick="window.print()">Imprimir Cesta do Dia</button>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } else {
+                modal.classList.add('active');
+            }
+
+            const bodyEl = document.getElementById('kitting-list-body');
+            if (bodyEl) {
+                let html = '<ul style="list-style:none; padding:0; margin:0;">';
+                const keys = Object.keys(summary);
+                if (keys.length === 0) {
+                    html += '<li style="padding:10px; color:#64748b;">Nenhum lubrificante agendado para separação no turno.</li>';
+                } else {
+                    keys.forEach(k => {
+                        html += `<li style="padding:10px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; font-weight:700;"><span>${k}</span> <span style="color:#0284c7;">${summary[k]} g/L</span></li>`;
+                    });
+                }
+                html += '</ul>';
+                bodyEl.innerHTML = html;
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } catch (err) {
+            console.error('Erro ao gerar lista de kitting:', err);
+        }
+    }
+
+    window.openKittingShiftModal = openKittingShiftModal;
 
     window.printIndustrialQrLabels = printIndustrialQrLabels;
 
