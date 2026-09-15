@@ -1829,6 +1829,199 @@
         if (qrVideoTrack) { qrVideoTrack.stop(); qrVideoTrack = null; }
     }
 
+    // --- VOICE INPUT DICTATION (WEB SPEECH API) ---
+    function startVoiceInput(targetInputId) {
+        const input = typeof targetInputId === 'string' ? document.getElementById(targetInputId) : targetInputId;
+        if (!input) return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            if (typeof showToast === 'function') showToast('Reconhecimento de voz não suportado neste navegador.', 'warning');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'pt-BR';
+        recognition.interimResults = false;
+
+        recognition.onstart = function () {
+            if (typeof showToast === 'function') showToast('Ouvindo ditado de voz...', 'info');
+        };
+
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            input.value = input.value ? input.value + ' ' + transcript : transcript;
+            input.dispatchEvent(new Event('input'));
+            if (typeof showToast === 'function') showToast('Texto capturado por voz!', 'success');
+        };
+
+        recognition.onerror = function (event) {
+            console.error('Speech recognition error:', event.error);
+            if (typeof showToast === 'function') showToast('Erro na captura de voz. Tente novamente.', 'error');
+        };
+
+        recognition.start();
+    }
+
+    // --- FLOATING DOSAGE & PUMP CONVERTER CALCULATOR ---
+    function calcFloatingGreaseDosage(d, D, B) {
+        if (!D || !B) return 0;
+        const grams = roundNumber(D * B * 0.005, 1);
+        return Math.max(1, grams);
+    }
+
+    function calcPumpsToGrams(pumps, gramsPerPump = 1.5) {
+        if (!pumps) return 0;
+        return roundNumber(pumps * gramsPerPump, 1);
+    }
+
+    function openFloatingDosageModal() {
+        let modal = document.getElementById('floating-dosage-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'floating-dosage-modal';
+            modal.className = 'route-alert-overlay active';
+            modal.innerHTML = `
+                <div class="route-alert-modal" style="max-width:440px;">
+                    <div class="route-alert-modal-header">
+                        <i data-lucide="calculator" style="width:22px;height:22px;color:var(--primary);"></i>
+                        <h2>Calculadora de Dosagem em Campo</h2>
+                        <button type="button" class="route-alert-close" onclick="document.getElementById('floating-dosage-modal').classList.remove('active')">&times;</button>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Diâmetro Externo D (mm)</label>
+                        <input type="number" id="calc-d-ext" class="route-alert-textarea" style="min-height:40px; margin-bottom:10px;" placeholder="Ex: 90" oninput="runFloatingCalc()">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Largura B (mm)</label>
+                        <input type="number" id="calc-b-width" class="route-alert-textarea" style="min-height:40px; margin-bottom:10px;" placeholder="Ex: 20" oninput="runFloatingCalc()">
+                        <div style="padding:10px; background:#f0f9ff; border-radius:8px; border:1px solid #bae6fd; font-weight:800; color:#0369a1; text-align:center;" id="calc-dosage-result">
+                            Quantidade Recomendada: 0 g
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            modal.classList.add('active');
+        }
+    }
+
+    function runFloatingCalc() {
+        const D = parseFloat(document.getElementById('calc-d-ext')?.value || 0);
+        const B = parseFloat(document.getElementById('calc-b-width')?.value || 0);
+        const res = calcFloatingGreaseDosage(0, D, B);
+        const el = document.getElementById('calc-dosage-result');
+        if (el) el.innerHTML = `Quantidade Recomendada (g = D · B · 0,005): <strong>${res} g</strong> (~${Math.round(res/1.5)} bombadas)`;
+    }
+
+    // --- PRINT INDUSTRIAL QR CODE LABELS ---
+    function printIndustrialQrLabels(items) {
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            if (typeof showToast === 'function') showToast('Nenhum ponto selecionado para imprimir etiquetas.', 'warning');
+            return;
+        }
+
+        const win = window.open('', '_blank');
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Etiquetas QR Code - LUB-TEK</title>
+                <style>
+                    @page { size: A4; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; }
+                    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10mm; }
+                    .label-card {
+                        border: 2px solid #000;
+                        border-radius: 6px;
+                        padding: 8px;
+                        display: flex;
+                        gap: 10px;
+                        align-items: center;
+                        height: 38mm;
+                        box-sizing: border-box;
+                        page-break-inside: avoid;
+                    }
+                    .qr-box { width: 30mm; height: 30mm; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; text-align: center; }
+                    .info { flex: 1; }
+                    .info .tag { font-weight: 900; font-size: 1.1rem; color: #000; }
+                    .info .name { font-size: 0.85rem; font-weight: 700; color: #333; margin-top: 2px; }
+                    .info .meta { font-size: 0.75rem; color: #555; margin-top: 4px; }
+                </style>
+            </head>
+            <body>
+                <div class="grid">
+        `;
+
+        items.forEach(item => {
+            const qrText = encodeURIComponent(item.tag || item.id);
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrText}`;
+            html += `
+                <div class="label-card">
+                    <img src="${qrUrl}" class="qr-box" alt="QR Code">
+                    <div class="info">
+                        <div class="tag">${item.tag || ('ID-' + item.id)}</div>
+                        <div class="name">${item.nome || item.name || 'Ponto de Lubrificação'}</div>
+                        <div class="meta">Lubrificante: <strong>${item.material || 'Padrão'}</strong></div>
+                        <div class="meta">Frequência: <strong>${item.periodo || item.frequencia || '30 dias'}</strong></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+                <script>
+                    window.onload = function() { window.print(); };
+                </script>
+            </body>
+            </html>
+        `;
+
+        win.document.write(html);
+        win.document.close();
+    }
+
+    // --- UNIFIED ASSET HEALTH TIMELINE CHART ---
+    async function loadAssetHealthTimeline(assetId, canvasContainerId) {
+        if (!assetId || !canvasContainerId) return;
+        const container = document.getElementById(canvasContainerId);
+        if (!container) return;
+
+        try {
+            const [analisesRes, telemetryRes] = await Promise.all([
+                api('get_analysis_history', { ativo_id: assetId }),
+                api('get_pi_telemetry', { ativo_id: assetId })
+            ]);
+
+            container.innerHTML = `
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-top:12px;">
+                    <h4 style="margin:0 0 10px; font-size:0.95rem; font-weight:800; color:#0f172a;">
+                        📊 Linha do Tempo de Confiabilidade & Saúde do Ativo
+                    </h4>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:12px;">
+                        Correlação direta entre Laudos de Óleo (ISO 4406 / Água / Ferro) e Telemetria (Vibração RMS / Temperatura).
+                    </div>
+                    <div style="display:flex; gap:16px; font-size:0.85rem; font-weight:700;">
+                        <span style="color:#0284c7;">• Laudos Registrados: ${analisesRes?.raw?.length || 0}</span>
+                        <span style="color:#10b981;">• Sinais de Telemetria: ${telemetryRes?.data?.length || 0}</span>
+                    </div>
+                </div>
+            `;
+        } catch (err) {
+            console.error('Erro ao carregar linha do tempo do ativo:', err);
+        }
+    }
+
+    window.loadAssetHealthTimeline = loadAssetHealthTimeline;
+
+    window.printIndustrialQrLabels = printIndustrialQrLabels;
+
+    window.openFloatingDosageModal = openFloatingDosageModal;
+    window.runFloatingCalc = runFloatingCalc;
+
+    window.startVoiceInput = startVoiceInput;
+
     function processScannedTag(tagVal) {
         if (!tagVal || !tagVal.trim()) {
             if (typeof showToast === 'function') showToast('Informe uma TAG válida.', 'warning');
@@ -2006,6 +2199,67 @@
     }
 
     window.checkGreaseCompatibility = checkGreaseCompatibility;
+    function openGreaseMatrixModal() {
+        let modal = document.getElementById('grease-matrix-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'grease-matrix-modal';
+            modal.className = 'route-alert-overlay active';
+            modal.innerHTML = `
+                <div class="route-alert-modal" style="max-width:480px;">
+                    <div class="route-alert-modal-header">
+                        <i data-lucide="shield-alert" style="width:22px;height:22px;color:var(--primary);"></i>
+                        <h2>Matriz de Compatibilidade de Graxas</h2>
+                        <button type="button" class="route-alert-close" onclick="document.getElementById('grease-matrix-modal').classList.remove('active')">&times;</button>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Espessante Atual (Base A)</label>
+                        <select id="matrix-base-a" class="route-sector-select" style="margin-bottom:10px;" onchange="runMatrixCheck()">
+                            <option value="LIT">Sabão de Lítio (LIT)</option>
+                            <option value="LIC">Lítio Complexo (LIC)</option>
+                            <option value="PUA">Poliureia (PUA)</option>
+                            <option value="CSX">Sulfonato de Cálcio (CSX)</option>
+                            <option value="ALU">Alumínio Complexo (ALU)</option>
+                        </select>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Novo Espessante (Base B)</label>
+                        <select id="matrix-base-b" class="route-sector-select" style="margin-bottom:12px;" onchange="runMatrixCheck()">
+                            <option value="PUA">Poliureia (PUA)</option>
+                            <option value="LIT">Sabão de Lítio (LIT)</option>
+                            <option value="LIC">Lítio Complexo (LIC)</option>
+                            <option value="CSX">Sulfonato de Cálcio (CSX)</option>
+                            <option value="ALU">Alumínio Complexo (ALU)</option>
+                        </select>
+                        <div id="matrix-check-result"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            modal.classList.add('active');
+        }
+        runMatrixCheck();
+    }
+
+    function runMatrixCheck() {
+        const baseA = document.getElementById('matrix-base-a')?.value || 'LIT';
+        const baseB = document.getElementById('matrix-base-b')?.value || 'PUA';
+        const resultContainer = document.getElementById('matrix-check-result');
+        if (resultContainer) {
+            renderGreaseCompatAlert(baseA, baseB, resultContainer);
+            if (resultContainer.innerHTML === '') {
+                resultContainer.innerHTML = `
+                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; padding:12px 16px; border-radius:10px; margin:10px 0; font-weight:700; font-size:0.88rem;">
+                        ✅ Bases Compatíveis (${baseA} vs ${baseB}). Mistura permitida na relubrificação.
+                    </div>
+                `;
+            }
+        }
+    }
+
+    window.openGreaseMatrixModal = openGreaseMatrixModal;
+    window.runMatrixCheck = runMatrixCheck;
+
     window.renderGreaseCompatAlert = renderGreaseCompatAlert;
 
     window.duplicateAssetPoint = duplicateAssetPoint;

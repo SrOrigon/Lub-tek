@@ -322,6 +322,10 @@
                                     style="justify-content:flex-start; width:100%; text-align:left; padding:8px; color:#0284c7; font-weight:700;">
                                     <i data-lucide="file-text" style="width:16px;"></i> Plano de Lubrificação PDF
                                 </button>
+                                <button class="btn btn-ghost" onclick="if(typeof printIndustrialQrLabels==='function')printIndustrialQrLabels([{id:typeof selectedNodeId!=='undefined'?selectedNodeId:1, tag:'TAG-01', nome:'Ponto de Lubrificação'}])"
+                                    style="justify-content:flex-start; width:100%; text-align:left; padding:8px; color:#10b981; font-weight:700;">
+                                    <i data-lucide="qr-code" style="width:16px;"></i> Imprimir Etiquetas QR Code
+                                </button>
                                 <button class="btn btn-ghost" onclick="exportLabelSheet()"
                                     style="justify-content:flex-start; width:100%; text-align:left; padding:8px;">
                                     <i data-lucide="tags" style="width:16px;"></i> Etiquetas XLSX
