@@ -5,9 +5,14 @@
                 <h1 style="margin:0; font-size:1.4rem; font-weight:800; color:var(--primary);">Rotas de Lubrificação</h1>
                 <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Checklist de Campo — toque em Concluir quando terminar</span>
             </div>
-            <button class="btn btn-sm btn-outline btn-action" onclick="loadRoutes()" title="Atualizar lista" style="min-height:44px;">
-                <i data-lucide="refresh-cw" style="width:16px;"></i>
-            </button>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-sm btn-primary btn-action" onclick="openQrScannerModal()" title="Escanear QR Code da TAG" style="min-height:44px; display:inline-flex; align-items:center; gap:6px;">
+                    <i data-lucide="qr-code" style="width:18px;height:18px;"></i> Escanear TAG
+                </button>
+                <button class="btn btn-sm btn-outline btn-action" onclick="loadRoutes()" title="Atualizar lista" style="min-height:44px;">
+                    <i data-lucide="refresh-cw" style="width:16px;"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Barra de progresso motivadora -->
@@ -31,6 +36,26 @@
 
         <input type="file" id="anomaly-cam" capture="environment" accept="image/*" style="display:none;"
             onchange="handleAnomalyPhoto(this)">
+
+        <!-- Modal Scanner QR Code -->
+        <div id="qr-scanner-overlay" class="route-alert-overlay" onclick="if(event.target===this)closeQrScannerModal()">
+            <div class="route-alert-modal" style="max-width:480px; text-align:center;">
+                <div class="route-alert-modal-header">
+                    <i data-lucide="qr-code" style="width:22px;height:22px;color:var(--primary);"></i>
+                    <h2>Scanner de TAG / QR Code</h2>
+                    <button type="button" class="route-alert-close" onclick="closeQrScannerModal()">&times;</button>
+                </div>
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">Aponte a câmera para a TAG do ponto ou máquina (ex: LA-CENTRAL ou ID do ponto).</p>
+                <div id="qr-reader-container" style="width:100%; min-height:240px; background:#000; border-radius:12px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;">
+                    <video id="qr-video" style="width:100%; height:100%; object-fit:cover;" playsinline></video>
+                    <div id="qr-video-placeholder" style="color:#fff; font-size:0.85rem; padding:20px;">Iniciando câmera...</div>
+                </div>
+                <div style="margin-top:14px; display:flex; gap:10px;">
+                    <input type="text" id="manual-qr-tag" placeholder="Ou digite a TAG/ID..." style="flex:1; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-weight:700;">
+                    <button type="button" class="btn btn-primary" onclick="processScannedTag(document.getElementById('manual-qr-tag').value)">Buscar</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal de alerta (sem obrigar foto) -->
         <div id="route-alert-overlay" class="route-alert-overlay" onclick="if(event.target===this)closeRouteAlertModal()">

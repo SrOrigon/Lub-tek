@@ -812,13 +812,58 @@
         }
     }
 
+    function compressImageFileCanvas(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+        return new Promise((resolve) => {
+            if (!file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxWidth || h > maxHeight) {
+                        const ratio = Math.min(maxWidth / w, maxHeight / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            resolve(file);
+                            return;
+                        }
+                        const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                            type: 'image/webp',
+                            lastModified: Date.now()
+                        });
+                        resolve(compressedFile);
+                    }, 'image/webp', quality);
+                };
+                img.onerror = () => resolve(file);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(file);
+            reader.readAsDataURL(file);
+        });
+    }
+
     async function handleAnomalyPhoto(input) {
         if (!input.files || !input.files[0] || !currentAnomalyId) return;
 
-        showToast('Enviando foto (opcional)...', 'info');
+        showToast('Otimizando imagem no dispositivo...', 'info');
+        const fileToUpload = await compressImageFileCanvas(input.files[0]);
+
+        showToast('Enviando foto...', 'info');
         const fd = new FormData();
         fd.append('action', 'upload_image');
-        fd.append('file', input.files[0]);
+        fd.append('file', fileToUpload);
         if (lastRouteAlertOsId) {
             fd.append('os_id', String(lastRouteAlertOsId));
         }
@@ -1187,6 +1232,7 @@
         window.addEventListener('online', () => {
             if (typeof updateOnlineStatus === 'function') updateOnlineStatus();
             if (typeof processSyncQueue === 'function') processSyncQueue();
+            if (typeof syncRoutes === 'function') syncRoutes();
         });
 
         window.addEventListener('offline', () => {
@@ -1734,6 +1780,241 @@
     // (era exatamente o bug encontrado: runSynthRolCalc virava um no-op e as demais usavam nomes de
     // campo que não existem na resposta da API). Sempre priorizar scripts_main.js, como já é feito
     // para a função api() logo abaixo.
+
+    // --- QR CODE SCANNER (1-CLICK FIELD WORKFLOW) ---
+    let qrVideoTrack = null;
+    let qrDetectionInterval = null;
+
+    async function openQrScannerModal() {
+        const overlay = document.getElementById('qr-scanner-overlay');
+        const placeholder = document.getElementById('qr-video-placeholder');
+        if (overlay) overlay.classList.add('active');
+
+        if (!('BarcodeDetector' in window)) {
+            if (placeholder) placeholder.innerHTML = 'Scanner nativo não suportado neste navegador. Digite a TAG abaixo.';
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const video = document.getElementById('qr-video');
+            if (video) {
+                video.srcObject = stream;
+                await video.play();
+                qrVideoTrack = stream.getVideoTracks()[0];
+                if (placeholder) placeholder.style.display = 'none';
+
+                const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+                qrDetectionInterval = setInterval(async () => {
+                    try {
+                        const barcodes = await detector.detect(video);
+                        if (barcodes.length > 0) {
+                            const rawValue = barcodes[0].rawValue;
+                            closeQrScannerModal();
+                            processScannedTag(rawValue);
+                        }
+                    } catch (err) {}
+                }, 400);
+            }
+        } catch (err) {
+            console.warn('Erro ao acessar a câmera:', err);
+            if (placeholder) placeholder.innerHTML = 'Câmera não disponível ou permissão negada. Digite a TAG abaixo.';
+        }
+    }
+
+    function closeQrScannerModal() {
+        const overlay = document.getElementById('qr-scanner-overlay');
+        if (overlay) overlay.classList.remove('active');
+        if (qrDetectionInterval) { clearInterval(qrDetectionInterval); qrDetectionInterval = null; }
+        if (qrVideoTrack) { qrVideoTrack.stop(); qrVideoTrack = null; }
+    }
+
+    function processScannedTag(tagVal) {
+        if (!tagVal || !tagVal.trim()) {
+            if (typeof showToast === 'function') showToast('Informe uma TAG válida.', 'warning');
+            return;
+        }
+        const cleanTag = tagVal.trim();
+        const routes = window.routePointsCache || [];
+        const match = routes.find(r =>
+            (r.tag && r.tag.toLowerCase() === cleanTag.toLowerCase()) ||
+            String(r.id) === cleanTag
+        );
+
+        if (match) {
+            if (typeof showToast === 'function') showToast('TAG identificada: ' + match.point, 'success');
+            const card = document.getElementById('route-card-' + match.id);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.outline = '3px solid #10b981';
+                setTimeout(() => card.style.outline = '', 2000);
+            } else {
+                openRouteAlertModal(match.id, match.point, match.equipment);
+            }
+        } else {
+            if (typeof showToast === 'function') showToast('Ativo/TAG ' + cleanTag + ' não encontrado nas rotas.', 'warning');
+        }
+    }
+
+    // --- SMART BEARING AUTO-FILL (ROLAMENTOS & RELUBRIFICAÇÃO) ---
+    function parseBearingCodeClient(inputStr) {
+        if (!inputStr) return null;
+        const str = inputStr.toUpperCase().trim();
+        const match = str.match(/((?:6[0234]|222|223|213|230|231|232|240|241|NU\s?[23]|NJ\s?[23])\d{2})/i);
+        if (!match) return null;
+
+        const codeFull = match[1].replace(/\s+/g, '');
+        const last2 = parseInt(codeFull.slice(-2), 10);
+        let d = (last2 < 4) ? ([10, 12, 15, 17][last2] || 10) : (last2 * 5);
+        let D = d * 2;
+        let B = Math.round(d * 0.45);
+
+        if (codeFull.startsWith('62')) {
+            D = Math.round(d * 1.7 + 12);
+            B = Math.round((D - d) * 0.35);
+        } else if (codeFull.startsWith('63')) {
+            D = Math.round(d * 2.1 + 15);
+            B = Math.round((D - d) * 0.38);
+        } else if (codeFull.startsWith('222')) {
+            D = Math.round(d * 1.8 + 20);
+            B = Math.round(D * 0.28);
+        }
+
+        const dm = (d + D) / 2;
+        const greaseGram = Math.round(D * B * 0.005 * 10) / 10; // g = D * B * 0.005
+
+        return {
+            model: codeFull,
+            d: d,
+            D: D,
+            B: B,
+            dm: dm,
+            greaseGram: Math.max(1, greaseGram)
+        };
+    }
+
+    function handleBearingCodeAutoFill(inputEl) {
+        if (!inputEl || !inputEl.value) return;
+        const specs = parseBearingCodeClient(inputEl.value);
+        if (!specs) return;
+
+        const form = inputEl.closest('form') || document;
+        const qtdEl = form.querySelector('[name="qtd_material"], #qtd_material, [name="quantidade"]');
+        if (qtdEl && (!qtdEl.value || parseFloat(qtdEl.value) === 0)) {
+            qtdEl.value = specs.greaseGram;
+        }
+
+        const obsEl = form.querySelector('[name="obs"], #obs, [name="dados_tecnicos"]');
+        if (obsEl && !obsEl.value.includes('Rolamento')) {
+            const techNote = `Rolamento: ${specs.model} (d=${specs.d}mm, D=${specs.D}mm, B=${specs.B}mm, dm=${specs.dm}mm) | Dosagem Sugerida: ${specs.greaseGram}g`;
+            obsEl.value = obsEl.value ? obsEl.value + ' | ' + techNote : techNote;
+        }
+
+        if (typeof showToast === 'function') {
+            showToast(`Especificações detectadas para ${specs.model}: d=${specs.d}mm, D=${specs.D}mm, Graxa: ${specs.greaseGram}g`, 'info');
+        }
+    }
+
+    // --- QUICK POINT / COMPONENT DUPLICATION ---
+    async function duplicateAssetPoint(assetId) {
+        if (!assetId) return;
+        try {
+            const res = await api('get_tree');
+            let foundAsset = null;
+
+            function searchTree(nodes) {
+                for (let n of nodes) {
+                    if (n.id == assetId) {
+                        foundAsset = n;
+                        return;
+                    }
+                    if (n.children && n.children.length > 0) searchTree(n.children);
+                }
+            }
+            if (res && res.tree) searchTree(res.tree);
+
+            if (!foundAsset) {
+                if (typeof showToast === 'function') showToast('Ativo original não encontrado para duplicação.', 'error');
+                return;
+            }
+
+            const newTag = prompt(`Duplicando "${foundAsset.nome}"\nInforme a nova TAG / Sufixo:`, (foundAsset.tag || 'TAG') + '-CLONE');
+            if (newTag === null) return; // cancelado
+
+            const payload = {
+                nome: foundAsset.nome + ' (Cópia)',
+                tag: newTag.trim() || ((foundAsset.tag || 'TAG') + '-CLONE'),
+                tipo: foundAsset.tipo || 'ponto',
+                pai_id: foundAsset.pai_id || null,
+                obs: foundAsset.obs || '',
+                dados_tecnicos: typeof foundAsset.dados_tecnicos === 'object' ? JSON.stringify(foundAsset.dados_tecnicos) : (foundAsset.dados_tecnicos || '{}')
+            };
+
+            const saveRes = await api('save_asset', payload);
+            if (saveRes && (saveRes.ok || saveRes.id || saveRes.success)) {
+                if (typeof showToast === 'function') showToast('Ponto duplicado com sucesso!', 'success');
+                if (typeof loadAssetTree === 'function') loadAssetTree();
+            } else {
+                if (typeof showToast === 'function') showToast(saveRes?.error || 'Erro ao duplicar ponto.', 'error');
+            }
+        } catch (err) {
+            console.error('Erro ao duplicar ponto:', err);
+            if (typeof showToast === 'function') showToast('Falha na comunicação ao duplicar ponto.', 'error');
+        }
+    }
+
+    // --- GREASE COMPATIBILITY MATRIX CHECK ---
+    const GREASE_COMPAT_MATRIX = {
+        'PUA': { 'LIC': 'I', 'CSX': 'C', 'CS': 'C', 'PUA': 'C', 'LIT': 'I', 'ALU': 'I' },
+        'LIC': { 'PUA': 'I', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'I' },
+        'CSX': { 'PUA': 'C', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'C' },
+        'CS':  { 'PUA': 'C', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'C' },
+        'LIT': { 'PUA': 'I', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'I' }
+    };
+
+    function checkGreaseCompatibility(thickenerA, thickenerB) {
+        if (!thickenerA || !thickenerB) return { status: 'UNKNOWN', message: 'Espessante não especificado.' };
+        const a = thickenerA.toUpperCase().trim();
+        const b = thickenerB.toUpperCase().trim();
+        if (a === b) return { status: 'C', message: 'Compatível (Mesma base).' };
+
+        const res = (GREASE_COMPAT_MATRIX[a] && GREASE_COMPAT_MATRIX[a][b]) || 'I';
+        if (res === 'I') {
+            return {
+                status: 'INCOMPATIBLE',
+                message: `⚠️ RISCO GRAVE: Incompatibilidade entre ${a} e ${b}! Risco de amolecimento/vazamento ou endurecimento da graxa.`
+            };
+        }
+        return { status: 'COMPATIBLE', message: `Bases ${a} e ${b} são compatíveis.` };
+    }
+
+    function renderGreaseCompatAlert(currentThickener, newThickener, containerEl) {
+        const check = checkGreaseCompatibility(currentThickener, newThickener);
+        if (!containerEl) return check;
+
+        if (check.status === 'INCOMPATIBLE') {
+            containerEl.innerHTML = `
+                <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 16px; border-radius:10px; margin:10px 0; font-weight:700; font-size:0.88rem; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.2rem;">🚨</span>
+                    <div>${check.message}</div>
+                </div>
+            `;
+        } else {
+            containerEl.innerHTML = '';
+        }
+        return check;
+    }
+
+    window.checkGreaseCompatibility = checkGreaseCompatibility;
+    window.renderGreaseCompatAlert = renderGreaseCompatAlert;
+
+    window.duplicateAssetPoint = duplicateAssetPoint;
+    window.parseBearingCodeClient = parseBearingCodeClient;
+    window.handleBearingCodeAutoFill = handleBearingCodeAutoFill;
+
+    window.openQrScannerModal = openQrScannerModal;
+    window.closeQrScannerModal = closeQrScannerModal;
+    window.processScannedTag = processScannedTag;
 
     window.openImageModal = openImageModal;
     window.switchCalc = switchCalc;

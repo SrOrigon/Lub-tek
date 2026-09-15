@@ -288,6 +288,9 @@
                             <button id="btn-toggle-asset-full" class="btn btn-outline" onclick="toggleFullWidth()"
                                 title="Foco Total" style="border:none; padding:8px;"><i data-lucide="maximize-2"
                                     style="width:18px;"></i></button>
+                            <button class="btn btn-outline" onclick="if(typeof duplicateAssetPoint==='function'&&typeof selectedNodeId!=='undefined')duplicateAssetPoint(selectedNodeId)" title="Duplicar Ponto"
+                                style="border:none; color:#10b981; padding:8px;"><i data-lucide="copy"
+                                    style="width:18px;"></i></button>
                             <button class="btn btn-outline" onclick="open3DView()" title="Engenharia 3D"
                                 style="border:none; color:#0ea5e9; padding:8px;"><i data-lucide="box"
                                     style="width:18px;"></i></button>
@@ -539,7 +542,7 @@
                                     oninput="updateLocalNode()" onblur="autoFormatName(this); checkLubSuggestion()">
                             </div>
                             <div><span class="lub-label">TAG / Código</span><input id="af-tag"
-                                    oninput="updateLocalNode()"></div>
+                                    oninput="updateLocalNode(); if(typeof handleBearingCodeAutoFill==='function')handleBearingCodeAutoFill(this)"></div>
                             <div>
                                 <span class="lub-label">Tipo</span>
                                 <select id="af-type" onchange="updateLocalNode()" style="padding:10px;">

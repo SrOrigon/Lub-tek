@@ -590,6 +590,7 @@ class DB
                 obs TEXT,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
+            $this->pdo->exec("CREATE VIEW IF NOT EXISTS market_offers AS SELECT * FROM mercado_ofertas");
 
             // Rate limiting table (substitui arquivos temporários por IP)
             $this->pdo->exec("CREATE TABLE IF NOT EXISTS rate_limits (
@@ -758,6 +759,7 @@ class DB
             obs TEXT,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
+        $this->pdo->exec("CREATE VIEW IF NOT EXISTS market_offers AS SELECT * FROM mercado_ofertas");
 
         $this->pdo->exec("CREATE TABLE IF NOT EXISTS rate_limits (
             ip_key TEXT PRIMARY KEY,
