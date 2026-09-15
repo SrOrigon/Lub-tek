@@ -1165,9 +1165,17 @@ if ($auth->isLoggedIn()) {
         <div id="topbar-ecosystem" class="topbar-ecosystem">
             <?php if ($auth->isLoggedIn()): ?>
             <div class="topbar-quick-folders" style="display: flex; gap: 4px; align-items: center; margin-right: 6px;">
+                <button type="button" onclick="if(typeof toggleHighContrastMode==='function')toggleHighContrastMode()" class="topbar-eco-btn" title="Modo Alto Contraste (Campo)">
+                    <i data-lucide="eye" style="width: 14px; height: 14px; color: #10b981;"></i>
+                    <span>Contraste</span>
+                </button>
                 <button type="button" onclick="if(typeof openFloatingDosageModal==='function')openFloatingDosageModal()" class="topbar-eco-btn" title="Calculadora de Dosagem em Campo">
                     <i data-lucide="calculator" style="width: 14px; height: 14px; color: #0284c7;"></i>
                     <span>Dosagem</span>
+                </button>
+                <button type="button" onclick="if(typeof openKittingShiftModal==='function')openKittingShiftModal()" class="topbar-eco-btn" title="Lista de Separação / Kitting do Turno">
+                    <i data-lucide="package-check" style="width: 14px; height: 14px; color: #8b5cf6;"></i>
+                    <span>Cesta do Dia</span>
                 </button>
                 <button type="button" onclick="if(typeof openGreaseMatrixModal==='function')openGreaseMatrixModal()" class="topbar-eco-btn" title="Matriz de Compatibilidade de Graxas">
                     <i data-lucide="shield-alert" style="width: 14px; height: 14px; color: #eab308;"></i>

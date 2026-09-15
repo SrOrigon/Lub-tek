@@ -21,12 +21,37 @@ class InventoryController
 
     public function getCatalog()
     {
-        // Ensure table exists on read (lazy migration)
-        // Kept simple here, typically this should be in DB::init, but safety is good
-        // $this->ensureTable('catalogo', "id INTEGER PRIMARY KEY, nome TEXT, tipo TEXT, codigo TEXT, fabricante TEXT, estoque_atual INTEGER, localizacao TEXT, specs TEXT, descricao TEXT, ip TEXT, imagem TEXT");
-
         $res = $this->db->query("SELECT * FROM catalogo ORDER BY nome ASC")->fetchAll(PDO::FETCH_ASSOC);
         return $res;
+    }
+
+    public function getCrossEquivalents()
+    {
+        $id = intval($this->input['id'] ?? 0);
+        if (!$id) return ['equivalents' => []];
+
+        $stmt = $this->db->prepare("SELECT * FROM catalogo WHERE id = ?");
+        $stmt->execute([$id]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$item) return ['equivalents' => []];
+
+        $tipo = $item['tipo'] ?? '';
+        $nome = $item['nome'] ?? '';
+
+        // Extract ISO VG or grade if available
+        $vgMatch = '';
+        if (preg_match('/(?:VG|ISO)?\s?(32|46|68|100|150|220|320|460|2)/i', $nome, $m)) {
+            $vgMatch = $m[1];
+        }
+
+        if ($vgMatch) {
+            $eqStmt = $this->db->prepare("SELECT id, nome, fabricante, estoque_atual, localizacao FROM catalogo WHERE id != ? AND (nome LIKE ? OR specs LIKE ?) AND estoque_atual > 0 LIMIT 5");
+            $eqStmt->execute([$id, "%{$vgMatch}%", "%{$vgMatch}%"]);
+            $eqs = $eqStmt->fetchAll(PDO::FETCH_ASSOC);
+            return ['ok' => true, 'equivalents' => $eqs];
+        }
+
+        return ['ok' => true, 'equivalents' => []];
     }
 
     public function saveItem()

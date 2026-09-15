@@ -378,6 +378,7 @@ class RodrigoAPI
 
             // Inventory / Catalog
             'get_catalog' => ['api/InventoryController.php', 'InventoryController', 'getCatalog'],
+            'get_cross_equivalents' => ['api/InventoryController.php', 'InventoryController', 'getCrossEquivalents'],
             'save_catalog_item' => ['api/InventoryController.php', 'InventoryController', 'saveItem'],
             'delete_catalog_item' => ['api/InventoryController.php', 'InventoryController', 'deleteItem'],
 
