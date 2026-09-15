@@ -29,7 +29,7 @@ expect($parsed['username'] === 'admin@rodrigo.com', 'username admin permanece o 
 require_once __DIR__ . '/../includes/auth.php';
 $auth = new AuthSystem();
 $_SESSION = [];
-$r = $auth->login('Admin', 'Admin');
+$r = $auth->login('Admin', 'changeme');
 expect(!empty($r['success']), 'login Admin por nome funciona após sync');
 
 $parsedCorp = TenantResolver::parseLoginUsername('john@microsoft.com');
