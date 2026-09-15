@@ -123,8 +123,11 @@
     <!-- HEADER -->
     <div class="flex-between assets-page-toolbar" style="flex-wrap:wrap; gap:15px;">
         <div style="min-width:300px;">
-            <h1 style="margin:0 0 5px 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Meus Ativos</h1>
-            <p style="color:var(--text-muted); margin:0; font-size:0.9rem;">Clique em um item à esquerda para ver e editar os dados.</p>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h1 style="margin:0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Máquinas e Equipamentos</h1>
+                <span style="background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.75rem;">Visão Geral da Planta</span>
+            </div>
+            <p style="color:var(--text-muted); margin:5px 0 0 0; font-size:0.9rem;">Clique em um item da árvore estrutural à esquerda para ver os detalhes técnicos, plano de lubrificação e histórico.</p>
         </div>
 
         <!-- Barra simplificada — ferramentas avançadas ficam no menu admin -->

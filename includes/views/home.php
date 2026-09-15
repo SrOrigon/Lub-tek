@@ -16,21 +16,6 @@
             Todos os módulos estão conectados: abra um ativo e use os atalhos no topo para criar O.S., calcular lubrificação ou ver KPIs.
         </p>
 
-        <!-- FOLDERS QUICK FILTER / STATUS BADGES -->
-        <div style="display: flex; justify-content: center; gap: 12px; margin-top: 25px; flex-wrap: wrap;">
-            <div onclick="nav('dash')" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 18px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
-                <i data-lucide="folder" style="color: #0284c7; width: 18px; height: 18px;"></i>
-                <span style="font-weight: 700; font-size: 0.85rem; color: #0f172a;">Minhas Tarefas</span>
-            </div>
-            <div onclick="nav('assets')" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 18px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
-                <i data-lucide="folder" style="color: #16a34a; width: 18px; height: 18px;"></i>
-                <span style="font-weight: 700; font-size: 0.85rem; color: #0f172a;">Equipamentos</span>
-            </div>
-            <div onclick="nav('routes')" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 18px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
-                <i data-lucide="folder" style="color: #d97706; width: 18px; height: 18px;"></i>
-                <span style="font-weight: 700; font-size: 0.85rem; color: #0f172a;">Rotas de Lubrificação</span>
-            </div>
-        </div>
     </div>
 
     <!-- MAIN GRID (Unified) -->
