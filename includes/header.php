@@ -1164,6 +1164,28 @@ if ($auth->isLoggedIn()) {
         <div class="topbar-spacer"></div>
         <div id="topbar-ecosystem" class="topbar-ecosystem">
             <?php if ($auth->isLoggedIn()): ?>
+            <div class="topbar-quick-folders" style="display: flex; gap: 4px; align-items: center; margin-right: 6px;">
+                <button type="button" onclick="if(typeof openFloatingDosageModal==='function')openFloatingDosageModal()" class="topbar-eco-btn" title="Calculadora de Dosagem em Campo">
+                    <i data-lucide="calculator" style="width: 14px; height: 14px; color: #0284c7;"></i>
+                    <span>Dosagem</span>
+                </button>
+                <button type="button" onclick="if(typeof openGreaseMatrixModal==='function')openGreaseMatrixModal()" class="topbar-eco-btn" title="Matriz de Compatibilidade de Graxas">
+                    <i data-lucide="shield-alert" style="width: 14px; height: 14px; color: #eab308;"></i>
+                    <span>Compatibilidade</span>
+                </button>
+                <button type="button" onclick="nav('home')" class="topbar-eco-btn" title="Painel Principal">
+                    <i data-lucide="layout-dashboard" style="width:14px; height:14px;"></i>
+                    <span>Painel</span>
+                </button>
+                <button type="button" onclick="nav('assets')" class="topbar-eco-btn" title="Planta & Equipamentos">
+                    <i data-lucide="folder-tree" style="width:14px; height:14px;"></i>
+                    <span>Ativos</span>
+                </button>
+                <button type="button" onclick="nav('orders')" class="topbar-eco-btn" title="Ordens de Serviço">
+                    <i data-lucide="check-square" style="width:14px; height:14px;"></i>
+                    <span>Ordens</span>
+                </button>
+            </div>
             <button type="button" onclick="quickCreateOS()" class="topbar-eco-btn topbar-quick-os" data-gestor-only title="Registrar anomalia ou lubrificação em segundos">
                 <i data-lucide="zap" style="width:14px; height:14px;"></i>
                 <span>O.S. Rápida</span>

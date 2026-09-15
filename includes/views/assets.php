@@ -123,8 +123,11 @@
     <!-- HEADER -->
     <div class="flex-between assets-page-toolbar" style="flex-wrap:wrap; gap:15px;">
         <div style="min-width:300px;">
-            <h1 style="margin:0 0 5px 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Meus Ativos</h1>
-            <p style="color:var(--text-muted); margin:0; font-size:0.9rem;">Clique em um item à esquerda para ver e editar os dados.</p>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h1 style="margin:0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Máquinas e Equipamentos</h1>
+                <span style="background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 0.75rem;">Visão Geral da Planta</span>
+            </div>
+            <p style="color:var(--text-muted); margin:5px 0 0 0; font-size:0.9rem;">Clique em um item da árvore estrutural à esquerda para ver os detalhes técnicos, plano de lubrificação e histórico.</p>
         </div>
 
         <!-- Barra simplificada — ferramentas avançadas ficam no menu admin -->
@@ -285,6 +288,9 @@
                             <button id="btn-toggle-asset-full" class="btn btn-outline" onclick="toggleFullWidth()"
                                 title="Foco Total" style="border:none; padding:8px;"><i data-lucide="maximize-2"
                                     style="width:18px;"></i></button>
+                            <button class="btn btn-outline" onclick="if(typeof duplicateAssetPoint==='function'&&typeof selectedNodeId!=='undefined')duplicateAssetPoint(selectedNodeId)" title="Duplicar Ponto"
+                                style="border:none; color:#10b981; padding:8px;"><i data-lucide="copy"
+                                    style="width:18px;"></i></button>
                             <button class="btn btn-outline" onclick="open3DView()" title="Engenharia 3D"
                                 style="border:none; color:#0ea5e9; padding:8px;"><i data-lucide="box"
                                     style="width:18px;"></i></button>
@@ -315,6 +321,10 @@
                                 <button class="btn btn-ghost" onclick="openLubricationPlanModal()"
                                     style="justify-content:flex-start; width:100%; text-align:left; padding:8px; color:#0284c7; font-weight:700;">
                                     <i data-lucide="file-text" style="width:16px;"></i> Plano de Lubrificação PDF
+                                </button>
+                                <button class="btn btn-ghost" onclick="if(typeof printIndustrialQrLabels==='function')printIndustrialQrLabels([{id:typeof selectedNodeId!=='undefined'?selectedNodeId:1, tag:'TAG-01', nome:'Ponto de Lubrificação'}])"
+                                    style="justify-content:flex-start; width:100%; text-align:left; padding:8px; color:#10b981; font-weight:700;">
+                                    <i data-lucide="qr-code" style="width:16px;"></i> Imprimir Etiquetas QR Code
                                 </button>
                                 <button class="btn btn-ghost" onclick="exportLabelSheet()"
                                     style="justify-content:flex-start; width:100%; text-align:left; padding:8px;">
@@ -536,7 +546,7 @@
                                     oninput="updateLocalNode()" onblur="autoFormatName(this); checkLubSuggestion()">
                             </div>
                             <div><span class="lub-label">TAG / Código</span><input id="af-tag"
-                                    oninput="updateLocalNode()"></div>
+                                    oninput="updateLocalNode(); if(typeof handleBearingCodeAutoFill==='function')handleBearingCodeAutoFill(this)"></div>
                             <div>
                                 <span class="lub-label">Tipo</span>
                                 <select id="af-type" onchange="updateLocalNode()" style="padding:10px;">

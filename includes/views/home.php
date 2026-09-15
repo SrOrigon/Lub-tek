@@ -15,6 +15,7 @@
         <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 10px; max-width: 520px; margin-left: auto; margin-right: auto;">
             Todos os módulos estão conectados: abra um ativo e use os atalhos no topo para criar O.S., calcular lubrificação ou ver KPIs.
         </p>
+
     </div>
 
     <!-- MAIN GRID (Unified) -->

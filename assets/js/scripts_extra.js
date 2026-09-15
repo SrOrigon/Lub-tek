@@ -812,13 +812,58 @@
         }
     }
 
+    function compressImageFileCanvas(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+        return new Promise((resolve) => {
+            if (!file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxWidth || h > maxHeight) {
+                        const ratio = Math.min(maxWidth / w, maxHeight / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            resolve(file);
+                            return;
+                        }
+                        const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                            type: 'image/webp',
+                            lastModified: Date.now()
+                        });
+                        resolve(compressedFile);
+                    }, 'image/webp', quality);
+                };
+                img.onerror = () => resolve(file);
+                img.src = e.target.result;
+            };
+            reader.onerror = () => resolve(file);
+            reader.readAsDataURL(file);
+        });
+    }
+
     async function handleAnomalyPhoto(input) {
         if (!input.files || !input.files[0] || !currentAnomalyId) return;
 
-        showToast('Enviando foto (opcional)...', 'info');
+        showToast('Otimizando imagem no dispositivo...', 'info');
+        const fileToUpload = await compressImageFileCanvas(input.files[0]);
+
+        showToast('Enviando foto...', 'info');
         const fd = new FormData();
         fd.append('action', 'upload_image');
-        fd.append('file', input.files[0]);
+        fd.append('file', fileToUpload);
         if (lastRouteAlertOsId) {
             fd.append('os_id', String(lastRouteAlertOsId));
         }
@@ -1187,6 +1232,7 @@
         window.addEventListener('online', () => {
             if (typeof updateOnlineStatus === 'function') updateOnlineStatus();
             if (typeof processSyncQueue === 'function') processSyncQueue();
+            if (typeof syncRoutes === 'function') syncRoutes();
         });
 
         window.addEventListener('offline', () => {
@@ -1734,6 +1780,495 @@
     // (era exatamente o bug encontrado: runSynthRolCalc virava um no-op e as demais usavam nomes de
     // campo que não existem na resposta da API). Sempre priorizar scripts_main.js, como já é feito
     // para a função api() logo abaixo.
+
+    // --- QR CODE SCANNER (1-CLICK FIELD WORKFLOW) ---
+    let qrVideoTrack = null;
+    let qrDetectionInterval = null;
+
+    async function openQrScannerModal() {
+        const overlay = document.getElementById('qr-scanner-overlay');
+        const placeholder = document.getElementById('qr-video-placeholder');
+        if (overlay) overlay.classList.add('active');
+
+        if (!('BarcodeDetector' in window)) {
+            if (placeholder) placeholder.innerHTML = 'Scanner nativo não suportado neste navegador. Digite a TAG abaixo.';
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const video = document.getElementById('qr-video');
+            if (video) {
+                video.srcObject = stream;
+                await video.play();
+                qrVideoTrack = stream.getVideoTracks()[0];
+                if (placeholder) placeholder.style.display = 'none';
+
+                const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+                qrDetectionInterval = setInterval(async () => {
+                    try {
+                        const barcodes = await detector.detect(video);
+                        if (barcodes.length > 0) {
+                            const rawValue = barcodes[0].rawValue;
+                            closeQrScannerModal();
+                            processScannedTag(rawValue);
+                        }
+                    } catch (err) {}
+                }, 400);
+            }
+        } catch (err) {
+            console.warn('Erro ao acessar a câmera:', err);
+            if (placeholder) placeholder.innerHTML = 'Câmera não disponível ou permissão negada. Digite a TAG abaixo.';
+        }
+    }
+
+    function closeQrScannerModal() {
+        const overlay = document.getElementById('qr-scanner-overlay');
+        if (overlay) overlay.classList.remove('active');
+        if (qrDetectionInterval) { clearInterval(qrDetectionInterval); qrDetectionInterval = null; }
+        if (qrVideoTrack) { qrVideoTrack.stop(); qrVideoTrack = null; }
+    }
+
+    // --- VOICE INPUT DICTATION (WEB SPEECH API) ---
+    function startVoiceInput(targetInputId) {
+        const input = typeof targetInputId === 'string' ? document.getElementById(targetInputId) : targetInputId;
+        if (!input) return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            if (typeof showToast === 'function') showToast('Reconhecimento de voz não suportado neste navegador.', 'warning');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'pt-BR';
+        recognition.interimResults = false;
+
+        recognition.onstart = function () {
+            if (typeof showToast === 'function') showToast('Ouvindo ditado de voz...', 'info');
+        };
+
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            input.value = input.value ? input.value + ' ' + transcript : transcript;
+            input.dispatchEvent(new Event('input'));
+            if (typeof showToast === 'function') showToast('Texto capturado por voz!', 'success');
+        };
+
+        recognition.onerror = function (event) {
+            console.error('Speech recognition error:', event.error);
+            if (typeof showToast === 'function') showToast('Erro na captura de voz. Tente novamente.', 'error');
+        };
+
+        recognition.start();
+    }
+
+    // --- FLOATING DOSAGE & PUMP CONVERTER CALCULATOR ---
+    function calcFloatingGreaseDosage(d, D, B) {
+        if (!D || !B) return 0;
+        const grams = roundNumber(D * B * 0.005, 1);
+        return Math.max(1, grams);
+    }
+
+    function calcPumpsToGrams(pumps, gramsPerPump = 1.5) {
+        if (!pumps) return 0;
+        return roundNumber(pumps * gramsPerPump, 1);
+    }
+
+    function openFloatingDosageModal() {
+        let modal = document.getElementById('floating-dosage-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'floating-dosage-modal';
+            modal.className = 'route-alert-overlay active';
+            modal.innerHTML = `
+                <div class="route-alert-modal" style="max-width:440px;">
+                    <div class="route-alert-modal-header">
+                        <i data-lucide="calculator" style="width:22px;height:22px;color:var(--primary);"></i>
+                        <h2>Calculadora de Dosagem em Campo</h2>
+                        <button type="button" class="route-alert-close" onclick="document.getElementById('floating-dosage-modal').classList.remove('active')">&times;</button>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Diâmetro Externo D (mm)</label>
+                        <input type="number" id="calc-d-ext" class="route-alert-textarea" style="min-height:40px; margin-bottom:10px;" placeholder="Ex: 90" oninput="runFloatingCalc()">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Largura B (mm)</label>
+                        <input type="number" id="calc-b-width" class="route-alert-textarea" style="min-height:40px; margin-bottom:10px;" placeholder="Ex: 20" oninput="runFloatingCalc()">
+                        <div style="padding:10px; background:#f0f9ff; border-radius:8px; border:1px solid #bae6fd; font-weight:800; color:#0369a1; text-align:center;" id="calc-dosage-result">
+                            Quantidade Recomendada: 0 g
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            modal.classList.add('active');
+        }
+    }
+
+    function runFloatingCalc() {
+        const D = parseFloat(document.getElementById('calc-d-ext')?.value || 0);
+        const B = parseFloat(document.getElementById('calc-b-width')?.value || 0);
+        const res = calcFloatingGreaseDosage(0, D, B);
+        const el = document.getElementById('calc-dosage-result');
+        if (el) el.innerHTML = `Quantidade Recomendada (g = D · B · 0,005): <strong>${res} g</strong> (~${Math.round(res/1.5)} bombadas)`;
+    }
+
+    // --- PRINT INDUSTRIAL QR CODE LABELS ---
+    function printIndustrialQrLabels(items) {
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            if (typeof showToast === 'function') showToast('Nenhum ponto selecionado para imprimir etiquetas.', 'warning');
+            return;
+        }
+
+        const win = window.open('', '_blank');
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Etiquetas QR Code - LUB-TEK</title>
+                <style>
+                    @page { size: A4; margin: 10mm; }
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff; }
+                    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10mm; }
+                    .label-card {
+                        border: 2px solid #000;
+                        border-radius: 6px;
+                        padding: 8px;
+                        display: flex;
+                        gap: 10px;
+                        align-items: center;
+                        height: 38mm;
+                        box-sizing: border-box;
+                        page-break-inside: avoid;
+                    }
+                    .qr-box { width: 30mm; height: 30mm; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; text-align: center; }
+                    .info { flex: 1; }
+                    .info .tag { font-weight: 900; font-size: 1.1rem; color: #000; }
+                    .info .name { font-size: 0.85rem; font-weight: 700; color: #333; margin-top: 2px; }
+                    .info .meta { font-size: 0.75rem; color: #555; margin-top: 4px; }
+                </style>
+            </head>
+            <body>
+                <div class="grid">
+        `;
+
+        items.forEach(item => {
+            const qrText = encodeURIComponent(item.tag || item.id);
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrText}`;
+            html += `
+                <div class="label-card">
+                    <img src="${qrUrl}" class="qr-box" alt="QR Code">
+                    <div class="info">
+                        <div class="tag">${item.tag || ('ID-' + item.id)}</div>
+                        <div class="name">${item.nome || item.name || 'Ponto de Lubrificação'}</div>
+                        <div class="meta">Lubrificante: <strong>${item.material || 'Padrão'}</strong></div>
+                        <div class="meta">Frequência: <strong>${item.periodo || item.frequencia || '30 dias'}</strong></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+                <script>
+                    window.onload = function() { window.print(); };
+                </script>
+            </body>
+            </html>
+        `;
+
+        win.document.write(html);
+        win.document.close();
+    }
+
+    // --- UNIFIED ASSET HEALTH TIMELINE CHART ---
+    async function loadAssetHealthTimeline(assetId, canvasContainerId) {
+        if (!assetId || !canvasContainerId) return;
+        const container = document.getElementById(canvasContainerId);
+        if (!container) return;
+
+        try {
+            const [analisesRes, telemetryRes] = await Promise.all([
+                api('get_analysis_history', { ativo_id: assetId }),
+                api('get_pi_telemetry', { ativo_id: assetId })
+            ]);
+
+            container.innerHTML = `
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-top:12px;">
+                    <h4 style="margin:0 0 10px; font-size:0.95rem; font-weight:800; color:#0f172a;">
+                        📊 Linha do Tempo de Confiabilidade & Saúde do Ativo
+                    </h4>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:12px;">
+                        Correlação direta entre Laudos de Óleo (ISO 4406 / Água / Ferro) e Telemetria (Vibração RMS / Temperatura).
+                    </div>
+                    <div style="display:flex; gap:16px; font-size:0.85rem; font-weight:700;">
+                        <span style="color:#0284c7;">• Laudos Registrados: ${analisesRes?.raw?.length || 0}</span>
+                        <span style="color:#10b981;">• Sinais de Telemetria: ${telemetryRes?.data?.length || 0}</span>
+                    </div>
+                </div>
+            `;
+        } catch (err) {
+            console.error('Erro ao carregar linha do tempo do ativo:', err);
+        }
+    }
+
+    window.loadAssetHealthTimeline = loadAssetHealthTimeline;
+
+    window.printIndustrialQrLabels = printIndustrialQrLabels;
+
+    window.openFloatingDosageModal = openFloatingDosageModal;
+    window.runFloatingCalc = runFloatingCalc;
+
+    window.startVoiceInput = startVoiceInput;
+
+    function processScannedTag(tagVal) {
+        if (!tagVal || !tagVal.trim()) {
+            if (typeof showToast === 'function') showToast('Informe uma TAG válida.', 'warning');
+            return;
+        }
+        const cleanTag = tagVal.trim();
+        const routes = window.routePointsCache || [];
+        const match = routes.find(r =>
+            (r.tag && r.tag.toLowerCase() === cleanTag.toLowerCase()) ||
+            String(r.id) === cleanTag
+        );
+
+        if (match) {
+            if (typeof showToast === 'function') showToast('TAG identificada: ' + match.point, 'success');
+            const card = document.getElementById('route-card-' + match.id);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.outline = '3px solid #10b981';
+                setTimeout(() => card.style.outline = '', 2000);
+            } else {
+                openRouteAlertModal(match.id, match.point, match.equipment);
+            }
+        } else {
+            if (typeof showToast === 'function') showToast('Ativo/TAG ' + cleanTag + ' não encontrado nas rotas.', 'warning');
+        }
+    }
+
+    // --- SMART BEARING AUTO-FILL (ROLAMENTOS & RELUBRIFICAÇÃO) ---
+    function parseBearingCodeClient(inputStr) {
+        if (!inputStr) return null;
+        const str = inputStr.toUpperCase().trim();
+        const match = str.match(/((?:6[0234]|222|223|213|230|231|232|240|241|NU\s?[23]|NJ\s?[23])\d{2})/i);
+        if (!match) return null;
+
+        const codeFull = match[1].replace(/\s+/g, '');
+        const last2 = parseInt(codeFull.slice(-2), 10);
+        let d = (last2 < 4) ? ([10, 12, 15, 17][last2] || 10) : (last2 * 5);
+        let D = d * 2;
+        let B = Math.round(d * 0.45);
+
+        if (codeFull.startsWith('62')) {
+            D = Math.round(d * 1.7 + 12);
+            B = Math.round((D - d) * 0.35);
+        } else if (codeFull.startsWith('63')) {
+            D = Math.round(d * 2.1 + 15);
+            B = Math.round((D - d) * 0.38);
+        } else if (codeFull.startsWith('222')) {
+            D = Math.round(d * 1.8 + 20);
+            B = Math.round(D * 0.28);
+        }
+
+        const dm = (d + D) / 2;
+        const greaseGram = Math.round(D * B * 0.005 * 10) / 10; // g = D * B * 0.005
+
+        return {
+            model: codeFull,
+            d: d,
+            D: D,
+            B: B,
+            dm: dm,
+            greaseGram: Math.max(1, greaseGram)
+        };
+    }
+
+    function handleBearingCodeAutoFill(inputEl) {
+        if (!inputEl || !inputEl.value) return;
+        const specs = parseBearingCodeClient(inputEl.value);
+        if (!specs) return;
+
+        const form = inputEl.closest('form') || document;
+        const qtdEl = form.querySelector('[name="qtd_material"], #qtd_material, [name="quantidade"]');
+        if (qtdEl && (!qtdEl.value || parseFloat(qtdEl.value) === 0)) {
+            qtdEl.value = specs.greaseGram;
+        }
+
+        const obsEl = form.querySelector('[name="obs"], #obs, [name="dados_tecnicos"]');
+        if (obsEl && !obsEl.value.includes('Rolamento')) {
+            const techNote = `Rolamento: ${specs.model} (d=${specs.d}mm, D=${specs.D}mm, B=${specs.B}mm, dm=${specs.dm}mm) | Dosagem Sugerida: ${specs.greaseGram}g`;
+            obsEl.value = obsEl.value ? obsEl.value + ' | ' + techNote : techNote;
+        }
+
+        if (typeof showToast === 'function') {
+            showToast(`Especificações detectadas para ${specs.model}: d=${specs.d}mm, D=${specs.D}mm, Graxa: ${specs.greaseGram}g`, 'info');
+        }
+    }
+
+    // --- QUICK POINT / COMPONENT DUPLICATION ---
+    async function duplicateAssetPoint(assetId) {
+        if (!assetId) return;
+        try {
+            const res = await api('get_tree');
+            let foundAsset = null;
+
+            function searchTree(nodes) {
+                for (let n of nodes) {
+                    if (n.id == assetId) {
+                        foundAsset = n;
+                        return;
+                    }
+                    if (n.children && n.children.length > 0) searchTree(n.children);
+                }
+            }
+            if (res && res.tree) searchTree(res.tree);
+
+            if (!foundAsset) {
+                if (typeof showToast === 'function') showToast('Ativo original não encontrado para duplicação.', 'error');
+                return;
+            }
+
+            const newTag = prompt(`Duplicando "${foundAsset.nome}"\nInforme a nova TAG / Sufixo:`, (foundAsset.tag || 'TAG') + '-CLONE');
+            if (newTag === null) return; // cancelado
+
+            const payload = {
+                nome: foundAsset.nome + ' (Cópia)',
+                tag: newTag.trim() || ((foundAsset.tag || 'TAG') + '-CLONE'),
+                tipo: foundAsset.tipo || 'ponto',
+                pai_id: foundAsset.pai_id || null,
+                obs: foundAsset.obs || '',
+                dados_tecnicos: typeof foundAsset.dados_tecnicos === 'object' ? JSON.stringify(foundAsset.dados_tecnicos) : (foundAsset.dados_tecnicos || '{}')
+            };
+
+            const saveRes = await api('save_asset', payload);
+            if (saveRes && (saveRes.ok || saveRes.id || saveRes.success)) {
+                if (typeof showToast === 'function') showToast('Ponto duplicado com sucesso!', 'success');
+                if (typeof loadAssetTree === 'function') loadAssetTree();
+            } else {
+                if (typeof showToast === 'function') showToast(saveRes?.error || 'Erro ao duplicar ponto.', 'error');
+            }
+        } catch (err) {
+            console.error('Erro ao duplicar ponto:', err);
+            if (typeof showToast === 'function') showToast('Falha na comunicação ao duplicar ponto.', 'error');
+        }
+    }
+
+    // --- GREASE COMPATIBILITY MATRIX CHECK ---
+    const GREASE_COMPAT_MATRIX = {
+        'PUA': { 'LIC': 'I', 'CSX': 'C', 'CS': 'C', 'PUA': 'C', 'LIT': 'I', 'ALU': 'I' },
+        'LIC': { 'PUA': 'I', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'I' },
+        'CSX': { 'PUA': 'C', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'C' },
+        'CS':  { 'PUA': 'C', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'C' },
+        'LIT': { 'PUA': 'I', 'LIC': 'C', 'CSX': 'C', 'CS': 'C', 'LIT': 'C', 'ALU': 'I' }
+    };
+
+    function checkGreaseCompatibility(thickenerA, thickenerB) {
+        if (!thickenerA || !thickenerB) return { status: 'UNKNOWN', message: 'Espessante não especificado.' };
+        const a = thickenerA.toUpperCase().trim();
+        const b = thickenerB.toUpperCase().trim();
+        if (a === b) return { status: 'C', message: 'Compatível (Mesma base).' };
+
+        const res = (GREASE_COMPAT_MATRIX[a] && GREASE_COMPAT_MATRIX[a][b]) || 'I';
+        if (res === 'I') {
+            return {
+                status: 'INCOMPATIBLE',
+                message: `⚠️ RISCO GRAVE: Incompatibilidade entre ${a} e ${b}! Risco de amolecimento/vazamento ou endurecimento da graxa.`
+            };
+        }
+        return { status: 'COMPATIBLE', message: `Bases ${a} e ${b} são compatíveis.` };
+    }
+
+    function renderGreaseCompatAlert(currentThickener, newThickener, containerEl) {
+        const check = checkGreaseCompatibility(currentThickener, newThickener);
+        if (!containerEl) return check;
+
+        if (check.status === 'INCOMPATIBLE') {
+            containerEl.innerHTML = `
+                <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 16px; border-radius:10px; margin:10px 0; font-weight:700; font-size:0.88rem; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.2rem;">🚨</span>
+                    <div>${check.message}</div>
+                </div>
+            `;
+        } else {
+            containerEl.innerHTML = '';
+        }
+        return check;
+    }
+
+    window.checkGreaseCompatibility = checkGreaseCompatibility;
+    function openGreaseMatrixModal() {
+        let modal = document.getElementById('grease-matrix-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'grease-matrix-modal';
+            modal.className = 'route-alert-overlay active';
+            modal.innerHTML = `
+                <div class="route-alert-modal" style="max-width:480px;">
+                    <div class="route-alert-modal-header">
+                        <i data-lucide="shield-alert" style="width:22px;height:22px;color:var(--primary);"></i>
+                        <h2>Matriz de Compatibilidade de Graxas</h2>
+                        <button type="button" class="route-alert-close" onclick="document.getElementById('grease-matrix-modal').classList.remove('active')">&times;</button>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Espessante Atual (Base A)</label>
+                        <select id="matrix-base-a" class="route-sector-select" style="margin-bottom:10px;" onchange="runMatrixCheck()">
+                            <option value="LIT">Sabão de Lítio (LIT)</option>
+                            <option value="LIC">Lítio Complexo (LIC)</option>
+                            <option value="PUA">Poliureia (PUA)</option>
+                            <option value="CSX">Sulfonato de Cálcio (CSX)</option>
+                            <option value="ALU">Alumínio Complexo (ALU)</option>
+                        </select>
+                        <label style="font-size:0.8rem; font-weight:700; color:#475569;">Novo Espessante (Base B)</label>
+                        <select id="matrix-base-b" class="route-sector-select" style="margin-bottom:12px;" onchange="runMatrixCheck()">
+                            <option value="PUA">Poliureia (PUA)</option>
+                            <option value="LIT">Sabão de Lítio (LIT)</option>
+                            <option value="LIC">Lítio Complexo (LIC)</option>
+                            <option value="CSX">Sulfonato de Cálcio (CSX)</option>
+                            <option value="ALU">Alumínio Complexo (ALU)</option>
+                        </select>
+                        <div id="matrix-check-result"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            modal.classList.add('active');
+        }
+        runMatrixCheck();
+    }
+
+    function runMatrixCheck() {
+        const baseA = document.getElementById('matrix-base-a')?.value || 'LIT';
+        const baseB = document.getElementById('matrix-base-b')?.value || 'PUA';
+        const resultContainer = document.getElementById('matrix-check-result');
+        if (resultContainer) {
+            renderGreaseCompatAlert(baseA, baseB, resultContainer);
+            if (resultContainer.innerHTML === '') {
+                resultContainer.innerHTML = `
+                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; padding:12px 16px; border-radius:10px; margin:10px 0; font-weight:700; font-size:0.88rem;">
+                        ✅ Bases Compatíveis (${baseA} vs ${baseB}). Mistura permitida na relubrificação.
+                    </div>
+                `;
+            }
+        }
+    }
+
+    window.openGreaseMatrixModal = openGreaseMatrixModal;
+    window.runMatrixCheck = runMatrixCheck;
+
+    window.renderGreaseCompatAlert = renderGreaseCompatAlert;
+
+    window.duplicateAssetPoint = duplicateAssetPoint;
+    window.parseBearingCodeClient = parseBearingCodeClient;
+    window.handleBearingCodeAutoFill = handleBearingCodeAutoFill;
+
+    window.openQrScannerModal = openQrScannerModal;
+    window.closeQrScannerModal = closeQrScannerModal;
+    window.processScannedTag = processScannedTag;
 
     window.openImageModal = openImageModal;
     window.switchCalc = switchCalc;

@@ -24,7 +24,7 @@ class OrdersController
     {
         // Gestor/developer: todas as OS do banco do tenant
         // Trabalhador: todas as OS (checklist operacional da empresa)
-        $sql = "SELECT o.*, a.nome as ativo_nome, a.tag as ativo_tag FROM ordens o LEFT JOIN ativos a ON o.ativo_id = a.id ORDER BY o.data_planejada DESC, o.prioridade DESC";
+        $sql = "SELECT o.*, a.nome as ativo_nome, a.tag as ativo_tag FROM ordens o LEFT JOIN ativos a ON o.ativo_id = a.id ORDER BY o.rota ASC, a.nome ASC, o.data_planejada DESC, o.prioridade DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
         $res = $stmt->fetchAll();
@@ -449,7 +449,7 @@ class OrdersController
             ]));
         }
 
-        // 2. Deduct
+        // 2. Deduct & Check Low Stock Warning
         foreach ($materials as $item) {
             $catId = $item['catalog_id'] ?? $item['id'] ?? null;
             if (!$catId) continue;
@@ -459,6 +459,14 @@ class OrdersController
 
             $db->prepare("UPDATE catalogo SET estoque_atual = estoque_atual - ? WHERE id = ?")
                 ->execute([$qtyNeeded, $catId]);
+
+            // Check if stock is now below minimum threshold (e.g. 5)
+            $stmtRem = $db->prepare("SELECT nome, estoque_atual FROM catalogo WHERE id = ?");
+            $stmtRem->execute([$catId]);
+            $rem = $stmtRem->fetch(PDO::FETCH_ASSOC);
+            if ($rem && floatval($rem['estoque_atual']) <= 5) {
+                DB::log('SYSTEM', 'LOW_STOCK_ALERT', "Estoque crítico para {$rem['nome']}: resta(m) apenas {$rem['estoque_atual']} unidade(s).");
+            }
         }
     }
 
