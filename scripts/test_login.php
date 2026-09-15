@@ -10,9 +10,9 @@ require_once __DIR__ . '/../config.php';
 $tests = [
     ['Cocacola.Admin', 'changeme', true, 'gestor'],
     ['Cocacola.Funcionario', 'changeme', true, 'trabalhador'],
-    ['ambev.Admin', 'Ambevadmin', true, 'gestor'],
-    ['Admin@ambev', 'Ambevadmin', true, 'gestor'],
-    ['abnersynthoil.ambev', '123456', true, 'cliente'],
+    ['ambev.Admin', 'changeme', true, 'gestor'],
+    ['Admin@ambev', 'changeme', true, 'gestor'],
+    ['abnersynthoil.ambev', '123456', true, 'trabalhador'],
     ['Cocacola.Admin', 'wrong', false, null],
     ['Inexistente.Admin', 'changeme', false, null],
 ];

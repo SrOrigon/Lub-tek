@@ -551,7 +551,12 @@
         if (!list) return;
 
         const sector = filter ? filter.value : 'all';
-        const filtered = sector === 'all' ? routePoints : routePoints.filter(p => p.sector === sector);
+        const visibilityVal = document.getElementById('route-status-visibility-filter')?.value || 'pending';
+        let filtered = sector === 'all' ? routePoints : routePoints.filter(p => p.sector === sector);
+
+        if (visibilityVal === 'pending') {
+            filtered = filtered.filter(p => !isRoutePointDone(p.status));
+        }
 
         const stats = document.getElementById('route-stats');
         const progressText = document.getElementById('route-progress-text');
@@ -568,11 +573,19 @@
         if (progressFill) progressFill.style.width = `${pct}%`;
 
         if (filtered.length === 0) {
-            list.innerHTML = `<div class="route-empty">
-                <i data-lucide="map-pin" style="width:36px;margin-bottom:12px;opacity:0.4;"></i><br>
-                <strong>Nenhum ponto encontrado</strong><br>
-                <span style="font-size:0.9rem;">Cadastre pontos de lubrificação em Meus Ativos.</span>
-            </div>`;
+            if (visibilityVal === 'pending' && routePoints.length > 0) {
+                list.innerHTML = `<div class="route-empty" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#047857;">
+                    <i data-lucide="check-circle-2" style="width:42px;height:42px;margin-bottom:12px;color:#10b981;"></i><br>
+                    <strong style="font-size:1.15rem;">Rota concluída com sucesso!</strong><br>
+                    <span style="font-size:0.9rem; color:#065f46;">Nenhum ponto pendente para este filtro. Todos os itens foram executados.</span>
+                </div>`;
+            } else {
+                list.innerHTML = `<div class="route-empty">
+                    <i data-lucide="map-pin" style="width:36px;margin-bottom:12px;opacity:0.4;"></i><br>
+                    <strong>Nenhum ponto encontrado</strong><br>
+                    <span style="font-size:0.9rem;">Cadastre pontos de lubrificação em Meus Ativos.</span>
+                </div>`;
+            }
             if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
         }
@@ -804,9 +817,20 @@
         if (type === 'ok') {
             const typed = window.prompt('TAG do ponto (opcional — deixe em branco para concluir sem QR):', p.tag || '');
             p.status = 'Concluido';
+
+            const cardEl = document.getElementById('route-card-' + id) || document.querySelector(`[data-id="${id}"]`);
+            if (cardEl) {
+                cardEl.style.transition = 'all 0.4s ease';
+                cardEl.style.opacity = '0';
+                cardEl.style.transform = 'translateY(-10px)';
+            }
+
             notificarSucessoCampo(`✅ Tarefa do ${p.name} concluída com sucesso!`, 'success');
             saveRouteStatus(id, 'Concluido', typed || '');
-            renderRoutes();
+
+            setTimeout(() => {
+                renderRoutes();
+            }, 400);
         } else {
             openRouteAlertModal(id);
         }

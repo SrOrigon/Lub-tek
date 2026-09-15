@@ -26,9 +26,15 @@
             </div>
         </div>
 
-        <select id="route-sector-filter" onchange="renderRoutes()" class="route-sector-select">
-            <option value="all">Todos os Setores</option>
-        </select>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <select id="route-sector-filter" onchange="renderRoutes()" class="route-sector-select">
+                <option value="all">Todos os Setores</option>
+            </select>
+            <select id="route-status-visibility-filter" onchange="renderRoutes()" class="route-sector-select" style="font-weight:700;">
+                <option value="pending">Exibir apenas pendentes (padrão)</option>
+                <option value="all">Exibir todas</option>
+            </select>
+        </div>
 
         <div id="route-list" class="route-list">
             <div class="route-loading">Carregando pontos de lubrificação...</div>
