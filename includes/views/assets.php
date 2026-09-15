@@ -56,10 +56,11 @@
         .asset-detail-panel {
             flex: 1 1 auto;
             min-width: 0;
-            min-height: 0;
+            min-height: auto;
             display: flex;
             flex-direction: column;
-            height: 100%;
+            overflow-y: auto;
+            padding-bottom: 80px;
         }
         #asset-empty {
             flex: 1;
@@ -77,11 +78,11 @@
         }
         #asset-form {
             flex: 1;
-            min-height: 0;
+            min-height: auto;
             display: none;
             flex-direction: column;
-            overflow: hidden;
-            padding: 0;
+            overflow: visible;
+            padding: 0 0 80px 0;
             border-radius: 14px;
             border: 1px solid #e2e8f0;
             background: #fff;

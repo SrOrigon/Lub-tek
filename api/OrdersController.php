@@ -175,8 +175,19 @@ class OrdersController
                 if ($status === 'Concluído' && $oldStatus !== 'Concluído' && $ativoId && $appliedLub !== '') {
                     GreaseCompatibility::guardOnOrder($db, $ativoId, $appliedLub, $confirmPurge, $this->user);
                 }
-                if ($status === 'Concluído' && !empty($materials) && $oldStatus !== 'Concluído') {
-                    $this->processStockConsumption($db, $materials, $input['id'] ?? null);
+                if ($status === 'Concluído' && $oldStatus !== 'Concluído') {
+                    if (!empty($materials)) {
+                        $this->processStockConsumption($db, $materials, $input['id'] ?? null);
+                    }
+                    if ($ativoId) {
+                        try {
+                            $todayDate = date('Y-m-d');
+                            $db->prepare("UPDATE ordens SET data_execucao = ? WHERE id = ?")->execute([$todayDate, $input['id'] ?? 0]);
+                            $this->generateScheduledOrders();
+                        } catch (Exception $schedEx) {
+                            error_log('Schedule auto-regeneration exception: ' . $schedEx->getMessage());
+                        }
+                    }
                 }
                 // Reabertura: devolve ao estoque o que havia sido baixado, evitando drift
                 // permanente de inventário quando uma OS Concluída é reaberta pelo formulário.
