@@ -27,8 +27,21 @@ class LubricationTechSync
             setor_nome TEXT,
             equipamento_id INTEGER,
             equipamento_nome TEXT,
+            data_ultima_intervencao TEXT,
+            data_proxima_intervencao TEXT,
+            consumo_acumulado REAL DEFAULT 0,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
+        $cols = $db->query("PRAGMA table_info(ativos_lubrificacao)")->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('data_ultima_intervencao', $cols)) {
+            $db->exec("ALTER TABLE ativos_lubrificacao ADD COLUMN data_ultima_intervencao TEXT");
+        }
+        if (!in_array('data_proxima_intervencao', $cols)) {
+            $db->exec("ALTER TABLE ativos_lubrificacao ADD COLUMN data_proxima_intervencao TEXT");
+        }
+        if (!in_array('consumo_acumulado', $cols)) {
+            $db->exec("ALTER TABLE ativos_lubrificacao ADD COLUMN consumo_acumulado REAL DEFAULT 0");
+        }
         $db->exec('CREATE INDEX IF NOT EXISTS idx_lub_material ON ativos_lubrificacao(lubrificante)');
         $db->exec('CREATE INDEX IF NOT EXISTS idx_lub_setor ON ativos_lubrificacao(setor_id)');
         $db->exec('CREATE INDEX IF NOT EXISTS idx_lub_freq ON ativos_lubrificacao(frequencia)');
@@ -87,11 +100,16 @@ class LubricationTechSync
             $area = self::findInChain($chain, 'setor') ?: self::findInChain($chain, 'unidade');
         }
 
+        $lastIntervention = $tech['data_ultima_intervencao'] ?? null;
+        $nextIntervention = $tech['data_proxima_intervencao'] ?? null;
+        $acumConsumo = self::parseNumber($tech['consumo_acumulado'] ?? 0);
+
         $ins = $db->prepare(
             'INSERT OR REPLACE INTO ativos_lubrificacao (
                 ativo_id, lubrificante, quantidade, unidade, frequencia, qtd_mensal, familia, base_mensal,
-                ponto_lub, rota, sap, d_int, d_ext, largura_b, rpm, setor_id, setor_nome, equipamento_id, equipamento_nome, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime(\'now\'))'
+                ponto_lub, rota, sap, d_int, d_ext, largura_b, rpm, setor_id, setor_nome, equipamento_id, equipamento_nome,
+                data_ultima_intervencao, data_proxima_intervencao, consumo_acumulado, updated_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime(\'now\'))'
         );
         $ins->execute([
             $ativoId,
@@ -113,6 +131,9 @@ class LubricationTechSync
             (string) ($area['nome'] ?? 'Geral'),
             isset($equip['id']) ? (int) $equip['id'] : $ativoId,
             (string) ($equip['nome'] ?? $row['nome']),
+            $lastIntervention,
+            $nextIntervention,
+            round($acumConsumo, 6)
         ]);
     }
 

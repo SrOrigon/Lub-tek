@@ -22,6 +22,15 @@ class OrdersController
 
     public function getTasks()
     {
+        // Executa gerador de tarefas agendadas para garantir sincronização dinâmica
+        if ($this->user && !Permissions::isTrabalhador($this->user['role'] ?? '')) {
+            try {
+                $this->generateScheduledOrders();
+            } catch (Exception $e) {
+                error_log("Error in auto-generating tasks in getTasks: " . $e->getMessage());
+            }
+        }
+
         // Gestor/developer: todas as OS do banco do tenant
         // Trabalhador: todas as OS (checklist operacional da empresa)
         $sql = "SELECT o.*, a.nome as ativo_nome, a.tag as ativo_tag FROM ordens o LEFT JOIN ativos a ON o.ativo_id = a.id ORDER BY o.rota ASC, a.nome ASC, o.data_planejada DESC, o.prioridade DESC";
@@ -108,20 +117,27 @@ class OrdersController
 
                 DB::log($this->user['name'] ?? $this->user['nome'] ?? 'SYSTEM', 'OS_STATUS_CHANGE', "OS #{$id} -> {$situacao}");
 
-                // C. GATILHO DE INVENTÁRIO (Apenas se mudando para Concluído agora)
-                if ($situacao === 'Concluído' && $oldStatus !== 'Concluído' && !empty($osAtual['materiais'])) {
-                    $materials = json_decode($osAtual['materiais'], true);
-                    if (is_array($materials)) {
-                        $this->processStockConsumption($db, $materials, $id);
-                        
-                        // Auditoria detalhada da baixa de estoque
-                        foreach ($materials as $item) {
-                            $qtd = floatval($item['qtd'] ?? 0);
-                            $nome = $item['nome'] ?? $item['material'] ?? 'item';
-                            if ($qtd > 0) {
-                                DB::log('SYSTEM', 'INVENTORY_DEDUCT', "OS #{$id} consumiu {$qtd} de {$nome}");
+                // C. GATILHO DE INVENTÁRIO E CICLO DE VIDA DO ATIVO
+                if ($situacao === 'Concluído' && $oldStatus !== 'Concluído') {
+                    if (!empty($osAtual['materiais'])) {
+                        $materials = json_decode($osAtual['materiais'], true);
+                        if (is_array($materials)) {
+                            $this->processStockConsumption($db, $materials, $id);
+
+                            foreach ($materials as $item) {
+                                $qtd = floatval($item['qtd'] ?? 0);
+                                $nome = $item['nome'] ?? $item['material'] ?? 'item';
+                                if ($qtd > 0) {
+                                    DB::log('SYSTEM', 'INVENTORY_DEDUCT', "OS #{$id} consumiu {$qtd} de {$nome}");
+                                }
                             }
                         }
+                    }
+                    $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
+                    $stmtFull->execute([$id]);
+                    $fullOrder = $stmtFull->fetch(PDO::FETCH_ASSOC);
+                    if ($fullOrder && !empty($fullOrder['ativo_id'])) {
+                        $this->onOrderCompleted($db, (int)$fullOrder['ativo_id'], $fullOrder);
                     }
                 }
                 // D. REABERTURA: se a OS estava Concluída e volta para outro status,
@@ -182,7 +198,16 @@ class OrdersController
                     if ($ativoId) {
                         try {
                             $todayDate = date('Y-m-d');
-                            $db->prepare("UPDATE ordens SET data_execucao = ? WHERE id = ?")->execute([$todayDate, $input['id'] ?? 0]);
+                            $orderIdToExec = $input['id'] ?? $lastId ?? 0;
+                            if ($orderIdToExec) {
+                                $db->prepare("UPDATE ordens SET data_execucao = ? WHERE id = ?")->execute([$todayDate, $orderIdToExec]);
+                            }
+                            $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
+                            $stmtFull->execute([$orderIdToExec]);
+                            $fullOrder = $stmtFull->fetch(PDO::FETCH_ASSOC);
+                            if ($fullOrder) {
+                                $this->onOrderCompleted($db, (int)$ativoId, $fullOrder);
+                            }
                             $this->generateScheduledOrders();
                         } catch (Exception $schedEx) {
                             error_log('Schedule auto-regeneration exception: ' . $schedEx->getMessage());
@@ -386,6 +411,14 @@ class OrdersController
                 if (!empty($finalMaterials)) {
                     $this->processStockConsumption($db, $finalMaterials, $input['id']);
                 }
+                if ($aid) {
+                    $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
+                    $stmtFull->execute([$input['id']]);
+                    $fullOrder = $stmtFull->fetch(PDO::FETCH_ASSOC);
+                    if ($fullOrder) {
+                        $this->onOrderCompleted($db, (int)$aid, $fullOrder);
+                    }
+                }
             }
             // Reabertura pelo trabalhador (ex: desmarcar "concluído"): restaura o estoque
             // baixado anteriormente, mantendo o inventário consistente.
@@ -400,6 +433,90 @@ class OrdersController
             DB::log($this->user['id'], 'EXECUTE_OS', 'ordens:' . $input['id'], $existing, $input);
             return ['id' => $input['id'], 'new_sync' => $now, 'success' => true];
         });
+    }
+
+    /**
+     * Callback acionado na conclusão de uma O.S. para recálculo do ciclo de vida do ativo.
+     */
+    private function onOrderCompleted($db, int $ativoId, array $order)
+    {
+        if ($ativoId <= 0) return;
+
+        $today = date('Y-m-d');
+
+        // 1. Carrega dados atuais do ativo
+        $stmtAsset = $db->prepare("SELECT id, dados_tecnicos FROM ativos WHERE id = ?");
+        $stmtAsset->execute([$ativoId]);
+        $asset = $stmtAsset->fetch(PDO::FETCH_ASSOC);
+        if (!$asset) return;
+
+        $tech = json_decode($asset['dados_tecnicos'] ?: '[]', true) ?: [];
+
+        // 2. Registra data da última intervenção
+        $tech['data_ultima_intervencao'] = $today;
+
+        // 3. Atualiza consumo de lubrificante acumulado se houver materiais/qtd_real
+        $consumedQty = 0;
+        if (!empty($order['qtd_real'])) {
+            $consumedQty = floatval(preg_replace('/[^0-9.]/', '', $order['qtd_real']));
+        }
+        if ($consumedQty <= 0 && !empty($order['materiais'])) {
+            $materials = is_string($order['materiais']) ? json_decode($order['materiais'], true) : $order['materiais'];
+            if (is_array($materials) && !empty($materials[0]['qtd'])) {
+                $consumedQty = floatval($materials[0]['qtd']);
+            }
+        }
+        $currConsumo = floatval($tech['consumo_acumulado'] ?? 0);
+        $tech['consumo_acumulado'] = $currConsumo + $consumedQty;
+
+        // 4. Recalcula a data da próxima intervenção com base nos planos do ativo ou na frequência do ponto
+        $nextDate = null;
+        $stmtPlan = $db->prepare("SELECT frequencia_dias FROM planos WHERE ativo_id = ? ORDER BY frequencia_dias ASC LIMIT 1");
+        $stmtPlan->execute([$ativoId]);
+        $freqDays = $stmtPlan->fetchColumn();
+
+        if ($freqDays && intval($freqDays) > 0) {
+            $nextDate = date('Y-m-d', strtotime("+{$freqDays} days"));
+        } else {
+            // Tenta pegar a frequência do campo 'periodo' ou 'frequencia' no dados_tecnicos
+            $periodoStr = $tech['periodo'] ?? $tech['frequencia'] ?? '30 dias';
+            $calculatedFreq = 30; // default 30 dias
+            if (preg_match('/(\d+)/', $periodoStr, $m)) {
+                $calculatedFreq = intval($m[1]);
+            } elseif (strpos(strtolower($periodoStr), 'diar') !== false) {
+                $calculatedFreq = 1;
+            } elseif (strpos(strtolower($periodoStr), 'seman') !== false) {
+                $calculatedFreq = 7;
+            } elseif (strpos(strtolower($periodoStr), 'quinzen') !== false) {
+                $calculatedFreq = 15;
+            }
+            if ($calculatedFreq <= 0) $calculatedFreq = 30;
+            $nextDate = date('Y-m-d', strtotime("+{$calculatedFreq} days"));
+        }
+
+        $tech['data_proxima_intervencao'] = $nextDate;
+
+        // 5. Recalcula a saúde do ativo ("Excelente", "Atenção", "Crítica") baseada em OSs abertas/atrasadas
+        $stmtOverdue = $db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao != 'Concluído' AND data_planejada < ?");
+        $stmtOverdue->execute([$ativoId, $today]);
+        $overdueCount = (int)$stmtOverdue->fetchColumn();
+
+        if ($overdueCount == 0) {
+            $tech['saude_ativo'] = 'Excelente';
+        } elseif ($overdueCount <= 2) {
+            $tech['saude_ativo'] = 'Atenção';
+        } else {
+            $tech['saude_ativo'] = 'Crítica';
+        }
+
+        // Atualiza 'dados_tecnicos' no banco de dados
+        $updatedTechJson = json_encode($tech);
+        $db->prepare("UPDATE ativos SET dados_tecnicos = ? WHERE id = ?")->execute([$updatedTechJson, $ativoId]);
+
+        // Sincroniza tabela 'ativos_lubrificacao'
+        if (class_exists('LubricationTechSync')) {
+            LubricationTechSync::syncAsset($db, $ativoId);
+        }
     }
 
     private function appliedLubricant(array $input, array $materials = []): string
@@ -511,19 +628,20 @@ class OrdersController
 
     public function generateScheduledOrders()
     {
-        if (Permissions::isTrabalhador($this->user['role'] ?? '')) {
+        $role = $this->user['role'] ?? '';
+        if (Permissions::isTrabalhador($role) && strpos($_SERVER['REQUEST_URI'] ?? '', 'action=generate_preventive_orders') !== false) {
             throw new Exception("Trabalhadores não podem gerar ordens preventivas.");
         }
-
-        // 1. Fetch all plans
-        $stmt = $this->db->query("SELECT p.*, a.nome as ativo_nome, a.tag as ativo_tag, a.user_id as asset_user_id 
-                                  FROM planos p 
-                                  JOIN ativos a ON p.ativo_id = a.id");
-        $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $createdCount = 0;
         $nowStr = date('Y-m-d H:i:s');
         $today = date('Y-m-d');
+
+        // 1. Processar Planos Cadastrados
+        $stmt = $this->db->query("SELECT p.*, a.nome as ativo_nome, a.tag as ativo_tag, a.user_id as asset_user_id 
+                                  FROM planos p 
+                                  JOIN ativos a ON p.ativo_id = a.id");
+        $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($plans as $plan) {
             $planId = $plan['id'];
@@ -537,36 +655,25 @@ class OrdersController
 
             if ($freq <= 0) continue;
 
-            // Identifier to look for in orders: [PLANO #id]
             $identifier = "[PLANO #{$planId}]";
 
-            // 2. Check if there is an open (pending/in progress) order for this plan
+            // Verificar se já existe OS aberta sem conclusão para este plano
             $checkOpen = $this->db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao IN ('Pendente', 'Em Andamento') AND descricao LIKE ?");
             $checkOpen->execute([$ativoId, "%{$identifier}%"]);
-            $hasOpen = $checkOpen->fetchColumn() > 0;
-
-            if ($hasOpen) {
-                // Already has a pending order, skip
+            if ($checkOpen->fetchColumn() > 0) {
                 continue;
             }
 
-            // 3. Find the last completed order for this plan
+            // Buscar última OS concluída
             $checkLastCompleted = $this->db->prepare("SELECT data_execucao, data_planejada FROM ordens WHERE ativo_id = ? AND situacao = 'Concluído' AND descricao LIKE ? ORDER BY data_planejada DESC, id DESC LIMIT 1");
             $checkLastCompleted->execute([$ativoId, "%{$identifier}%"]);
             $lastCompleted = $checkLastCompleted->fetch(PDO::FETCH_ASSOC);
 
-            $lastDate = null;
-            if ($lastCompleted) {
-                // Use data_execucao if set, otherwise data_planejada
-                $lastDate = !empty($lastCompleted['data_execucao']) ? $lastCompleted['data_execucao'] : $lastCompleted['data_planejada'];
-            }
-
-            // If no completed order exists, we check if there are ANY completed orders for this asset containing this procedure, or default to asset creation or simply today.
+            $lastDate = $lastCompleted ? (!empty($lastCompleted['data_execucao']) ? $lastCompleted['data_execucao'] : $lastCompleted['data_planejada']) : null;
             $shouldGenerate = false;
             $nextPlannedDate = $today;
 
             if ($lastDate) {
-                // Calculate next planned date
                 $lastTime = strtotime($lastDate);
                 if ($lastTime) {
                     $nextPlannedTime = $lastTime + ($freq * 86400);
@@ -578,28 +685,31 @@ class OrdersController
                     $shouldGenerate = true;
                 }
             } else {
-                // No completed order exists, generate one
                 $shouldGenerate = true;
             }
 
             if ($shouldGenerate) {
-                // Get catalog item details if linked
                 $materialsJson = '[]';
                 $materialSapCode = '';
                 $servCode = '';
                 $resAlmox = '';
+                $matName = 'Lubrificante Padrão';
+                $unid = 'g';
                 
                 if ($catId) {
-                    $catStmt = $this->db->prepare("SELECT nome, codigo, localizacao FROM catalogo WHERE id = ?");
+                    $catStmt = $this->db->prepare("SELECT nome, codigo, localizacao, unidade FROM catalogo WHERE id = ?");
                     $catStmt->execute([$catId]);
                     $catItem = $catStmt->fetch(PDO::FETCH_ASSOC);
                     if ($catItem) {
+                        $matName = $catItem['nome'];
+                        $unid = $catItem['unidade'] ?? 'g';
                         $materialsJson = json_encode([
                             [
                                 'id' => $catId,
                                 'catalog_id' => $catId,
                                 'nome' => $catItem['nome'],
-                                'qtd' => $qty
+                                'qtd' => $qty,
+                                'unidade' => $unid
                             ]
                         ]);
                         $materialSapCode = $catItem['codigo'] ?? '';
@@ -607,7 +717,6 @@ class OrdersController
                     }
                 }
 
-                // If asset has dados_tecnicos, we can pull additional SAP codes!
                 $astStmt = $this->db->prepare("SELECT dados_tecnicos FROM ativos WHERE id = ?");
                 $astStmt->execute([$ativoId]);
                 $astTech = $astStmt->fetchColumn();
@@ -622,17 +731,15 @@ class OrdersController
                     } catch (Exception $ex) {}
                 }
 
-                // Build a premium work order description
                 $osDesc = "{$identifier} [PREVENTIVA AUTOMÁTICA] Manutenção Planejada de Lubrificação\n" .
                           "Equipamento: {$plan['ativo_nome']} [TAG: {$plan['ativo_tag']}]\n" .
                           "Procedimento: {$proc}\n" .
                           "Método: {$metodo}\n" .
-                          "Quantidade: {$qty} " . ($catId ? "unidades" : "") . "\n" .
+                          "Material: {$matName} ({$qty} {$unid})\n" .
                           "Frequência Cadastrada: {$freq} dias\n" .
                           "Data de Geração: " . date('d/m/Y') . "\n" .
-                          "Ação Requerida: Executar conforme procedimento operacional padrão de lubrificação de ativos.";
+                          "Ação Requerida: Executar lubrificação e confirmar checklist.";
 
-                // Insert into ordens
                 $insStmt = $this->db->prepare("INSERT INTO ordens (
                     descricao, responsavel, data_planejada, prioridade, situacao, ativo_id, last_sync, usuarios_id, materiais,
                     data_emissao, materiais_sap, cod_serv, reserva_almox
@@ -653,6 +760,64 @@ class OrdersController
 
                 $createdCount++;
             }
+        }
+
+        // 2. Processar Ativos / Pontos de Lubrificação com data_proxima_intervencao vencida/a vencer sem plano cadastrado
+        $stmtAtivos = $this->db->query("SELECT id, nome, tag, user_id, dados_tecnicos FROM ativos WHERE dados_tecnicos IS NOT NULL AND TRIM(dados_tecnicos) != ''");
+        $ativosList = $stmtAtivos->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($ativosList as $ast) {
+            $ativoId = (int)$ast['id'];
+            $tech = json_decode($ast['dados_tecnicos'], true);
+            if (!is_array($tech)) continue;
+
+            $nextIntervention = $tech['data_proxima_intervencao'] ?? null;
+            if (!$nextIntervention || $nextIntervention > $today) continue;
+
+            // Evitar duplicidade se já houver plano cadastrado processado acima ou OS aberta
+            $identifier = "[PONTO #{$ativoId}]";
+            $checkOpen = $this->db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao IN ('Pendente', 'Em Andamento')");
+            $checkOpen->execute([$ativoId]);
+            if ($checkOpen->fetchColumn() > 0) continue;
+
+            $matName = $tech['material'] ?? 'Lubrificante Padrão';
+            $qty = floatval($tech['qtd_material'] ?? $tech['quantidade'] ?? 1);
+            $unid = $tech['unid_material'] ?? $tech['unidade'] ?? 'g';
+            $proc = $tech['procedimento'] ?? 'Relubrificação Preventiva do Ponto';
+
+            $materialsJson = json_encode([
+                [
+                    'id' => $tech['catalogo_id'] ?? null,
+                    'catalog_id' => $tech['catalogo_id'] ?? null,
+                    'nome' => $matName,
+                    'qtd' => $qty,
+                    'unidade' => $unid
+                ]
+            ]);
+
+            $osDesc = "{$identifier} [PREVENTIVA AUTOMÁTICA] Checklist Diário de Lubrificação\n" .
+                      "Equipamento/Ponto: {$ast['nome']} [TAG: {$ast['tag']}]\n" .
+                      "Procedimento: {$proc}\n" .
+                      "Insumo Requerido: {$matName} ({$qty} {$unid})\n" .
+                      "Ação Requerida: Verificar ponto e confirmar relubrificação.";
+
+            $insStmt = $this->db->prepare("INSERT INTO ordens (
+                descricao, responsavel, data_planejada, prioridade, situacao, ativo_id, last_sync, usuarios_id, materiais,
+                data_emissao, materiais_sap
+            ) VALUES (?, 'Manutenção Preventiva', ?, 'Média', 'Pendente', ?, ?, ?, ?, ?, ?)");
+
+            $insStmt->execute([
+                $osDesc,
+                $nextIntervention,
+                $ativoId,
+                $nowStr,
+                $ast['user_id'] ?? 1,
+                $materialsJson,
+                $today,
+                $tech['sap'] ?? ''
+            ]);
+
+            $createdCount++;
         }
 
         return [
