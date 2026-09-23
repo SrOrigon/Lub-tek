@@ -1261,11 +1261,21 @@ class RodrigoAPI
         if ($id <= 0) {
             $this->error('ID do ativo é obrigatório.', 400);
         }
-        if ($imagem === '') {
-            $this->error('Caminho da imagem é obrigatório.', 400);
+
+        $oldPath = $this->input['old_path'] ?? null;
+        if (!$oldPath) {
+            $stmt = $this->db->prepare('SELECT imagem FROM ativos WHERE id = ?');
+            $stmt->execute([$id]);
+            $oldPath = $stmt->fetchColumn() ?: null;
         }
+
         $this->db->prepare('UPDATE ativos SET imagem = ? WHERE id = ?')->execute([$imagem, $id]);
-        $this->success();
+
+        if ($oldPath && $oldPath !== $imagem && $this->isUploadPathOwnedByCurrentUser($oldPath)) {
+            UploadHelper::deleteIfUploaded($oldPath);
+        }
+
+        $this->success(['id' => $id, 'imagem' => $imagem]);
     }
 
     /**
@@ -1676,7 +1686,17 @@ Amostra da Planilha (JSON):
             }
         }
 
-        $this->success(['path' => $publicPath, 'os_id' => $osId > 0 ? $osId : null]);
+        // Vinculação direta a ativo se asset_id foi informado
+        $assetId = intval($this->input['asset_id'] ?? $_POST['asset_id'] ?? 0);
+        if ($assetId > 0) {
+            try {
+                $this->db->prepare("UPDATE ativos SET imagem = ? WHERE id = ?")->execute([$publicPath, $assetId]);
+            } catch (Exception $e) {
+                error_log('upload_image asset link failed: ' . $e->getMessage());
+            }
+        }
+
+        $this->success(['path' => $publicPath, 'os_id' => $osId > 0 ? $osId : null, 'asset_id' => $assetId > 0 ? $assetId : null]);
     }
 
     /**

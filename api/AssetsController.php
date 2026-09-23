@@ -93,6 +93,16 @@ class AssetsController
             $stat = $assetStats[$node['id']] ?? ['count' => 0, 'score' => 0];
             $node['os_direct'] = $stat['count'];
             $node['health_direct'] = $stat['score'];
+
+            // Se apontar para arquivo local inexistente, limpa para evitar requisições 404
+            if (!empty($node['imagem']) && !preg_match('#^https?://#i', $node['imagem'])) {
+                $cleanPath = ltrim(str_replace('\\', '/', $node['imagem']), '/');
+                $fullPath = __DIR__ . '/../' . $cleanPath;
+                if (!file_exists($fullPath)) {
+                    $node['imagem'] = '';
+                }
+            }
+
             $map[$node['id']] = & $node;
         }
         unset($node);
@@ -238,7 +248,7 @@ class AssetsController
         try {
             $confirmPurge = !empty($input['confirm_purge']);
             $userRef = $currentUser;
-            DB::safeExecute(function ($db) use ($input, $dados, $json_specs, $currentUser, &$newId, $decodedDt, $confirmPurge, $userRef) {
+            DB::safeExecute(function ($db) use ($input, $dados, $json_specs, $currentUser, &$newId, $decodedDt, $confirmPurge, $userRef, $prevRow) {
                 $parentId = (!empty($input['pai_id']) && $input['pai_id'] !== 'null') ? intval($input['pai_id']) : NULL;
 
                 // Hierarchy Validation
@@ -285,6 +295,7 @@ class AssetsController
                     }
 
                     // 2. Perform Update ensuring IP sync
+                    $imagemToSave = array_key_exists('imagem', $input) ? ($input['imagem'] ?? '') : ($prevRow['imagem'] ?? '');
                     $stmt = $db->prepare("UPDATE ativos SET nome=?, tag=?, tipo=?, pai_id=?, obs=?, dados_tecnicos=?, imagem=?, json_specs=?, fabricante=?, modelo=?, num_serie=?, ip=? WHERE id=?");
                     $stmt->execute([
                         $input['nome'],
@@ -293,7 +304,7 @@ class AssetsController
                         $parentId,
                         $input['obs'] ?? '',
                         $dados, // Updated JSON (Force-synced)
-                        $input['imagem'] ?? '',
+                        $imagemToSave,
                         $json_specs,
                         $input['fabricante'] ?? '',
                         $input['modelo'] ?? '',
@@ -351,8 +362,9 @@ class AssetsController
             // 'imagem_3d' (coluna) e 'dados_tecnicos.model_3d' não são editáveis por este
             // formulário — são preservados via merge acima — então precisam ser incluídos
             // aqui para não serem apagados do disco como "mídia órfã".
+            $currentSavedImg = array_key_exists('imagem', $input) ? ($input['imagem'] ?? '') : ($prevRow['imagem'] ?? '');
             $newMedia = array_filter([
-                $input['imagem'] ?? '',
+                $currentSavedImg,
                 $prevRow['imagem_3d'] ?? '',
                 $decodedDt['model_3d'] ?? '',
             ]);

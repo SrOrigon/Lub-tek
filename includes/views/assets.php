@@ -243,7 +243,8 @@
                     style="width:60px; height:60px; min-width:60px; border-radius:8px; overflow:hidden; border:1px solid var(--border); position:relative; background:var(--bg-dark);">
                     <img id="ash-header-img" src="<?php echo htmlspecialchars($companyLogo ?? 'assets/img/system/img_69581d7fcdbbf.jpeg'); ?>"
                         style="width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in;"
-                        onclick="openImageModal(this.src)">
+                        onclick="openImageModal(this.src)"
+                        onerror="this.src=(typeof getCompanyLogoUrl === 'function' ? getCompanyLogoUrl() : 'assets/img/system/img_69581d7fcdbbf.jpeg');">
 
                     <!-- Camera Overlay -->
                     <div style="position:absolute; bottom:0; left:0; right:0; height:20px; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; cursor:pointer;"
@@ -580,25 +581,34 @@
                                 <label
                                     style="display:block; color:var(--text-muted); font-size:0.8rem; margin-bottom:4px;">Imagem</label>
                                 <div id="af-img-preview"
-                                    style="width:120px; height:120px; min-width:120px; max-width:120px; background:rgba(0,0,0,0.3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;">
+                                    style="width:120px; height:120px; min-width:120px; max-width:120px; background:rgba(0,0,0,0.3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; cursor:pointer;"
+                                    onclick="if(!editingNode || !editingNode.imagem || document.getElementById('af-img-display').style.display==='none') triggerUpload('af-img-input')"
+                                    title="Clique para adicionar/alterar foto">
                                     <span id="af-img-placeholder"
-                                        style="color:var(--text-muted); font-size:0.7rem; text-align:center;">Sem
-                                        Foto</span>
+                                        style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:6px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+                                        <i data-lucide="camera" style="width:22px; height:22px; opacity:0.6;"></i>
+                                        <span>Adicionar Foto</span>
+                                    </span>
                                     <!-- Image acts as trigger for Lightbox -->
                                     <img id="af-img-display"
                                         style="width:100%; height:100%; object-fit:cover; display:none; cursor:zoom-in;"
-                                        onclick="openImageModal(this.src)"
-                                        onerror="this.style.display='none'; const ph=document.getElementById('af-img-placeholder'); if(ph) ph.style.display='block'; const zb=document.getElementById('af-zoom-btn'); if(zb) zb.style.display='none';">
+                                        onclick="event.stopPropagation(); openImageModal(this.src)"
+                                        onerror="this.style.display='none'; const ph=document.getElementById('af-img-placeholder'); if(ph) ph.style.display='flex'; const zb=document.getElementById('af-zoom-btn'); if(zb) zb.style.display='none'; const rb=document.getElementById('af-remove-btn'); if(rb) rb.style.display='none'; const hi=document.getElementById('ash-header-img'); if(hi) hi.src=(typeof getCompanyLogoUrl === 'function' ? getCompanyLogoUrl() : 'assets/img/system/img_69581d7fcdbbf.jpeg');">
 
                                     <!-- OVERLAY CONTROLS -->
                                     <div
-                                        style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.7); padding:5px; display:flex; justify-content:center; gap:10px;">
+                                        style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.7); padding:4px 6px; display:flex; justify-content:center; align-items:center; gap:10px;"
+                                        onclick="event.stopPropagation()">
                                         <i data-lucide="camera" style="width:16px; color:white; cursor:pointer;"
                                             onclick="triggerUpload('af-img-input')" title="Alterar Foto"></i>
                                         <i id="af-zoom-btn" data-lucide="maximize"
-                                            style="width:16px; color:white; cursor:pointer;"
+                                            style="width:16px; color:white; cursor:pointer; display:none;"
                                             onclick="openImageModal(document.getElementById('af-img-display').src)"
                                             title="Expandir"></i>
+                                        <i id="af-remove-btn" data-lucide="trash-2"
+                                            style="width:16px; color:#ef4444; cursor:pointer; display:none;"
+                                            onclick="removeAssetImage()"
+                                            title="Remover Foto"></i>
                                     </div>
 
                                     <input type="file" id="af-img-input" accept="image/*" style="display:none;"

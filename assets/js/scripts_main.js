@@ -2735,6 +2735,13 @@ async function uploadImage(input, previewId, valueId) {
     fd.append('action', 'upload_image');
     fd.append('file', file);
 
+    const isAsset = valueId === 'af_img_val' || (previewId && previewId.startsWith('af-'));
+    if (isAsset && editingNode && editingNode.id) {
+        fd.append('asset_id', editingNode.id);
+        const oldVal = document.getElementById('af_img_val')?.value;
+        if (oldVal) fd.append('old_path', oldVal);
+    }
+
     try {
         showToast('Enviando imagem...', 'info');
         const res = await fetch('api.php?action=upload_image', {
@@ -2744,6 +2751,8 @@ async function uploadImage(input, previewId, valueId) {
         const json = await res.json();
 
         if (json.ok && json.path) {
+            const cacheBustedPath = json.path + '?t=' + Date.now();
+
             // Update Preview
             const prev = document.getElementById(previewId);
             let img = null;
@@ -2756,6 +2765,16 @@ async function uploadImage(input, previewId, valueId) {
                 } else {
                     img = prev.querySelector('img');
                     span = prev.querySelector('span');
+                    // Catalog or custom container without <img> yet
+                    if (!img) {
+                        const placeholderDiv = prev.querySelector('.catalog-photo-placeholder');
+                        if (placeholderDiv) placeholderDiv.style.display = 'none';
+                        img = document.createElement('img');
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'cover';
+                        prev.prepend(img);
+                    }
                 }
             }
 
@@ -2763,31 +2782,48 @@ async function uploadImage(input, previewId, valueId) {
 
             // FORCE UPDATE DOM
             if (img) {
-                img.src = json.path + '?t=' + new Date().getTime(); // Cache Buster
+                img.src = cacheBustedPath;
                 img.style.display = 'block';
-                img.style.objectFit = 'cover'; // Ensure nice fit
+                img.style.objectFit = 'cover';
             }
 
             if (span) span.style.display = 'none';
 
             if (imgValInput) imgValInput.value = json.path;
 
-            // Zoom Btn Logic
-            const isAsset = previewId.startsWith('af-');
+            // Zoom & Remove Buttons
             const zoomBtn = document.getElementById(isAsset ? 'af-zoom-btn' : 'ced-zoom-btn');
-            if (zoomBtn) zoomBtn.style.display = 'flex'; // Flex to center icon
+            if (zoomBtn) zoomBtn.style.display = 'flex';
+
+            const removeBtn = document.getElementById('af-remove-btn');
+            if (isAsset && removeBtn) removeBtn.style.display = 'inline-block';
 
             // Asset Form Placeholder
             const placeholder = document.getElementById('af-img-placeholder');
             if (placeholder) placeholder.style.display = 'none';
 
-            showToast('Imagem salva!', 'success');
+            // Sticky Header Image
+            const headerImg = document.getElementById('ash-header-img');
+            if (isAsset && headerImg) {
+                headerImg.src = cacheBustedPath;
+                headerImg.style.display = 'block';
+            }
 
-            // If it's the Asset Form, update local node immediately AND SAVE to Cloud
-            if (valueId === 'af_img_val' && editingNode) {
+            showToast('Imagem salva com sucesso!', 'success');
+
+            // If it's the Asset Form, sync memory and persist directly
+            if (isAsset && editingNode) {
                 editingNode.imagem = json.path;
+                if (typeof allNodesMap !== 'undefined' && allNodesMap.has(String(editingNode.id))) {
+                    allNodesMap.get(String(editingNode.id)).imagem = json.path;
+                }
+
+                // Direct DB sync to guarantee persistence
+                api('update_asset_image', { id: editingNode.id, imagem: json.path }).catch(err => {
+                    console.warn('update_asset_image background sync:', err);
+                });
+
                 if (typeof updateLocalNode === 'function') updateLocalNode();
-                if (typeof saveToCloudSingle === 'function') saveToCloudSingle();
             }
         } else {
             showToast(json.error || 'Erro no upload: Resposta inválida', 'error');
@@ -2795,8 +2831,57 @@ async function uploadImage(input, previewId, valueId) {
     } catch (e) {
         console.error('Upload Error:', e);
         showToast('Erro de conexão no upload.', 'error');
+    } finally {
+        input.value = '';
     }
 }
+
+async function removeAssetImage() {
+    if (!editingNode || !editingNode.id) return;
+    if (!confirm('Deseja remover a foto deste ativo?')) return;
+
+    try {
+        showToast('Removendo imagem...', 'info');
+        const oldPath = editingNode.imagem || '';
+        const res = await api('update_asset_image', { id: editingNode.id, imagem: '', old_path: oldPath });
+        if (res && res.ok) {
+            editingNode.imagem = '';
+            if (typeof allNodesMap !== 'undefined' && allNodesMap.has(String(editingNode.id))) {
+                allNodesMap.get(String(editingNode.id)).imagem = '';
+            }
+
+            const imgValInput = document.getElementById('af_img_val');
+            if (imgValInput) imgValInput.value = '';
+
+            const imgDisplay = document.getElementById('af-img-display');
+            if (imgDisplay) {
+                imgDisplay.removeAttribute('src');
+                imgDisplay.style.display = 'none';
+            }
+
+            const placeholder = document.getElementById('af-img-placeholder');
+            if (placeholder) placeholder.style.display = 'flex';
+
+            const zoomBtn = document.getElementById('af-zoom-btn');
+            if (zoomBtn) zoomBtn.style.display = 'none';
+
+            const removeBtn = document.getElementById('af-remove-btn');
+            if (removeBtn) removeBtn.style.display = 'none';
+
+            const headerImg = document.getElementById('ash-header-img');
+            if (headerImg) headerImg.src = getCompanyLogoUrl();
+
+            showToast('Imagem removida com sucesso!', 'success');
+            if (typeof updateLocalNode === 'function') updateLocalNode();
+        } else {
+            showToast((res && res.error) || 'Erro ao remover imagem.', 'error');
+        }
+    } catch (e) {
+        console.error('removeAssetImage error:', e);
+        showToast('Erro ao remover imagem.', 'error');
+    }
+}
+window.removeAssetImage = removeAssetImage;
 
 async function saveCatalogChanges(id) {
     const specs = {};
@@ -3831,26 +3916,36 @@ async function selectNode(id, opts = {}) {
     const imgDisplay = document.getElementById('af-img-display');
     const headerImg = document.getElementById('ash-header-img');
     const placeholder = document.getElementById('af-img-placeholder');
-    const noImgText = document.getElementById('af-no-img-text'); // If exists
     const zoomBtn = document.getElementById('af-zoom-btn');
+    const removeBtn = document.getElementById('af-remove-btn');
     const imgValInput = document.getElementById('af_img_val');
 
     if (imgValInput) imgValInput.value = node.imagem || '';
 
-    if (node.imagem && node.imagem.length > 0) {
+    if (node.imagem && String(node.imagem).trim().length > 0) {
         if (imgDisplay) {
             imgDisplay.src = node.imagem;
             imgDisplay.style.display = 'block';
         }
         if (placeholder) placeholder.style.display = 'none';
         if (zoomBtn) zoomBtn.style.display = 'flex';
+        if (removeBtn) removeBtn.style.display = 'inline-block';
+        if (headerImg) {
+            headerImg.src = node.imagem;
+            headerImg.style.display = 'block';
+        }
     } else {
-        if (imgDisplay) { imgDisplay.removeAttribute('src'); imgDisplay.style.display = 'none'; }
-        if (placeholder) placeholder.style.display = 'block';
+        if (imgDisplay) {
+            imgDisplay.removeAttribute('src');
+            imgDisplay.style.display = 'none';
+        }
+        if (placeholder) placeholder.style.display = 'flex';
         if (zoomBtn) zoomBtn.style.display = 'none';
+        if (removeBtn) removeBtn.style.display = 'none';
+        if (headerImg) {
+            headerImg.src = getCompanyLogoUrl();
+        }
     }
-
-    if (headerImg) { headerImg.src = getCompanyLogoUrl(); }
 
     // 7. Breadcrumbs
     function buildPath(id, path = []) {
