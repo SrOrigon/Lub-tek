@@ -122,7 +122,7 @@ class OrdersController
                     if (!empty($osAtual['materiais'])) {
                         $materials = json_decode($osAtual['materiais'], true);
                         if (is_array($materials)) {
-                            $this->processStockConsumption($db, $materials, $id);
+                            $this->deductStockNonBlocking($db, $materials, $id);
 
                             foreach ($materials as $item) {
                                 $qtd = floatval($item['qtd'] ?? 0);
@@ -193,7 +193,7 @@ class OrdersController
                 }
                 if ($status === 'Concluído' && $oldStatus !== 'Concluído') {
                     if (!empty($materials)) {
-                        $this->processStockConsumption($db, $materials, $input['id'] ?? null);
+                        $this->deductStockNonBlocking($db, $materials, $input['id'] ?? null);
                     }
                     if ($ativoId) {
                         try {
@@ -409,7 +409,7 @@ class OrdersController
                     GreaseCompatibility::guardOnOrder($db, $aid, $applied, !empty($input['confirm_purge']), $this->user);
                 }
                 if (!empty($finalMaterials)) {
-                    $this->processStockConsumption($db, $finalMaterials, $input['id']);
+                    $this->deductStockNonBlocking($db, $finalMaterials, $input['id']);
                 }
                 if ($aid) {
                     $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
@@ -556,6 +556,38 @@ class OrdersController
     }
 
     /**
+     * Permite a baixa no inventário sem interromper a conclusão da O.S.,
+     * registrando logs de aviso caso o saldo fique zerado ou negativo.
+     */
+    private function deductStockNonBlocking($db, $materials, $orderId)
+    {
+        if (empty($materials) || !is_array($materials)) return;
+        try {
+            $this->processStockConsumption($db, $materials, $orderId);
+        } catch (Exception $stkEx) {
+            $errData = json_decode($stkEx->getMessage(), true);
+            if (is_array($errData) && ($errData['error_code'] ?? '') === 'STOCK_LOW') {
+                DB::log('SYSTEM', 'INVENTORY_NEGATIVE_ALERT', "OS #{$orderId}: Baixa efetuada com saldo insuficiente. " . ($errData['message'] ?? ''));
+                foreach ($materials as $item) {
+                    $catId = $item['catalog_id'] ?? $item['id'] ?? null;
+                    $qtyNeeded = floatval($item['qtd'] ?? 0);
+                    if ($catId && $qtyNeeded > 0) {
+                        $db->prepare("UPDATE catalogo SET estoque_atual = estoque_atual - ? WHERE id = ?")->execute([$qtyNeeded, $catId]);
+                        $stmtRem = $db->prepare("SELECT nome, estoque_atual FROM catalogo WHERE id = ?");
+                        $stmtRem->execute([$catId]);
+                        $rem = $stmtRem->fetch(PDO::FETCH_ASSOC);
+                        if ($rem && floatval($rem['estoque_atual']) < 0) {
+                            DB::log('SYSTEM', 'STOCK_NEGATIVE_WARNING', "Estoque negativo para {$rem['nome']}: saldo atual de {$rem['estoque_atual']} unidade(s).");
+                        }
+                    }
+                }
+            } else {
+                throw $stkEx;
+            }
+        }
+    }
+
+    /**
      * Senior Logic: Process Stock and Validate Availability
      * Throws Exception with Metadata for Marketplace if failed.
      */
@@ -681,9 +713,9 @@ class OrdersController
 
             $identifier = "[PLANO #{$planId}]";
 
-            // Verificar se já existe OS aberta sem conclusão para este plano
-            $checkOpen = $this->db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao IN ('Pendente', 'Em Andamento') AND descricao LIKE ?");
-            $checkOpen->execute([$ativoId, "%{$identifier}%"]);
+            // Verificar se já existe OS aberta sem conclusão especificamente para este ponto e plano
+            $checkOpen = $this->db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao IN ('Pendente', 'Em Andamento', 'Aberta') AND (descricao LIKE ? OR descricao LIKE ?)");
+            $checkOpen->execute([$ativoId, "%{$identifier}%", "%[PLANO #{$planId}]%"]);
             if ($checkOpen->fetchColumn() > 0) {
                 continue;
             }
@@ -820,10 +852,10 @@ class OrdersController
             $nextIntervention = $tech['data_proxima_intervencao'] ?? null;
             if (!$nextIntervention || $nextIntervention > $today) continue;
 
-            // Evitar duplicidade se já houver plano cadastrado processado acima ou OS aberta
+            // Evitar duplicidade se já houver plano cadastrado processado acima ou OS aberta para o ponto
             $identifier = "[PONTO #{$ativoId}]";
-            $checkOpen = $this->db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao IN ('Pendente', 'Em Andamento')");
-            $checkOpen->execute([$ativoId]);
+            $checkOpen = $this->db->prepare("SELECT COUNT(*) FROM ordens WHERE ativo_id = ? AND situacao IN ('Pendente', 'Em Andamento', 'Aberta') AND (descricao LIKE ? OR descricao LIKE '%[PREVENTIVA AUTOMÁTICA]%')");
+            $checkOpen->execute([$ativoId, "%{$identifier}%"]);
             if ($checkOpen->fetchColumn() > 0) continue;
 
             $matName = $tech['material'] ?? 'Lubrificante Padrão';
