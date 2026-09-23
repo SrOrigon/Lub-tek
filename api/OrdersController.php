@@ -455,7 +455,8 @@ class OrdersController
         // 2. Registra data da última intervenção
         $tech['data_ultima_intervencao'] = $today;
 
-        // 3. Atualiza consumo de lubrificante acumulado se houver materiais/qtd_real
+        // 3. Registra e compara consumo planejado vs real de lubrificante
+        $plannedQty = floatval($tech['qtd_material'] ?? $tech['quantidade'] ?? 0);
         $consumedQty = 0;
         if (!empty($order['qtd_real'])) {
             $consumedQty = floatval(preg_replace('/[^0-9.]/', '', $order['qtd_real']));
@@ -466,8 +467,31 @@ class OrdersController
                 $consumedQty = floatval($materials[0]['qtd']);
             }
         }
+        if ($plannedQty <= 0) {
+            $plannedQty = $consumedQty;
+        }
+
         $currConsumo = floatval($tech['consumo_acumulado'] ?? 0);
         $tech['consumo_acumulado'] = $currConsumo + $consumedQty;
+
+        // Histórico de consumo planejado x real no ativo
+        $historicoConsumo = $tech['historico_consumo'] ?? [];
+        if (!is_array($historicoConsumo)) $historicoConsumo = [];
+        $historicoConsumo[] = [
+            'os_id' => $order['id'] ?? null,
+            'data' => $today,
+            'planejado' => $plannedQty,
+            'real' => $consumedQty,
+            'unidade' => $tech['unid_material'] ?? $tech['unidade'] ?? 'g',
+            'material' => $tech['material'] ?? 'Lubrificante'
+        ];
+        // Mantém os últimos 50 registros de execução
+        if (count($historicoConsumo) > 50) {
+            $historicoConsumo = array_slice($historicoConsumo, -50);
+        }
+        $tech['historico_consumo'] = $historicoConsumo;
+
+        DB::log('SYSTEM', 'CONSUMO_LUBRIFICANTE', "OS #{$order['id']} Ativo #{$ativoId}: Planejado={$plannedQty}, Real={$consumedQty}");
 
         // 4. Recalcula a data da próxima intervenção com base nos planos do ativo ou na frequência do ponto
         $nextDate = null;
@@ -731,14 +755,36 @@ class OrdersController
                     } catch (Exception $ex) {}
                 }
 
+                // Extrai dados adicionais de lubrificação do ativo
+                $pointName = $plan['ativo_nome'];
+                $pointTag = $plan['ativo_tag'] ?? '';
+                if ($astTech) {
+                    try {
+                        $tech = json_decode($astTech, true);
+                        if (is_array($tech)) {
+                            if (!empty($tech['ponto_lub'])) $pointName .= " - " . $tech['ponto_lub'];
+                            if (empty($matName) || $matName === 'Lubrificante Padrão') {
+                                if (!empty($tech['material'])) $matName = $tech['material'];
+                            }
+                            if ($qty <= 0 && !empty($tech['qtd_material'])) {
+                                $qty = floatval($tech['qtd_material']);
+                            }
+                            if (empty($unid) && !empty($tech['unid_material'])) {
+                                $unid = $tech['unid_material'];
+                            }
+                        }
+                    } catch (Exception $e) {}
+                }
+
                 $osDesc = "{$identifier} [PREVENTIVA AUTOMÁTICA] Manutenção Planejada de Lubrificação\n" .
-                          "Equipamento: {$plan['ativo_nome']} [TAG: {$plan['ativo_tag']}]\n" .
+                          "Equipamento / Ponto: {$pointName} [TAG: {$pointTag}]\n" .
                           "Procedimento: {$proc}\n" .
-                          "Método: {$metodo}\n" .
-                          "Material: {$matName} ({$qty} {$unid})\n" .
+                          "Método de Aplicação: {$metodo}\n" .
+                          "Lubrificante Especificado: {$matName}\n" .
+                          "Dosagem Padrão: {$qty} {$unid}\n" .
                           "Frequência Cadastrada: {$freq} dias\n" .
                           "Data de Geração: " . date('d/m/Y') . "\n" .
-                          "Ação Requerida: Executar lubrificação e confirmar checklist.";
+                          "Ação Requerida: Aplicar exatamente {$qty} {$unid} de {$matName} e confirmar checklist.";
 
                 $insStmt = $this->db->prepare("INSERT INTO ordens (
                     descricao, responsavel, data_planejada, prioridade, situacao, ativo_id, last_sync, usuarios_id, materiais,
