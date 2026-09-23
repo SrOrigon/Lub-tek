@@ -3838,11 +3838,14 @@ async function selectNode(id, opts = {}) {
     if (imgValInput) imgValInput.value = node.imagem || '';
 
     if (node.imagem && node.imagem.length > 0) {
-        if (imgDisplay) { imgDisplay.src = node.imagem; imgDisplay.style.display = 'block'; }
+        if (imgDisplay) {
+            imgDisplay.src = node.imagem;
+            imgDisplay.style.display = 'block';
+        }
         if (placeholder) placeholder.style.display = 'none';
         if (zoomBtn) zoomBtn.style.display = 'flex';
     } else {
-        if (imgDisplay) { imgDisplay.src = ''; imgDisplay.style.display = 'none'; }
+        if (imgDisplay) { imgDisplay.removeAttribute('src'); imgDisplay.style.display = 'none'; }
         if (placeholder) placeholder.style.display = 'block';
         if (zoomBtn) zoomBtn.style.display = 'none';
     }

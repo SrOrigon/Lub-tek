@@ -587,7 +587,8 @@
                                     <!-- Image acts as trigger for Lightbox -->
                                     <img id="af-img-display"
                                         style="width:100%; height:100%; object-fit:cover; display:none; cursor:zoom-in;"
-                                        onclick="openImageModal(this.src)">
+                                        onclick="openImageModal(this.src)"
+                                        onerror="this.style.display='none'; const ph=document.getElementById('af-img-placeholder'); if(ph) ph.style.display='block'; const zb=document.getElementById('af-zoom-btn'); if(zb) zb.style.display='none';">
 
                                     <!-- OVERLAY CONTROLS -->
                                     <div
