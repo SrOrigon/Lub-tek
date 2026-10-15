@@ -68,6 +68,20 @@ class PlansController
         return ['success' => true];
     }
 
+    public function getReferencePlan()
+    {
+        $planKey = trim((string) ($this->input['plan_key'] ?? 'pet160'));
+        $filePath = __DIR__ . '/../data/planos/pet160_linha_solar.json';
+        if (file_exists($filePath)) {
+            $content = file_get_contents($filePath);
+            $data = json_decode($content, true);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+        throw new Exception("Plano de referência não encontrado.");
+    }
+
     public function deletePlan()
     {
         $id = $this->input['id'] ?? null;

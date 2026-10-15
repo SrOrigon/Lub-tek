@@ -1334,11 +1334,15 @@
             try {
                 // Retry API Call
                 // console.log(`Syncing: ${item.action}`, item.payload);
-                const url = `${API_URL}?action=${item.action}`;
+                const syncHeaders = { 'Content-Type': 'application/json' };
+                if (window.csrfToken) syncHeaders['X-CSRF-TOKEN'] = window.csrfToken;
+                const idempKey = item.idempotency_key || (item.payload && item.payload.idempotency_key);
+                if (idempKey) syncHeaders['X-Idempotency-Key'] = idempKey;
+
                 const opts = item.payload ? {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: syncHeaders,
                     body: JSON.stringify(item.payload)
                 } : { credentials: 'same-origin' };
 

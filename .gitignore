@@ -2,6 +2,8 @@
 config.local.php
 .env
 .env.*
+.env.local
+.env.production
 
 # Banco de dados locais
 database.sqlite
@@ -26,14 +28,34 @@ backups/
 !backups/.htaccess
 !backups/manifest.json
 
-# Uploads de tenant (manter .htaccess)
+# Uploads e Storage de tenant (manter .htaccess de proteção)
 uploads/*
 !uploads/.htaccess
+!uploads/.gitkeep
+storage/*
+!storage/.htaccess
+!storage/.gitkeep
+
+# Documentos binários pesados de referência (PDFs de 30MB+ / vídeos / zips)
+docs/planos-referencia/*.pdf
+*.pdf
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
 
 # Deploy Hostinger (tokens / sessao TUS — nunca versionar)
 deploy/.tus_session.json
 deploy/.deploy_token
 deploy/hostinger_apply_sync.php
+deploy/*.zip
+deploy/hostinger-sync/
+deploy/hostinger-includes-fix/
+deploy/lubteksystem-production/
+deploy/*
+!deploy/.gitkeep
+!deploy/*.ps1
 
 # Fixtures HTML locais de preview
 data/test_*.html
@@ -47,16 +69,20 @@ data/ai_cache/*
 !data/ai_cache/.htaccess
 !data/ai_cache/.gitkeep
 
-# Arquivos de build/deploy gerados
-deploy/*
-!deploy/.gitkeep
+# Dependências de terceiros
+node_modules/
+vendor/
 
-# Logs de debug locais
+# Logs de debug locais e temporários
 debug-*.log
-
 *.log
+*.tmp
+*.cache
 
-# Arquivos de sistema
+# Arquivos de sistema e IDE
 .DS_Store
 Thumbs.db
-
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

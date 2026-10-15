@@ -223,7 +223,7 @@ class AssetsController
         $existingSpecs = null;
         $prevRow = null;
         if (isset($input['id']) && !empty($input['id'])) {
-            $prevStmt = $this->db->prepare("SELECT imagem, imagem_3d, dados_tecnicos, json_specs FROM ativos WHERE id = ?");
+            $prevStmt = $this->db->prepare("SELECT imagem, imagem_3d, dados_tecnicos, json_specs, qr_hash, is_food_grade_required FROM ativos WHERE id = ?");
             $prevStmt->execute([$input['id']]);
             $prevRow = $prevStmt->fetch(PDO::FETCH_ASSOC) ?: null;
             $existingSpecs = $prevRow['json_specs'] ?? null;
@@ -316,9 +316,19 @@ class AssetsController
                         }
                     }
 
-                    // 2. Perform Update ensuring IP sync
+                    // QR Code Desacoplado & Metadados de Auditoria Grau Alimentício (H1)
+                    $qrHashToSave = trim($input['qr_hash'] ?? ($prevRow['qr_hash'] ?? ''));
+                    if (empty($qrHashToSave)) {
+                        $qrHashToSave = bin2hex(random_bytes(16));
+                    }
+                    $isFoodGrade = (!empty($input['is_food_grade_required']) || !empty($decodedDt['is_food_grade_required'])) ? 1 : 0;
+                    $dtArr['qr_hash'] = $qrHashToSave;
+                    $dtArr['is_food_grade_required'] = (bool) $isFoodGrade;
+                    $dados = json_encode($dtArr);
+
+                    // 2. Perform Update ensuring IP, QR and Food-Grade sync
                     $imagemToSave = array_key_exists('imagem', $input) ? ($input['imagem'] ?? '') : ($prevRow['imagem'] ?? '');
-                    $stmt = $db->prepare("UPDATE ativos SET nome=?, tag=?, tipo=?, pai_id=?, obs=?, dados_tecnicos=?, imagem=?, json_specs=?, fabricante=?, modelo=?, num_serie=?, ip=? WHERE id=?");
+                    $stmt = $db->prepare("UPDATE ativos SET nome=?, tag=?, tipo=?, pai_id=?, obs=?, dados_tecnicos=?, imagem=?, json_specs=?, fabricante=?, modelo=?, num_serie=?, ip=?, qr_hash=?, is_food_grade_required=? WHERE id=?");
                     $stmt->execute([
                         $input['nome'],
                         $input['tag'] ?? '',
@@ -332,6 +342,8 @@ class AssetsController
                         $input['modelo'] ?? '',
                         $input['num_serie'] ?? '',
                         $ipToSave, // Synced Column
+                        $qrHashToSave,
+                        $isFoodGrade,
                         $input['id']
                     ]);
                     $newId = $input['id'];
@@ -342,12 +354,20 @@ class AssetsController
                     $max = $db->query("SELECT MAX(ip) FROM ativos")->fetchColumn();
                     $newIp = ($max && $max > 0) ? $max + 1 : 1000;
 
-                    // Sync IP into Technical Data JSON for consistency
+                    $qrHashToSave = trim($input['qr_hash'] ?? '');
+                    if (empty($qrHashToSave)) {
+                        $qrHashToSave = bin2hex(random_bytes(16));
+                    }
+                    $isFoodGrade = (!empty($input['is_food_grade_required']) || !empty($decodedDt['is_food_grade_required'])) ? 1 : 0;
+
+                    // Sync IP, QR and Food Grade into Technical Data JSON for consistency
                     $dtArr = json_decode($dados, true) ?: [];
                     $dtArr['ip'] = $newIp;
+                    $dtArr['qr_hash'] = $qrHashToSave;
+                    $dtArr['is_food_grade_required'] = (bool) $isFoodGrade;
                     $dados = json_encode($dtArr);
 
-                    $stmt = $db->prepare("INSERT INTO ativos (nome, tag, tipo, pai_id, obs, dados_tecnicos, imagem, ip, json_specs, fabricante, modelo, num_serie, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                    $stmt = $db->prepare("INSERT INTO ativos (nome, tag, tipo, pai_id, obs, dados_tecnicos, imagem, ip, json_specs, fabricante, modelo, num_serie, user_id, qr_hash, is_food_grade_required) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
                     $stmt->execute([
                         $input['nome'],
                         $input['tag'] ?? '',
@@ -361,7 +381,9 @@ class AssetsController
                         $input['fabricante'] ?? '',
                         $input['modelo'] ?? '',
                         $input['num_serie'] ?? '',
-                        $currentUser['id']
+                        $currentUser['id'],
+                        $qrHashToSave,
+                        $isFoodGrade
                     ]);
                     $newId = $db->lastInsertId();
                 }
@@ -708,5 +730,224 @@ class AssetsController
         });
 
         return ['timeline' => $timeline];
+    }
+
+    /**
+     * Resolução desacoplada de QR Code por identificador público imutável (qr_hash ou tag)
+     */
+    public function resolveByQrCode()
+    {
+        $code = trim($this->input['code'] ?? $this->input['qr_hash'] ?? $this->input['tag'] ?? $this->input['id'] ?? '');
+        if (empty($code)) {
+            throw new Exception("Identificador de QR Code não informado.");
+        }
+
+        // 1. Busca por qr_hash público imutável
+        $stmt = $this->db->prepare("SELECT * FROM ativos WHERE qr_hash = ? LIMIT 1");
+        $stmt->execute([$code]);
+        $asset = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // 2. Fallback por TAG industrial
+        if (!$asset) {
+            $stmt = $this->db->prepare("SELECT * FROM ativos WHERE tag = ? LIMIT 1");
+            $stmt->execute([$code]);
+            $asset = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        // 3. Fallback por ID sequencial
+        if (!$asset && ctype_digit((string) $code)) {
+            $stmt = $this->db->prepare("SELECT * FROM ativos WHERE id = ? LIMIT 1");
+            $stmt->execute([(int) $code]);
+            $asset = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        // 4. Fallback por IP hierárquico
+        if (!$asset && ctype_digit((string) $code)) {
+            $stmt = $this->db->prepare("SELECT * FROM ativos WHERE ip = ? LIMIT 1");
+            $stmt->execute([(int) $code]);
+            $asset = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+
+        if (!$asset) {
+            throw new Exception("Ativo não localizado para o QR Code fornecido.");
+        }
+
+        // Garante que o ativo possua qr_hash se for legado
+        if (empty($asset['qr_hash'])) {
+            $newQr = bin2hex(random_bytes(16));
+            $this->db->prepare("UPDATE ativos SET qr_hash = ? WHERE id = ?")->execute([$newQr, $asset['id']]);
+            $asset['qr_hash'] = $newQr;
+        }
+
+        // Dados técnicos
+        $dt = json_decode($asset['dados_tecnicos'] ?: '{}', true) ?: [];
+
+        // Monta breadcrumb e descobre linha / setor pai
+        $breadcrumb = [];
+        $curr = $asset;
+        $lineId = null;
+        $lineName = null;
+        $maxHops = 10;
+
+        while ($curr && $maxHops-- > 0) {
+            array_unshift($breadcrumb, [
+                'id' => (int) $curr['id'],
+                'nome' => $curr['nome'],
+                'tipo' => $curr['tipo'],
+                'tag' => $curr['tag'] ?? ''
+            ]);
+
+            if (in_array($curr['tipo'], ['setor', 'unidade']) && !$lineId) {
+                $lineId = (int) $curr['id'];
+                $lineName = $curr['nome'];
+            }
+
+            if (!empty($curr['pai_id'])) {
+                $pStmt = $this->db->prepare("SELECT id, nome, tipo, tag, pai_id FROM ativos WHERE id = ?");
+                $pStmt->execute([$curr['pai_id']]);
+                $curr = $pStmt->fetch(PDO::FETCH_ASSOC);
+            } else {
+                break;
+            }
+        }
+
+        // Se não achou unidade/setor, usa o próprio ativo ou pai imediato
+        if (!$lineId) {
+            $lineId = !empty($breadcrumb[0]['id']) ? $breadcrumb[0]['id'] : (int) $asset['id'];
+            $lineName = !empty($breadcrumb[0]['nome']) ? $breadcrumb[0]['nome'] : $asset['nome'];
+        }
+
+        // Ordens ativas para este ponto
+        $stmtOrdens = $this->db->prepare("SELECT id, descricao, tipo_manutencao, prioridade, situacao, data_planejada, materiais, rota, cod_serv, reserva_almox, materiais_sap
+            FROM ordens 
+            WHERE ativo_id = ? AND situacao != 'Concluído' 
+            ORDER BY CASE prioridade WHEN 'Crítica' THEN 1 WHEN 'Alta' THEN 2 WHEN 'Média' THEN 3 ELSE 4 END, data_planejada ASC");
+        $stmtOrdens->execute([$asset['id']]);
+        $activeOrders = $stmtOrdens->fetchAll(PDO::FETCH_ASSOC);
+
+        // Calibração de engraxadeiras disponível no sistema
+        $greaseGuns = [];
+        try {
+            $gStmt = $this->db->query("SELECT id, codigo, modelo, tipo, g_por_golpe FROM engraxadeiras_calibracao WHERE ativo = 1");
+            $greaseGuns = $gStmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {}
+
+        return [
+            'ok' => true,
+            'asset' => [
+                'id' => (int) $asset['id'],
+                'nome' => $asset['nome'],
+                'tag' => $asset['tag'],
+                'qr_hash' => $asset['qr_hash'],
+                'tipo' => $asset['tipo'],
+                'pai_id' => $asset['pai_id'],
+                'fabricante' => $asset['fabricante'],
+                'modelo' => $asset['modelo'],
+                'num_serie' => $asset['num_serie'],
+                'imagem' => $asset['imagem'],
+                'imagem_3d' => $asset['imagem_3d'] ?? null,
+                'is_food_grade_required' => (bool) ($asset['is_food_grade_required'] ?? false),
+                'dados_tecnicos' => $dt
+            ],
+            'line' => [
+                'id' => $lineId,
+                'nome' => $lineName,
+                'prefetch_url' => 'api.php?action=get_line_lubrication_points&line_id=' . $lineId
+            ],
+            'breadcrumb' => $breadcrumb,
+            'active_orders' => $activeOrders,
+            'grease_guns' => $greaseGuns
+        ];
+    }
+
+    /**
+     * Retorna todos os pontos de lubrificação, insumos e instruções de uma linha inteira em payload enxuto para pre-fetching/cache offline do PWA
+     */
+    public function getLineLubricationPoints()
+    {
+        $lineId = isset($this->input['line_id']) ? (int) $this->input['line_id'] : (isset($this->input['id']) ? (int) $this->input['id'] : null);
+        $tag = trim($this->input['tag'] ?? '');
+
+        if (!$lineId && !empty($tag)) {
+            $s = $this->db->prepare("SELECT id FROM ativos WHERE tag = ? OR qr_hash = ? LIMIT 1");
+            $s->execute([$tag, $tag]);
+            $lineId = $s->fetchColumn() ?: null;
+        }
+
+        if (!$lineId) {
+            throw new Exception("Parâmetro 'line_id' obrigatório para pre-fetching de linha.");
+        }
+
+        // Coleta todos os IDs da subárvore pertencente a esta linha
+        $subtreeIds = [$lineId];
+        $this->collectSubtreeIds($lineId, $subtreeIds);
+
+        // Informações da linha/setor
+        $lineStmt = $this->db->prepare("SELECT id, nome, tag, tipo FROM ativos WHERE id = ?");
+        $lineStmt->execute([$lineId]);
+        $lineInfo = $lineStmt->fetch(PDO::FETCH_ASSOC) ?: ['id' => $lineId, 'nome' => 'Linha ' . $lineId];
+
+        // Tenta buscar da tabela de projeção de lubrificação para máxima performance
+        $inClause = implode(',', array_map('intval', $subtreeIds));
+        $sql = "SELECT l.*, a.nome, a.tag, a.tipo, a.imagem, a.qr_hash, a.is_food_grade_required, a.dados_tecnicos, a.pai_id
+                FROM ativos a
+                LEFT JOIN ativos_lubrificacao l ON l.ativo_id = a.id
+                WHERE a.id IN ($inClause) AND (a.tipo IN ('ponto', 'componente') OR l.ativo_id IS NOT NULL)
+                ORDER BY a.pai_id ASC, a.nome ASC";
+        $stmt = $this->db->query($sql);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $points = [];
+        $lubricants = [];
+
+        foreach ($rows as $row) {
+            $dt = json_decode($row['dados_tecnicos'] ?: '{}', true) ?: [];
+            $lub = $row['lubrificante'] ?: ($dt['lubrificante'] ?? $dt['graxa'] ?? $dt['oleo'] ?? 'Graxa Padrão');
+            $qtd = $row['quantidade'] !== null ? (float) $row['quantidade'] : (float) ($dt['quantidade'] ?? $dt['qtd'] ?? 0);
+            $unidade = $row['unidade'] ?: ($dt['unidade'] ?? 'g');
+            $freq = $row['frequencia'] ?: ($dt['frequencia'] ?? 'Mensal');
+
+            $pointData = [
+                'id' => (int) $row['id'],
+                'nome' => $row['nome'],
+                'tag' => $row['tag'] ?: '',
+                'qr_hash' => $row['qr_hash'] ?: null,
+                'tipo' => $row['tipo'],
+                'pai_id' => $row['pai_id'],
+                'equipamento' => $row['equipamento_nome'] ?: '',
+                'setor' => $row['setor_nome'] ?: $lineInfo['nome'],
+                'lubrificante' => $lub,
+                'quantidade' => $qtd,
+                'unidade' => $unidade,
+                'frequencia' => $freq,
+                'proxima_intervencao' => $row['data_proxima_intervencao'] ?? null,
+                'ultima_intervencao' => $row['data_ultima_intervencao'] ?? null,
+                'is_food_grade_required' => (bool) ($row['is_food_grade_required'] ?? false),
+                'condicao_maquina' => $dt['condicao'] ?? $dt['condicao_servico'] ?? 'Em Marcha',
+                'ponto_especifico' => $dt['ponto_lubrificacao'] ?? $row['ponto_lub'] ?? '',
+                'metodo' => $dt['metodo'] ?? 'Manual',
+                'imagem' => $row['imagem'] ?: null,
+                'sap_code' => $row['sap'] ?: ($dt['sap'] ?? '')
+            ];
+
+            $points[] = $pointData;
+            if ($lub && !in_array($lub, $lubricants, true)) {
+                $lubricants[] = $lub;
+            }
+        }
+
+        return [
+            'ok' => true,
+            'line' => [
+                'id' => (int) $lineInfo['id'],
+                'nome' => $lineInfo['nome'],
+                'tag' => $lineInfo['tag'] ?? '',
+                'tipo' => $lineInfo['tipo'] ?? 'setor'
+            ],
+            'total_points' => count($points),
+            'points' => $points,
+            'required_lubricants' => $lubricants,
+            'fetched_at' => date('Y-m-d H:i:s')
+        ];
     }
 }

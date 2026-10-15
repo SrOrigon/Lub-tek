@@ -82,7 +82,7 @@ function initApp() {
         page = (typeof isTrabalhadorUser === 'function' && isTrabalhadorUser()) ? 'routes' : 'home';
     }
     if (page === 'ativos') page = 'assets';
-    const directAssetId = params.get('id') || params.get('asset_id') || params.get('ativo_id');
+    const directAssetId = params.get('id') || params.get('asset_id') || params.get('ativo_id') || params.get('qr') || params.get('qr_hash');
     if (directAssetId && (page === 'home' || page === 'routes')) {
         page = 'assets';
     }
@@ -430,12 +430,27 @@ async function checkURLParams() {
     const params = new URLSearchParams(window.location.search);
     const assetId = params.get('id') || params.get('asset_id') || params.get('ativo_id');
     const assetTag = params.get('tag');
+    const assetQr = params.get('qr') || params.get('qr_hash') || params.get('code');
 
-    if (assetId || assetTag) {
+    if (assetId || assetTag || assetQr) {
         // 1. Switch View to Assets
         if (typeof nav === 'function') {
             const assetNavBtn = document.querySelector('.nav-item[onclick*="\'assets\'"]');
             nav('assets', assetNavBtn);
+        }
+
+        // Se QR Code desacoplado fornecido, resolve via API e faz pre-fetch preventivo da linha inteira
+        if (assetQr) {
+            api('get_asset_by_qr', { code: assetQr }).then(res => {
+                if (res && res.ok && res.asset) {
+                    if (res.line && res.line.id && typeof prefetchLineLubrication === 'function') {
+                        prefetchLineLubrication(res.line.id);
+                    }
+                    if (typeof selectNode === 'function') {
+                        selectNode(res.asset.id);
+                    }
+                }
+            }).catch(e => console.warn('[QR Resolver] Falha na busca por qr_hash:', e));
         }
 
         // 2. Wait for Tree (Poll)
@@ -453,10 +468,14 @@ async function checkURLParams() {
             if (window.treeState && window.treeState.length > 0) {
                 let targetId = assetId;
 
-                // Resolve by Tag if assetId not specified directly
-                if (!targetId && assetTag && window.allNodesMap) {
+                // Resolve by Tag or QR if assetId not specified directly
+                if (!targetId && (assetTag || assetQr) && window.allNodesMap) {
                     for (let [id, node] of window.allNodesMap.entries()) {
-                        if (node.tag && node.tag.trim().toLowerCase() === assetTag.trim().toLowerCase()) {
+                        if (assetTag && node.tag && node.tag.trim().toLowerCase() === assetTag.trim().toLowerCase()) {
+                            targetId = id;
+                            break;
+                        }
+                        if (assetQr && node.qr_hash && node.qr_hash === assetQr) {
                             targetId = id;
                             break;
                         }
@@ -466,17 +485,47 @@ async function checkURLParams() {
                 if (targetId && typeof selectNode === 'function') {
                     selectNode(targetId);
                     // Check if success (editingNode set)
-                    if (window.editingNode && (window.editingNode.id == targetId || (assetTag && window.editingNode.tag == assetTag))) {
+                    if (window.editingNode && (window.editingNode.id == targetId || (assetTag && window.editingNode.tag == assetTag) || (assetQr && window.editingNode.qr_hash == assetQr))) {
                         clearInterval(poll);
                         const tabs = document.querySelectorAll('.asset-tab');
                         if (tabs[0]) tabs[0].click();
                         showToast(`Ativo '${window.editingNode.nome}' carregado via QR Code!`, 'success');
+
+                        // Se o ativo pertence a uma linha, ativa o pre-fetching
+                        const lineParentId = window.editingNode.pai_id;
+                        if (lineParentId && typeof prefetchLineLubrication === 'function') {
+                            prefetchLineLubrication(lineParentId);
+                        }
                     }
                 }
             }
         }, 300);
     }
 }
+
+/**
+ * Pre-fetching preventivo da linha inteira em payload enxuto para IndexedDB / LocalStorage
+ */
+async function prefetchLineLubrication(lineId) {
+    if (!lineId) return;
+    try {
+        const cacheKey = 'lub_line_prefetch_' + lineId;
+        const res = await api('get_line_lubrication_points', { line_id: lineId });
+        if (res && res.ok && res.points) {
+            localStorage.setItem(cacheKey, JSON.stringify({
+                cached_at: Date.now(),
+                line: res.line,
+                total_points: res.total_points,
+                points: res.points,
+                required_lubricants: res.required_lubricants
+            }));
+            console.log(`[LUB-TEK PWA] Pre-fetch da linha #${lineId} concluído com sucesso: ${res.total_points} pontos em cache local.`);
+        }
+    } catch (err) {
+        console.warn('[LUB-TEK PWA] Falha no pre-fetch de linha preventiva:', err);
+    }
+}
+window.prefetchLineLubrication = prefetchLineLubrication;
 
 // --- TOAST NOTIFICATION SYSTEM ---
 function showToast(message, type = 'info', options = {}) {
@@ -1387,7 +1436,8 @@ function generateAssetQRCode() {
     // Create Print Window
     const win = window.open('', '', 'width=450,height=550');
     const baseUrl = window.location.origin + window.location.pathname;
-    const url = `${baseUrl}?page=assets&id=${editingNode.id}&asset_id=${editingNode.id}`;
+    const qrIdentifier = editingNode.qr_hash || editingNode.tag || editingNode.id;
+    const url = `${baseUrl}?page=assets&qr=${encodeURIComponent(qrIdentifier)}&id=${editingNode.id}`;
 
     win.document.write(`
         <html>
@@ -1398,7 +1448,8 @@ function generateAssetQRCode() {
                 .label-card { border: 2px solid #0f172a; padding: 20px; border-radius: 12px; display: inline-block; max-width: 320px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
                 .company-header { font-size: 0.8rem; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
                 h2 { margin: 5px 0; font-size: 1.2rem; font-weight: 800; color: #0f172a; word-break: break-word; }
-                .tag-badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; margin: 6px 0 14px 0; }
+                .tag-badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; margin: 6px 0 10px 0; }
+                .food-badge { display: block; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px; }
                 .qm { margin: 15px auto; display: flex; justify-content: center; }
                 .url-text { font-size: 0.65rem; color: #64748b; font-family: monospace; word-break: break-all; margin-top: 10px; }
             </style>
@@ -1407,7 +1458,8 @@ function generateAssetQRCode() {
             <div class="label-card">
                 <div class="company-header">LUB-TEK SISTEMA INDUSTRIAL</div>
                 <h2>${escapeHtml(editingNode.nome)}</h2>
-                <div class="tag-badge">TAG: ${escapeHtml(editingNode.tag || 'S/N')}</div>
+                <div class="tag-badge">TAG: ${escapeHtml(editingNode.tag || 'S/N')} | QR: ${escapeHtml(editingNode.qr_hash ? editingNode.qr_hash.substring(0, 8) + '...' : editingNode.id)}</div>
+                ${editingNode.is_food_grade_required ? '<div class="food-badge">🛡️ GRAU ALIMENTÍCIO (NSF H1)</div>' : ''}
                 <div id="qrcode" class="qm"></div>
                 <div class="url-text">${url}</div>
             </div>
@@ -2866,8 +2918,16 @@ async function lubtekFormUpload(action, formData) {
 }
 
 async function uploadImage(input, previewId, valueId) {
-    const file = input.files[0];
+    let file = input.files[0];
     if (!file) return;
+
+    if (window.LubtekImageCompressor && typeof window.LubtekImageCompressor.compress === 'function') {
+        try {
+            file = await window.LubtekImageCompressor.compress(file, 1280, 0.75);
+        } catch (compErr) {
+            console.warn('[ImageCompressor] Fallback para arquivo original:', compErr);
+        }
+    }
 
     const fd = new FormData();
     fd.append('action', 'upload_image');
@@ -3267,18 +3327,44 @@ async function api(action, payload = null, options = null) {
             const isRead = action.startsWith('get_') || action.startsWith('calc_') || action.startsWith('list_');
             if (!isRead) {
                 const queue = (window.LubtekOfflineQueue && window.LubtekOfflineQueue.loadSync()) || JSON.parse(localStorage.getItem('lub_api_queue') || '[]');
-                queue.push({ action, payload, time: Date.now() });
+                const idempKey = (payload && payload.idempotency_key) ? payload.idempotency_key : ((typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('outbox-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9)));
+                const executedAt = (payload && payload.executed_at) ? payload.executed_at : new Date().toISOString();
+
+                if (payload && typeof payload === 'object') {
+                    payload.idempotency_key = idempKey;
+                    payload.executed_at = executedAt;
+                }
+
+                queue.push({
+                    idempotency_key: idempKey,
+                    action: action,
+                    payload: payload,
+                    executed_at: executedAt,
+                    time: Date.now()
+                });
                 if (window.LubtekOfflineQueue) window.LubtekOfflineQueue.save(queue);
                 else localStorage.setItem('lub_api_queue', JSON.stringify(queue));
                 if (typeof showToast === 'function') {
                     showToast('Salvo em modo OFFLINE. Será sincronizado quando retomar conexão.', 'info');
                 }
-                return { ok: true, offline: true };
+                return { ok: true, offline: true, idempotency_key: idempKey, executed_at: executedAt };
             }
         }
     } catch (e) { /* ignore storage errors */ }
 
     try {
+        const isMutating = typeof isMutatingApiAction === 'function' ? isMutatingApiAction(action) : (action.startsWith('save_') || action.startsWith('update_') || action.startsWith('delete_') || action.startsWith('sync_'));
+        if (payload && typeof payload === 'object' && isMutating) {
+            if (!payload.idempotency_key) {
+                payload.idempotency_key = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                    ? crypto.randomUUID()
+                    : ('req-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9));
+            }
+            if (!payload.executed_at) {
+                payload.executed_at = new Date().toISOString();
+            }
+        }
+
         if (!skipCache && action !== 'get_sync_revision' && window.ApiSmartCache) {
             const cached = await window.ApiSmartCache.lookup(action, payload);
             if (cached && cached.hit) {
@@ -3293,6 +3379,9 @@ async function api(action, payload = null, options = null) {
         };
         if (window.csrfToken) {
             baseHeaders['X-CSRF-TOKEN'] = window.csrfToken;
+        }
+        if (payload && payload.idempotency_key) {
+            baseHeaders['X-Idempotency-Key'] = payload.idempotency_key;
         }
 
         const opts = payload ? {

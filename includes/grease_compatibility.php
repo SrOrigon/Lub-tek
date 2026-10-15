@@ -89,6 +89,51 @@ class GreaseCompatibility
     }
 
     /**
+     * Valida se a descrição ou marca do lubrificante corresponde à certificação NSF H1 (grau alimentício).
+     */
+    public static function isFoodGradeLubricant(string $lubricantText): bool
+    {
+        $t = function_exists('mb_strtolower') ? mb_strtolower($lubricantText, 'UTF-8') : strtolower($lubricantText);
+        $t = strtr($t, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ã' => 'a']);
+        
+        // Padrões de marcas e termos homologados H1 (ex: Linhas Pet160 / Solar Coca-Cola)
+        $h1Patterns = [
+            'h1', 'food grade', 'foodgrade', 'grau alimenticio', 'alimentar', 
+            'cassida', 'kluberfood', 'paraliq', 'vitalube', 'cibus', 'shc cibus',
+            'nevastane', 'berulub', 'foodlube', 'clarion', 'lubriplate fgl',
+            'renolit fgl', 'optileb', 'viscogen fg', 'puritan'
+        ];
+
+        foreach ($h1Patterns as $pattern) {
+            if (strpos($t, $pattern) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Validação estrita de auditoria ISO / NSF para linhas de envase alimentício
+     */
+    public static function validateFoodGrade(bool $isFoodGradeRequired, string $lubricantText): array
+    {
+        if (!$isFoodGradeRequired || trim($lubricantText) === '') {
+            return ['valid' => true, 'is_h1' => self::isFoodGradeLubricant($lubricantText)];
+        }
+
+        $isH1 = self::isFoodGradeLubricant($lubricantText);
+        if (!$isH1) {
+            return [
+                'valid' => false,
+                'is_h1' => false,
+                'error' => "NÃO CONFORMIDADE DE AUDITORIA: Este ponto exige lubrificante grau alimentício certificado NSF H1. O insumo informado ('{$lubricantText}') não possui certificação H1."
+            ];
+        }
+
+        return ['valid' => true, 'is_h1' => true];
+    }
+
+    /**
      * @throws Exception JSON error_code GREASE_INCOMPATIBLE
      */
     public static function guardOnAsset(PDO $db, int $ativoId, array $newTech, bool $confirmPurge, array $user): ?int
@@ -129,6 +174,28 @@ class GreaseCompatibility
     {
         $fromMat = trim((string) ($oldTech['material'] ?? ''));
         $toMat = trim((string) ($newTech['material'] ?? ''));
+
+        // Validação de Auditoria Grau Alimentício (NSF H1) para linhas como Pet160
+        $isFoodGradeRequired = !empty($oldTech['is_food_grade_required']) || !empty($newTech['is_food_grade_required']);
+        if (!$isFoodGradeRequired && $ativoId > 0) {
+            try {
+                $fgStmt = $db->prepare('SELECT is_food_grade_required FROM ativos WHERE id = ?');
+                $fgStmt->execute([$ativoId]);
+                $isFoodGradeRequired = (bool) $fgStmt->fetchColumn();
+            } catch (Throwable $e) {}
+        }
+
+        if ($isFoodGradeRequired && $toMat !== '') {
+            $fgCheck = self::validateFoodGrade(true, $toMat);
+            if (!$fgCheck['valid'] && !$confirmPurge) {
+                throw new Exception(json_encode([
+                    'error_code' => 'FOOD_GRADE_VIOLATION',
+                    'message' => $fgCheck['error'],
+                    'suggestion' => 'Substitua por um lubrificante certificado NSF H1 homologado para a linha.'
+                ], JSON_UNESCAPED_UNICODE));
+            }
+        }
+
         if ($toMat === '' || $fromMat === '' || strcasecmp($fromMat, $toMat) === 0) {
             return null;
         }

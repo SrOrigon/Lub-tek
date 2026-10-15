@@ -8,10 +8,11 @@ require_once __DIR__ . '/includes/tenant.php';
 require_once __DIR__ . '/includes/lubrication_tech_sync.php';
 require_once __DIR__ . '/includes/cbm_job_queue.php';
 require_once __DIR__ . '/includes/schema_migrations.php';
+require_once __DIR__ . '/includes/integration_queue.php';
 
 class DB
 {
-    public const SCHEMA_VERSION = '1.5';
+    public const SCHEMA_VERSION = '1.6';
 
     /** @var DB[] */
     private static $instances = [];
@@ -304,6 +305,10 @@ class DB
                 'idx_cbm_jobs_status' => 'CREATE INDEX IF NOT EXISTS idx_cbm_jobs_status ON cbm_jobs(status, id)',
                 'idx_lub_material' => 'CREATE INDEX IF NOT EXISTS idx_lub_material ON ativos_lubrificacao(lubrificante)',
                 'idx_lub_setor' => 'CREATE INDEX IF NOT EXISTS idx_lub_setor ON ativos_lubrificacao(setor_id)',
+                'idx_ativos_qr_hash' => 'CREATE INDEX IF NOT EXISTS idx_ativos_qr_hash ON ativos(qr_hash)',
+                'idx_ordens_idempotency_key' => 'CREATE INDEX IF NOT EXISTS idx_ordens_idempotency_key ON ordens(idempotency_key)',
+                'idx_ordens_executed_at' => 'CREATE INDEX IF NOT EXISTS idx_ordens_executed_at ON ordens(executed_at)',
+                'idx_integration_queue_status' => 'CREATE INDEX IF NOT EXISTS idx_integration_queue_status ON integration_queue(status, scheduled_at)',
             ];
 
             foreach ($indexes as $name => $sql) {
@@ -436,7 +441,9 @@ class DB
                     'modelo' => 'ALTER TABLE ativos ADD COLUMN modelo TEXT',
                     'num_serie' => 'ALTER TABLE ativos ADD COLUMN num_serie TEXT',
                     'obs' => 'ALTER TABLE ativos ADD COLUMN obs TEXT',
-                    'tag' => 'ALTER TABLE ativos ADD COLUMN tag TEXT'
+                    'tag' => 'ALTER TABLE ativos ADD COLUMN tag TEXT',
+                    'qr_hash' => 'ALTER TABLE ativos ADD COLUMN qr_hash TEXT',
+                    'is_food_grade_required' => 'ALTER TABLE ativos ADD COLUMN is_food_grade_required INTEGER DEFAULT 0'
                 ];
 
                 foreach ($requiredAtivosColumns as $col => $alterSql) {
@@ -497,7 +504,12 @@ class DB
                     'obs_exec' => 'ALTER TABLE ordens ADD COLUMN obs_exec TEXT',
                     'motivos' => 'ALTER TABLE ordens ADD COLUMN motivos TEXT',
                     'condicao_servico' => 'ALTER TABLE ordens ADD COLUMN condicao_servico TEXT',
-                    'qtd_real' => 'ALTER TABLE ordens ADD COLUMN qtd_real TEXT'
+                    'qtd_real' => 'ALTER TABLE ordens ADD COLUMN qtd_real TEXT',
+                    'executed_at' => 'ALTER TABLE ordens ADD COLUMN executed_at DATETIME',
+                    'synced_at' => 'ALTER TABLE ordens ADD COLUMN synced_at DATETIME',
+                    'idempotency_key' => 'ALTER TABLE ordens ADD COLUMN idempotency_key TEXT',
+                    'dosage_amount' => 'ALTER TABLE ordens ADD COLUMN dosage_amount REAL',
+                    'dosage_unit' => 'ALTER TABLE ordens ADD COLUMN dosage_unit TEXT'
                 ];
 
                 foreach ($requiredOrdensColumns as $col => $alterSql) {
@@ -562,6 +574,7 @@ class DB
             )");
 
             CbmJobQueue::ensureTable($this->pdo);
+            IntegrationQueue::ensureTable($this->pdo);
             try {
                 LubricationTechSync::ensureTable($this->pdo);
                 LubricationTechSync::backfill($this->pdo);

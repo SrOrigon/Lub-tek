@@ -1,0 +1,61 @@
+# .cursorignore — Proteção de Contexto e Headroom para Agentes de IA
+# Evita consumo excessivo de tokens e estouro de janela por binários e caches
+
+# Binários e documentos pesados
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.mp4
+*.webm
+*.avi
+*.mov
+*.iso
+*.exe
+*.dll
+
+# Planos pesados e documentos de referência
+docs/planos-referencia/
+docs/*.pdf
+
+# Pastas de dependências e controle de versão
+node_modules/
+vendor/
+.git/
+
+# Uploads, mídias e armazenamentos de clientes
+uploads/
+storage/
+
+# Backups gerados
+backups/
+
+# Sessões, caches temporários e locks
+data/sessions/
+data/ai_cache/
+*.lock
+database.sqlite.migrate.lock
+
+# Bancos de dados locais e arquivos de log
+banco de dados/
+databases/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.db
+*.log
+debug-*.log
+
+# Caches de compilação e artefatos de deploy
+deploy/hostinger-sync/
+deploy/hostinger-includes-fix/
+deploy/*.zip
+deploy/lubteksystem-production/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

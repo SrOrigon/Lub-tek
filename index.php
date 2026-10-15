@@ -233,6 +233,7 @@ foreach ($orderedRoutes as $routeKey => $routePath) {
 <!-- 1. REAL-TIME ECOSYSTEM CORE (Must load FIRST before anything) -->
 <script src="assets/js/realtime_core.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 <script src="assets/js/modules/events_bus.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/modules/image_compressor.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 
 <!-- 2. MAIN SCRIPTS (API canônica) — carrega antes dos extras -->
 <script src="assets/js/scripts_main.js?v=<?php echo $BUILD_VER; ?>" defer></script>

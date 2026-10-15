@@ -11,6 +11,8 @@ require_once __DIR__ . '/../includes/lubrication_tech_sync.php';
 require_once __DIR__ . '/../includes/work_order_generation_agent.php';
 require_once __DIR__ . '/../includes/work_order_agent_briefing.php';
 require_once __DIR__ . '/../includes/agent_feedback.php';
+require_once __DIR__ . '/../includes/idempotency_guard.php';
+require_once __DIR__ . '/../includes/integration_queue.php';
 
 class OrdersController
 {
@@ -84,13 +86,46 @@ class OrdersController
             throw new Exception("Permissão negada para alterar ordens de serviço.");
         }
 
+        $idempotencyKey = $input['idempotency_key'] 
+            ?? $_SERVER['HTTP_IDEMPOTENCY_KEY'] 
+            ?? $input['client_request_id'] 
+            ?? null;
+
+        return IdempotencyGuard::run($this->db, $idempotencyKey, 'orders.save_task', function () use ($input) {
+            return $this->executeSaveTask($input);
+        });
+    }
+
+    private function executeSaveTask(array $input)
+    {
         $id = intval($input['id'] ?? 0);
-        $situacao = $input['situacao'] ?? null;
+        $situacao = isset($input['situacao']) ? strip_tags(trim((string) $input['situacao'])) : null;
         $now = date('Y-m-d H:i:s');
 
+        // Outbox / Timestamps
+        $executedAtRaw = $input['executed_at'] ?? null;
+        $executedAt = null;
+        if ($executedAtRaw) {
+            $ts = strtotime((string)$executedAtRaw);
+            if ($ts && $ts > 0) {
+                $executedAt = date('Y-m-d H:i:s', $ts);
+            }
+        }
+        $completionDate = $executedAt ?: $now;
+        $executionDateOnly = $executedAt ? date('Y-m-d', strtotime($executedAt)) : ($input['data_execucao'] ?? null);
+        $syncedAt = $now;
+        $idempotencyKey = $input['idempotency_key'] ?? $_SERVER['HTTP_X_IDEMPOTENCY_KEY'] ?? $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? null;
+        $dosageAmount = isset($input['dosage_amount']) && is_numeric($input['dosage_amount']) ? floatval($input['dosage_amount']) : null;
+        $dosageUnit = isset($input['dosage_unit']) ? strip_tags(trim((string)$input['dosage_unit'])) : null;
+
         // 1. ATUALIZAÇÃO PARCIAL RÁPIDA (Vinda do Kanban Drag & Drop ou API enxuta)
-        if ($id > 0 && $situacao !== null && count($input) <= 3) {
-            return DB::safeExecute(function ($db) use ($id, $situacao, $now) {
+        if ($id > 0 && $situacao !== null && count($input) <= 6) {
+            $validStatuses = ['Pendente', 'Em Andamento', 'Concluído', 'Cancelada', 'Aguardando Peça'];
+            if (!in_array($situacao, $validStatuses, true)) {
+                $situacao = 'Pendente';
+            }
+
+            return DB::safeExecute(function ($db) use ($id, $situacao, $now, $completionDate, $executionDateOnly, $executedAt, $syncedAt, $idempotencyKey, $dosageAmount, $dosageUnit) {
                 // A. Busca os dados atuais da OS antes de atualizar
                 $stmtOS = $db->prepare("SELECT situacao, materiais FROM ordens WHERE id = ?");
                 $stmtOS->execute([$id]);
@@ -102,35 +137,70 @@ class OrdersController
 
                 $oldStatus = $osAtual['situacao'];
 
-                // B. Atualiza o status da OS e data_conclusao se aplicável
+                // B. Atualiza o status da OS, datas separadas (executed_at x synced_at) e idempotência
                 $stmtUpdate = $db->prepare("
                     UPDATE ordens SET 
                         situacao = ?, 
                         data_conclusao = CASE WHEN ? = 'Concluído' THEN ? ELSE data_conclusao END, 
+                        data_execucao = CASE WHEN ? = 'Concluído' AND (data_execucao IS NULL OR data_execucao = '') THEN ? ELSE data_execucao END,
+                        executed_at = COALESCE(?, executed_at),
+                        synced_at = ?,
+                        idempotency_key = COALESCE(?, idempotency_key),
+                        dosage_amount = COALESCE(?, dosage_amount),
+                        dosage_unit = COALESCE(?, dosage_unit),
                         last_sync = ? 
                     WHERE id = ?
                 ");
-                $stmtUpdate->execute([$situacao, $situacao, $now, $now, $id]);
+                $stmtUpdate->execute([
+                    $situacao, 
+                    $situacao, 
+                    $completionDate, 
+                    $situacao,
+                    $executionDateOnly ?: date('Y-m-d'),
+                    $executedAt,
+                    $syncedAt,
+                    $idempotencyKey,
+                    $dosageAmount,
+                    $dosageUnit,
+                    $now, 
+                    $id
+                ]);
 
                 DB::log($this->user['name'] ?? $this->user['nome'] ?? 'SYSTEM', 'OS_STATUS_CHANGE', "OS #{$id} -> {$situacao}");
 
-                // C. GATILHO DE INVENTÁRIO E CICLO DE VIDA DO ATIVO
+                // C. GATILHO DE INVENTÁRIO, CICLO DE VIDA DO ATIVO E FILA SAP DESACOPLADA
                 if ($situacao === 'Concluído' && $oldStatus !== 'Concluído') {
                     AgentFeedback::setOutcomeForOrder($db, $id, 'completed');
-                    if (!empty($osAtual['materiais'])) {
-                        $materials = json_decode($osAtual['materiais'], true);
-                        if (is_array($materials)) {
-                            $this->deductStockNonBlocking($db, $materials, $id);
+                    $materials = !empty($osAtual['materiais']) ? json_decode($osAtual['materiais'], true) : [];
 
-                            foreach ($materials as $item) {
-                                $qtd = floatval($item['qtd'] ?? 0);
-                                $nome = $item['nome'] ?? $item['material'] ?? 'item';
-                                if ($qtd > 0) {
-                                    DB::log('SYSTEM', 'INVENTORY_DEDUCT', "OS #{$id} consumiu {$qtd} de {$nome}");
-                                }
+                    if (is_array($materials) && !empty($materials)) {
+                        $this->deductStockNonBlocking($db, $materials, $id);
+
+                        foreach ($materials as $item) {
+                            $qtd = floatval($item['qtd'] ?? 0);
+                            $nome = $item['nome'] ?? $item['material'] ?? 'item';
+                            if ($qtd > 0) {
+                                DB::log('SYSTEM', 'INVENTORY_DEDUCT', "OS #{$id} consumiu {$qtd} de {$nome}");
                             }
                         }
                     }
+
+                    // Enfileira integração SAP de forma não-bloqueante
+                    try {
+                        IntegrationQueue::enqueue($db, 'SAP', 'order_completion', [
+                            'order_id' => $id,
+                            'status' => 'Concluído',
+                            'executed_at' => $completionDate,
+                            'synced_at' => $syncedAt,
+                            'idempotency_key' => $idempotencyKey,
+                            'materials' => $materials,
+                            'dosage_amount' => $dosageAmount,
+                            'dosage_unit' => $dosageUnit
+                        ], 'ORD-' . $id);
+                    } catch (Throwable $e) {
+                        error_log('[IntegrationQueue] Falha ao enfileirar: ' . $e->getMessage());
+                    }
+
                     $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
                     $stmtFull->execute([$id]);
                     $fullOrder = $stmtFull->fetch(PDO::FETCH_ASSOC);
@@ -139,8 +209,7 @@ class OrdersController
                     }
                 }
                 // D. REABERTURA: se a OS estava Concluída e volta para outro status,
-                // o estoque baixado precisa ser devolvido (senão o inventário fica
-                // permanentemente incorreto após qualquer reabertura de OS).
+                // o estoque baixado precisa ser devolvido
                 elseif ($situacao !== 'Concluído' && $oldStatus === 'Concluído' && !empty($osAtual['materiais'])) {
                     AgentFeedback::setOutcomeForOrder($db, $id, 'reopened');
                     $materials = json_decode($osAtual['materiais'], true);
@@ -164,7 +233,19 @@ class OrdersController
         }
 
         // 2. ATUALIZAÇÃO COMPLETA (Via Formulário e edição tradicional)
-        $status = ($input['done'] ?? false) ? 'Concluído' : ($input['situacao'] ?? 'Pendente');
+        $rawStatus = ($input['done'] ?? false) ? 'Concluído' : ($input['situacao'] ?? 'Pendente');
+        $validStatuses = ['Pendente', 'Em Andamento', 'Concluído', 'Cancelada', 'Aguardando Peça'];
+        $status = in_array($rawStatus, $validStatuses, true) ? $rawStatus : 'Pendente';
+
+        $rawPrio = trim((string)($input['prio'] ?? $input['prioridade'] ?? 'Média'));
+        $validPriorities = ['Baixa', 'Média', 'Alta', 'Crítica', 'Rotina'];
+        $prio = in_array($rawPrio, $validPriorities, true) ? $rawPrio : 'Média';
+
+        $desc = strip_tags(trim((string)($input['desc'] ?? $input['descricao'] ?? '')));
+        $resp = strip_tags(trim((string)($input['resp'] ?? $input['responsavel'] ?? '')));
+        $rawDate = trim((string)($input['date'] ?? $input['data_planejada'] ?? ''));
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawDate) ? $rawDate : date('Y-m-d');
+
         $materials = $input['materiais'] ?? null;
         $isUpdate = isset($input['id']) && (strpos((string) $input['id'], 'new') === false);
 
@@ -237,6 +318,26 @@ class OrdersController
                 }
 
                 $jsonMateriais = json_encode($materials);
+                $cleanIp = isset($input['ip']) ? preg_replace('/[^0-9a-zA-Z._-]/', '', (string)$input['ip']) : null;
+                $cleanCodServ = isset($input['cod_serv']) ? strip_tags(trim((string)$input['cod_serv'])) : null;
+                $cleanRota = isset($input['rota']) ? strip_tags(trim((string)$input['rota'])) : null;
+                $cleanMatSap = isset($input['materiais_sap']) ? strip_tags(trim((string)$input['materiais_sap'])) : null;
+                $cleanResAlmox = isset($input['reserva_almox']) ? strip_tags(trim((string)$input['reserva_almox'])) : null;
+                $cleanNumPontos = max(0, intval($input['num_pontos'] ?? 0));
+                $cleanComplemento = isset($input['complemento']) ? strip_tags(trim((string)$input['complemento'])) : null;
+                $cleanDataEmissao = isset($input['data_emissao']) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$input['data_emissao']) ? (string)$input['data_emissao'] : null;
+                $cleanDataExec = isset($input['data_execucao']) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$input['data_execucao']) ? (string)$input['data_execucao'] : null;
+                $cleanHorasExec = max(0, floatval($input['horas_exec'] ?? 0));
+                $cleanMinutosExec = max(0, min(59, intval($input['minutos_exec'] ?? 0)));
+                $cleanCodExec = isset($input['cod_exec']) ? strip_tags(trim((string)$input['cod_exec'])) : null;
+                $cleanConc = floatval($input['conc_percent'] ?? 0);
+                $cleanPh = floatval($input['ph'] ?? 0);
+                $cleanAgua = floatval($input['agua_l'] ?? 0);
+                $cleanObsExec = isset($input['obs_exec']) ? strip_tags(trim((string)$input['obs_exec'])) : null;
+                $cleanMotivos = isset($input['motivos']) ? strip_tags(trim((string)$input['motivos'])) : null;
+                $cleanCondicao = isset($input['condicao_servico']) ? strip_tags(trim((string)$input['condicao_servico'])) : null;
+                $cleanQtdReal = isset($input['qtd_real']) ? strip_tags(trim((string)$input['qtd_real'])) : null;
+                $cleanAtivoId = (!empty($input['ativo_id']) && is_numeric($input['ativo_id'])) ? intval($input['ativo_id']) : null;
 
                 if ($isUpdate) {
                     $db->prepare("UPDATE ordens SET 
@@ -245,39 +346,49 @@ class OrdersController
                         data_emissao=?, data_execucao=?, horas_exec=?, minutos_exec=?, cod_exec=?,
                         conc_percent=?, ph=?, agua_l=?, obs_exec=?, motivos=?, condicao_servico=?,
                         data_conclusao = CASE WHEN ? = 'Concluído' THEN ? ELSE data_conclusao END,
-                        qtd_real = ?
+                        qtd_real = ?,
+                        executed_at = COALESCE(?, executed_at),
+                        synced_at = ?,
+                        idempotency_key = COALESCE(?, idempotency_key),
+                        dosage_amount = COALESCE(?, dosage_amount),
+                        dosage_unit = COALESCE(?, dosage_unit)
                         WHERE id=?")
                         ->execute([
-                            $input['desc'],
-                            $input['resp'],
-                            $input['date'],
-                            $input['prio'],
+                            $desc,
+                            $resp,
+                            $date,
+                            $prio,
                             $status,
                             $now,
                             $this->user['id'],
                             $jsonMateriais,
-                            $input['ativo_id'] ?? null,
-                            $input['ip'] ?? null,
-                            $input['cod_serv'] ?? null,
-                            $input['rota'] ?? null,
-                            $input['materiais_sap'] ?? null,
-                            $input['reserva_almox'] ?? null,
-                            $input['num_pontos'] ?? 0,
-                            $input['complemento'] ?? null,
-                            $input['data_emissao'] ?? null,
-                            $input['data_execucao'] ?? null,
-                            $input['horas_exec'] ?? 0,
-                            $input['minutos_exec'] ?? 0,
-                            $input['cod_exec'] ?? null,
-                            $input['conc_percent'] ?? 0,
-                            $input['ph'] ?? 0,
-                            $input['agua_l'] ?? 0,
-                            $input['obs_exec'] ?? null,
-                            $input['motivos'] ?? null,
-                            $input['condicao_servico'] ?? null,
+                            $cleanAtivoId,
+                            $cleanIp,
+                            $cleanCodServ,
+                            $cleanRota,
+                            $cleanMatSap,
+                            $cleanResAlmox,
+                            $cleanNumPontos,
+                            $cleanComplemento,
+                            $cleanDataEmissao,
+                            $cleanDataExec ?: ($status === 'Concluído' ? ($executionDateOnly ?: date('Y-m-d')) : null),
+                            $cleanHorasExec,
+                            $cleanMinutosExec,
+                            $cleanCodExec,
+                            $cleanConc,
+                            $cleanPh,
+                            $cleanAgua,
+                            $cleanObsExec,
+                            $cleanMotivos,
+                            $cleanCondicao,
                             $status,
-                            $now,
-                            $input['qtd_real'] ?? null,
+                            $completionDate,
+                            $cleanQtdReal,
+                            $executedAt,
+                            $syncedAt,
+                            $idempotencyKey,
+                            $dosageAmount,
+                            $dosageUnit,
                             $input['id']
                         ]);
                 } else {
@@ -285,42 +396,64 @@ class OrdersController
                         descricao, responsavel, data_planejada, prioridade, situacao, ativo_id, last_sync, usuarios_id, materiais,
                         ip, cod_serv, rota, materiais_sap, reserva_almox, num_pontos, complemento,
                         data_emissao, data_execucao, horas_exec, minutos_exec, cod_exec,
-                        conc_percent, ph, agua_l, obs_exec, motivos, condicao_servico, data_conclusao, qtd_real
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ? = 'Concluído' THEN ? ELSE NULL END,?)")
+                        conc_percent, ph, agua_l, obs_exec, motivos, condicao_servico, data_conclusao, qtd_real,
+                        executed_at, synced_at, idempotency_key, dosage_amount, dosage_unit
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ? = 'Concluído' THEN ? ELSE NULL END,?,?,?,?,?,?)")
                         ->execute([
-                            $input['desc'],
-                            $input['resp'],
-                            $input['date'],
-                            $input['prio'],
+                            $desc,
+                            $resp,
+                            $date,
+                            $prio,
                             $status,
-                            $input['ativo_id'] ?? null,
+                            $cleanAtivoId,
                             $now,
                             $this->user['id'],
                             $jsonMateriais,
-                            $input['ip'] ?? null,
-                            $input['cod_serv'] ?? null,
-                            $input['rota'] ?? null,
-                            $input['materiais_sap'] ?? null,
-                            $input['reserva_almox'] ?? null,
-                            $input['num_pontos'] ?? 0,
-                            $input['complemento'] ?? null,
-                            $input['data_emissao'] ?? null,
-                            $input['data_execucao'] ?? null,
-                            $input['horas_exec'] ?? 0,
-                            $input['minutos_exec'] ?? 0,
-                            $input['cod_exec'] ?? null,
-                            $input['conc_percent'] ?? 0,
-                            $input['ph'] ?? 0,
-                            $input['agua_l'] ?? 0,
-                            $input['obs_exec'] ?? null,
-                            $input['motivos'] ?? null,
-                            $input['condicao_servico'] ?? null,
+                            $cleanIp,
+                            $cleanCodServ,
+                            $cleanRota,
+                            $cleanMatSap,
+                            $cleanResAlmox,
+                            $cleanNumPontos,
+                            $cleanComplemento,
+                            $cleanDataEmissao,
+                            $cleanDataExec ?: ($status === 'Concluído' ? ($executionDateOnly ?: date('Y-m-d')) : null),
+                            $cleanHorasExec,
+                            $cleanMinutosExec,
+                            $cleanCodExec,
+                            $cleanConc,
+                            $cleanPh,
+                            $cleanAgua,
+                            $cleanObsExec,
+                            $cleanMotivos,
+                            $cleanCondicao,
                             $status,
-                            $now,
-                            $input['qtd_real'] ?? null
+                            $completionDate,
+                            $cleanQtdReal,
+                            $executedAt,
+                            $syncedAt,
+                            $idempotencyKey,
+                            $dosageAmount,
+                            $dosageUnit
                         ]);
                 }
                 $lastId = $isUpdate ? $input['id'] : $db->lastInsertId();
+
+                if ($status === 'Concluído') {
+                    try {
+                        IntegrationQueue::enqueue($db, 'SAP', 'order_completion', [
+                            'order_id' => $lastId,
+                            'status' => 'Concluído',
+                            'executed_at' => $completionDate,
+                            'synced_at' => $syncedAt,
+                            'idempotency_key' => $idempotencyKey,
+                            'materials' => $materials,
+                            'dosage_amount' => $dosageAmount,
+                            'dosage_unit' => $dosageUnit
+                        ], 'ORD-' . $lastId);
+                    } catch (Throwable $e) {}
+                }
+
                 return ['id' => $lastId, 'new_sync' => $now, 'success' => true];
             });
         } catch (Exception $e) {
@@ -337,17 +470,32 @@ class OrdersController
      */
     private function saveTaskExecution(array $input)
     {
-        if (empty($input['id']) || strpos((string) $input['id'], 'new') !== false) {
+        $idempotencyKey = $input['idempotency_key'] 
+            ?? $_SERVER['HTTP_IDEMPOTENCY_KEY'] 
+            ?? $input['client_request_id'] 
+            ?? null;
+
+        return IdempotencyGuard::run($this->db, $idempotencyKey, 'orders.worker_execution', function () use ($input) {
+            return $this->executeWorkerSaveTask($input);
+        });
+    }
+
+    private function executeWorkerSaveTask(array $input)
+    {
+        $orderId = intval($input['id'] ?? 0);
+        if ($orderId <= 0 || strpos((string) ($input['id'] ?? ''), 'new') !== false) {
             throw new Exception("Trabalhadores não podem criar novas ordens de serviço.");
         }
 
-        $status = ($input['done'] ?? false) ? 'Concluído' : ($input['situacao'] ?? 'Pendente');
+        $rawStatus = ($input['done'] ?? false) ? 'Concluído' : ($input['situacao'] ?? 'Pendente');
+        $validStatuses = ['Pendente', 'Em Andamento', 'Concluído', 'Cancelada', 'Aguardando Peça'];
+        $status = in_array($rawStatus, $validStatuses, true) ? $rawStatus : 'Pendente';
         $now = date('Y-m-d H:i:s');
 
         $stmt = $this->db->prepare(
             "SELECT situacao, materiais, usuarios_id, responsavel, ativo_id, descricao, tipo_manutencao FROM ordens WHERE id = ?"
         );
-        $stmt->execute([$input['id']]);
+        $stmt->execute([$orderId]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$existing) {
             throw new Exception("Ordem de serviço não encontrada.");
@@ -387,7 +535,36 @@ class OrdersController
             }
         }
 
-        return DB::safeExecute(function ($db) use ($input, $status, $now, $existing, $materials) {
+        // Sanitização de entradas do trabalhador
+        $cleanDataExec = isset($input['data_execucao']) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$input['data_execucao']) ? (string)$input['data_execucao'] : null;
+        $cleanHorasExec = isset($input['horas_exec']) ? max(0, floatval($input['horas_exec'])) : null;
+        $cleanMinutosExec = isset($input['minutos_exec']) ? max(0, min(59, intval($input['minutos_exec']))) : null;
+        $cleanCodExec = isset($input['cod_exec']) ? strip_tags(trim((string)$input['cod_exec'])) : null;
+        $cleanConc = isset($input['conc_percent']) ? floatval($input['conc_percent']) : null;
+        $cleanPh = isset($input['ph']) ? floatval($input['ph']) : null;
+        $cleanAgua = isset($input['agua_l']) ? floatval($input['agua_l']) : null;
+        $cleanObsExec = isset($input['obs_exec']) ? strip_tags(trim((string)$input['obs_exec'])) : null;
+        $cleanMotivos = isset($input['motivos']) ? strip_tags(trim((string)$input['motivos'])) : null;
+        $cleanCondicao = isset($input['condicao_servico']) ? strip_tags(trim((string)$input['condicao_servico'])) : null;
+        $cleanQtdReal = isset($input['qtd_real']) ? strip_tags(trim((string)$input['qtd_real'])) : null;
+
+        // Outbox / Timestamps
+        $executedAtRaw = $input['executed_at'] ?? null;
+        $executedAt = null;
+        if ($executedAtRaw) {
+            $ts = strtotime((string)$executedAtRaw);
+            if ($ts && $ts > 0) {
+                $executedAt = date('Y-m-d H:i:s', $ts);
+            }
+        }
+        $completionDate = $executedAt ?: $now;
+        $executionDateOnly = $executedAt ? date('Y-m-d', strtotime($executedAt)) : ($cleanDataExec ?: date('Y-m-d'));
+        $syncedAt = $now;
+        $idempotencyKey = $input['idempotency_key'] ?? $_SERVER['HTTP_X_IDEMPOTENCY_KEY'] ?? $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? null;
+        $dosageAmount = isset($input['dosage_amount']) && is_numeric($input['dosage_amount']) ? floatval($input['dosage_amount']) : null;
+        $dosageUnit = isset($input['dosage_unit']) ? strip_tags(trim((string)$input['dosage_unit'])) : null;
+
+        return DB::safeExecute(function ($db) use ($orderId, $input, $status, $now, $existing, $materials, $cleanDataExec, $cleanHorasExec, $cleanMinutosExec, $cleanCodExec, $cleanConc, $cleanPh, $cleanAgua, $cleanObsExec, $cleanMotivos, $cleanCondicao, $cleanQtdReal, $completionDate, $executionDateOnly, $executedAt, $syncedAt, $idempotencyKey, $dosageAmount, $dosageUnit) {
             $db->prepare("UPDATE ordens SET
                 situacao = ?,
                 last_sync = ?,
@@ -403,6 +580,11 @@ class OrdersController
                 motivos = COALESCE(?, motivos),
                 condicao_servico = COALESCE(?, condicao_servico),
                 data_conclusao = CASE WHEN ? = 'Concluído' THEN ? ELSE data_conclusao END,
+                executed_at = COALESCE(?, executed_at),
+                synced_at = ?,
+                idempotency_key = COALESCE(?, idempotency_key),
+                dosage_amount = COALESCE(?, dosage_amount),
+                dosage_unit = COALESCE(?, dosage_unit),
                 qtd_real = COALESCE(?, qtd_real),
                 materiais = COALESCE(?, materiais)
                 WHERE id = ?")
@@ -410,26 +592,46 @@ class OrdersController
                     $status,
                     $now,
                     $this->user['id'],
-                    $input['data_execucao'] ?? null,
-                    $input['horas_exec'] ?? null,
-                    $input['minutos_exec'] ?? null,
-                    $input['cod_exec'] ?? null,
-                    $input['conc_percent'] ?? null,
-                    $input['ph'] ?? null,
-                    $input['agua_l'] ?? null,
-                    $input['obs_exec'] ?? null,
-                    $input['motivos'] ?? null,
-                    $input['condicao_servico'] ?? null,
+                    $cleanDataExec ?: ($status === 'Concluído' ? $executionDateOnly : null),
+                    $cleanHorasExec,
+                    $cleanMinutosExec,
+                    $cleanCodExec,
+                    $cleanConc,
+                    $cleanPh,
+                    $cleanAgua,
+                    $cleanObsExec,
+                    $cleanMotivos,
+                    $cleanCondicao,
                     $status,
-                    $now,
-                    $input['qtd_real'] ?? null,
+                    $completionDate,
+                    $executedAt,
+                    $syncedAt,
+                    $idempotencyKey,
+                    $dosageAmount,
+                    $dosageUnit,
+                    $cleanQtdReal,
                     $materials !== null ? json_encode($materials) : null,
-                    $input['id']
+                    $orderId
                 ]);
 
             if ($status === 'Concluído' && $existing['situacao'] !== 'Concluído') {
                 AgentFeedback::setOutcomeForOrder($db, (int) $input['id'], 'completed');
                 $finalMaterials = $materials ?: json_decode($existing['materiais'] ?: '[]', true) ?: [];
+
+                try {
+                    IntegrationQueue::enqueue($db, 'SAP', 'order_completion', [
+                        'order_id' => $orderId,
+                        'status' => 'Concluído',
+                        'executed_at' => $completionDate,
+                        'synced_at' => $syncedAt,
+                        'idempotency_key' => $idempotencyKey,
+                        'worker_id' => $this->user['id'] ?? 0,
+                        'worker_name' => $this->user['nome'] ?? $this->user['name'] ?? '',
+                        'materials' => $finalMaterials,
+                        'dosage_amount' => $dosageAmount,
+                        'dosage_unit' => $dosageUnit
+                    ], 'ORD-' . $orderId);
+                } catch (Throwable $e) {}
                 $applied = $this->appliedLubricant($input, $finalMaterials);
                 $aid = $existing['ativo_id'] ?? null;
                 if ($aid && $applied !== '') {

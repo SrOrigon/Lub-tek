@@ -1,0 +1,167 @@
+{
+  "plano_id": "PET160-SOLAR-SLZ-01",
+  "versao_layout": "pet160-v2",
+  "titulo": "Plano Mestre de Lubrificação Industrial — Linha PET 160",
+  "cliente": "Solar Coca-Cola",
+  "unidade": "Solar Coca-Cola São Luís - MA",
+  "linha": "LINH LHS PET SLZ K-89409410",
+  "data_revisao": "2026-10-15",
+  "norma_referencia": "ISO 55000 / Boas Práticas Alimentícias Grau H1",
+  "equipamentos": [
+    {
+      "id": 32,
+      "nome": "Enchedora KHS Innofill 50.000grf/h",
+      "tipo": "equipamento",
+      "tag": "ENC-KHS-01",
+      "ip": "10070302",
+      "setor": "Envase",
+      "componentes": [
+        {
+          "id": 33,
+          "nome": "Acionamento Stober K813 principal redutor",
+          "tipo": "componente",
+          "fabricante": "Stober",
+          "modelo": "K813VG0190ME50",
+          "ip": "1007030201",
+          "pontos_lubrificacao": [
+            {
+              "id": 34,
+              "ponto": "REDUTOR PRINCIPAL DE ACIONAMENTO",
+              "servico": "Inspecionar Nível e Análise de Óleo",
+              "frequencia": "Mensal",
+              "prioridade": "Rotina",
+              "condicao": "Parada",
+              "sistema_lubrificacao": "Banho de Óleo / Circulação",
+              "lubrificante_homologado": "LE 4220 H1 Quinplex® Syn FG Gear Oil - ISO VG 220",
+              "quantidade_nominal": 13.0,
+              "unidade": "l",
+              "duracao_estimada_min": 30,
+              "procedimento": "Verificar visor de nível. Se abaixo do nível mínimo, completar com LE 4220 grau alimentício H1. Coletar amostra para análise trimestral de viscosidade e desgaste."
+            }
+          ]
+        },
+        {
+          "id": 35,
+          "nome": "Sistema de Lubrificação Centralizada Lincoln",
+          "tipo": "componente",
+          "fabricante": "LINCOLN",
+          "modelo": "Centro-Matic P203",
+          "ip": "1007030202",
+          "pontos_lubrificacao": [
+            {
+              "id": 36,
+              "ponto": "Bomba Automatizada LINCOLN",
+              "servico": "Verificar Nível e Pressurização de Linha",
+              "frequencia": "Semestral",
+              "prioridade": "Rotina",
+              "condicao": "Em Marcha / Parada",
+              "sistema_lubrificacao": "Centralizado Automático",
+              "lubrificante_homologado": "LE 4024 H1 Quinplex® High Temperature Lubricant",
+              "quantidade_nominal": 4.0,
+              "unidade": "kg",
+              "duracao_estimada_min": 15,
+              "procedimento": "Checar indicador visual de nível no reservatório transparente. Em caso de reposição, abastecer via bico de engate rápido com graxa LE 4024 H1 para evitar contaminação por partículas."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "nome": "Sopradora KHS N. E70 B20L 025",
+      "tipo": "equipamento",
+      "tag": "SOP-KHS-01",
+      "ip": "1007",
+      "setor": "Sopro",
+      "componentes": [
+        {
+          "id": 27,
+          "nome": "Estação de Sopro / Conjunto de Moldes",
+          "tipo": "componente",
+          "fabricante": "KHS",
+          "ip": "100702",
+          "pontos_lubrificacao": [
+            {
+              "id": 28,
+              "ponto": "Molde N°1 — Anel de Garras e Guias",
+              "servico": "Lubrificar via Engraxadeira Manual Calibrada",
+              "frequencia": "Semanal",
+              "prioridade": "Rotina",
+              "condicao": "Parada",
+              "sistema_lubrificacao": "Engraxadeira Manual",
+              "lubrificante_homologado": "LE 4024 H1 Quinplex® High Temperature Lubricant",
+              "quantidade_nominal": 50.0,
+              "unidade": "g",
+              "duracao_estimada_min": 15,
+              "calibracao_golpes": {
+                "gramas_por_golpe": 1.5,
+                "golpes_recomendados": 33
+              },
+              "procedimento": "Limpar o bico graxeiro com pano sem fiapos. Aplicar 33 golpes com graxa LE 4024. Remover qualquer excesso visível na área de garra para evitar contato com pré-formas."
+            },
+            {
+              "id": 29,
+              "ponto": "Molde N°1 — Haste de Estiramento",
+              "servico": "Inspeção e Lubrificação Fina",
+              "frequencia": "Semanal",
+              "prioridade": "Rotina",
+              "condicao": "Parada",
+              "sistema_lubrificacao": "Manual / Pincelamento",
+              "lubrificante_homologado": "LE 4024 H1 Quinplex® High Temperature Lubricant",
+              "quantidade_nominal": 2.0,
+              "unidade": "g",
+              "duracao_estimada_min": 10,
+              "procedimento": "Verificar filme lubrificante nas hastes de estiramento linear. Aplicar fina película protetora."
+            }
+          ]
+        },
+        {
+          "id": 25,
+          "nome": "Módulo de Sopro / Distribuidor Central",
+          "tipo": "componente",
+          "fabricante": "KHS",
+          "ip": "100701",
+          "pontos_lubrificacao": [
+            {
+              "id": 26,
+              "ponto": "Bomba Automática Lincoln Sopro",
+              "servico": "Inspecionar Nível e Pressão dos Distribuidores",
+              "frequencia": "Quinzenal",
+              "prioridade": "Rotina",
+              "condicao": "Parada",
+              "sistema_lubrificacao": "Centralizado Lincoln",
+              "lubrificante_homologado": "LE 4024 H1 Quinplex® High Temperature Lubricant",
+              "quantidade_nominal": 4.0,
+              "unidade": "kg",
+              "duracao_estimada_min": 40,
+              "procedimento": "Conferir ciclo do dosador progressivo SSV. Caso haja bloqueio no pino indicador, desobstruir linha imediatamente."
+            }
+          ]
+        },
+        {
+          "id": 30,
+          "nome": "Rolamento Central da Carrossel de Sopro",
+          "tipo": "componente",
+          "fabricante": "KHS",
+          "ip": "100703",
+          "pontos_lubrificacao": [
+            {
+              "id": 31,
+              "ponto": "Rolamento de Giro Principal",
+              "servico": "Inspecionar Ruído, Temperatura e Relubrificar",
+              "frequencia": "Mensal",
+              "prioridade": "Alta",
+              "condicao": "Em Marcha / Parada",
+              "sistema_lubrificacao": "Engraxadeira Pneumática",
+              "lubrificante_homologado": "LE 4024 H1 Quinplex® High Temperature Lubricant",
+              "quantidade_nominal": 1000.0,
+              "unidade": "g",
+              "duracao_estimada_min": 45,
+              "procedimento": "Purgar graxa antiga pelas saídas de alívio. Injetar nova carga de LE 4024 até constatar alívio de graxa limpa nas vedações labirinto."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

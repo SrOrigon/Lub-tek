@@ -4,6 +4,8 @@
  * Manages imports and exports for SAP PM (Plant Maintenance) and SAP MM (Materials Management)
  */
 
+require_once __DIR__ . '/../includes/integration_queue.php';
+
 class SAPController
 {
     private $db;
@@ -389,5 +391,38 @@ class SAPController
             ];
         }
         return $formatted;
+    }
+
+    /**
+     * GET: Integration Queue monitoring (ERP / SAP)
+     */
+    public function getIntegrationQueue()
+    {
+        $status = $this->input['status'] ?? null;
+        $limit = isset($this->input['limit']) ? (int) $this->input['limit'] : 50;
+        return IntegrationQueue::getQueue($this->db, $status, $limit);
+    }
+
+    /**
+     * POST: Reprocessa manualmente um item com falha (Retry)
+     */
+    public function retryIntegrationItem()
+    {
+        $id = isset($this->input['id']) ? (int) $this->input['id'] : 0;
+        if ($id <= 0) {
+            throw new Exception("ID do item da fila inválido.");
+        }
+        $success = IntegrationQueue::retryItem($this->db, $id);
+        return ['ok' => $success, 'id' => $id];
+    }
+
+    /**
+     * POST: Processa itens pendentes da fila (simulação/webhook ERP)
+     */
+    public function processIntegrationQueue()
+    {
+        $limit = isset($this->input['limit']) ? (int) $this->input['limit'] : 10;
+        $result = IntegrationQueue::processPending($this->db, $limit);
+        return ['ok' => true, 'batch' => $result];
     }
 }

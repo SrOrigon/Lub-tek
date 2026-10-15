@@ -1,18 +1,38 @@
 ---
-description: Ativar e usar Headroom MCP quando o usuario pedir economia de tokens ou mencionar "use o mcp headroom"
-alwaysApply: false
+description: Governança de contexto de IA, Headroom MCP e proteção de memória para o repositório Lub-tek
+alwaysApply: true
 ---
 
-# Headroom — ativacao sob demanda
+# Governança de Contexto e Headroom para Agentes de IA
 
-Repositorio: [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom)
+Este documento dita a política de uso de memória e contexto para agentes atuando no repositório **LUB-TEK**.
 
-**Nao ha autostart.** Headroom so entra em acao quando o usuario pedir explicitamente (ex.: "use o mcp headroom", "ative o headroom", "economize tokens com headroom").
+---
 
-## Gatilho do usuario
+## 1. Regra de Ouro: Proteção contra Binários e Documentos Pesados
 
-Ao receber pedido explicito para usar Headroom:
+- **NUNCA** abra, leia ou tente processar arquivos binários (`.pdf`, `.zip`, `.mp4`, `.sqlite`, `.tar`, `.exe`).
+- O repositório armazena documentos industriais de referência (como o manual da Linha Pet160 de ~38MB) sob `docs/planos-referencia/`. **Estes arquivos são apenas para documentação do operador humano e NUNCA devem ser carregados para o contexto do modelo**.
+- Para consultar especificações técnicas industriais, utilize sempre as estruturas nativas JSON (`data/planos/`, `seed.php`), tabelas SQL (`ativos.dados_tecnicos`) ou endpoints de API (`export_lubrication_plan.php`, `AssetsController`).
 
+---
+
+## 2. Preservação de Janela de Contexto (Headroom)
+
+1. **Exploração Seletiva**: Utilize `grep_search` e `list_dir` filtrados por extensão antes de abrir arquivos completos.
+2. **Visualização por Slices**: Ao ler arquivos grandes (> 100 linhas), defina `StartLine` e `EndLine` para limitar o volume de tokens injetados.
+3. **Ignorar Caches e Sessões**: Pastas como `data/sessions/`, `data/ai_cache/`, `backups/` e `deploy/` são estritamente proibidas para leitura de contexto.
+
+---
+
+## 3. Headroom MCP — Ativação sob Demanda
+
+Repositório: [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom)
+
+**Não há autostart.** Headroom só entra em ação quando o usuário pedir explicitamente (ex.: "use o mcp headroom", "ative o headroom", "economize tokens com headroom").
+
+### Gatilho do usuário
+Ao receber pedido explícito para usar Headroom:
 1. **`headroom_stats`** no MCP `user-headroom`.
 2. Se `namespaceStatus` = `loading` / `needsAuth` ou sem ferramentas → `mcp_auth` e repetir `headroom_stats`.
 3. Se proxy `unreachable`, ativar em background:
@@ -21,25 +41,11 @@ Ao receber pedido explicito para usar Headroom:
    ```
    Ou, neste projeto: `.\scripts\start-headroom-proxy.ps1 -Background`
 4. Confirmar `GET http://127.0.0.1:8787/health` com `status=healthy` e `ready=true`.
-5. Durante a tarefa, comprimir contexto grande com **`headroom_compress`**; recuperar com **`headroom_retrieve`** se necessario.
+5. Durante a tarefa, comprimir contexto grande com **`headroom_compress`**; recuperar com **`headroom_retrieve`** se necessário.
 
-## Quando comprimir
+### Camadas
 
-Chame `headroom_compress` **antes** de raciocinar sobre:
-
-- Exploracao de codebase (multiplos arquivos, buscas longas)
-- Arquivos/schemas/logs com **> ~80 linhas** ou **> ~2.000 tokens**
-- Refatoracoes, debug multi-arquivo, revisoes amplas
-
-## Camadas
-
-| Camada | Ferramenta | Funcao |
-|--------|------------|--------|
-| **MCP** (`user-headroom`) | `headroom_compress`, `headroom_retrieve`, `headroom_stats` | Compressao de tool outputs (principal para economia) |
-| **Proxy** (opcional) | `use-headroom.ps1` ou `scripts/start-headroom-proxy.ps1 -Background` | Compressao de trafego BYOK |
-
-MCP em `~/.cursor/mcp.json`. Composer nativo do Cursor **nao** usa proxy — so MCP.
-
-## Sem pedido explicito
-
-Nao chamar `headroom_stats` nem iniciar proxy automaticamente.
+| Camada | Ferramenta | Função |
+|---|---|---|
+| **MCP** (`user-headroom`) | `headroom_compress`, `headroom_retrieve`, `headroom_stats` | Compressão de tool outputs (principal para economia) |
+| **Proxy** (opcional) | `use-headroom.ps1` ou `scripts/start-headroom-proxy.ps1 -Background` | Compressão de tráfego BYOK |

@@ -31,6 +31,7 @@ class ApiRouteRegistry
             'get_plans' => ['api/PlansController.php', 'PlansController', 'getPlans'],
             'save_plan' => ['api/PlansController.php', 'PlansController', 'savePlan'],
             'delete_plan' => ['api/PlansController.php', 'PlansController', 'deletePlan'],
+            'get_reference_plan' => ['api/PlansController.php', 'PlansController', 'getReferencePlan'],
             'get_market_data' => ['api/MarketController.php', 'MarketController', 'getMarketData'],
             'save_market_offer' => ['api/MarketController.php', 'MarketController', 'saveOffer'],
             'delete_market_offer' => ['api/MarketController.php', 'MarketController', 'deleteOffer'],
@@ -75,6 +76,11 @@ class ApiRouteRegistry
             'save_agent_feedback' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'saveAgentFeedback'],
             'get_ai_usage_summary' => ['api/AgentAnalyticsController.php', 'AgentAnalyticsController', 'getAiUsageSummary'],
             'get_agent_feedback_stats' => ['api/AgentAnalyticsController.php', 'AgentAnalyticsController', 'getAgentFeedbackStats'],
+            'get_asset_by_qr' => ['api/AssetsController.php', 'AssetsController', 'resolveByQrCode'],
+            'get_line_lubrication_points' => ['api/AssetsController.php', 'AssetsController', 'getLineLubricationPoints'],
+            'get_integration_queue' => ['api/SAPController.php', 'SAPController', 'getIntegrationQueue'],
+            'retry_integration_item' => ['api/SAPController.php', 'SAPController', 'retryIntegrationItem'],
+            'process_integration_queue' => ['api/SAPController.php', 'SAPController', 'processIntegrationQueue'],
         ];
     }
 

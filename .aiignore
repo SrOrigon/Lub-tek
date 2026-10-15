@@ -1,0 +1,59 @@
+# .aiignore — Proteção de Contexto para Agentes de IA (Jules, Cursor, Gemini, Claude)
+# Evita carregamento acidental de arquivos binários, caches e bancos de dados
+
+# Binários e mídias pesadas
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.mp4
+*.webm
+*.avi
+*.mov
+*.iso
+
+# Planos e referências em PDF
+docs/planos-referencia/
+docs/*.pdf
+
+# Pastas de dependências e versionamento
+node_modules/
+vendor/
+.git/
+
+# Uploads e storage
+uploads/
+storage/
+
+# Backups e logs
+backups/
+*.log
+debug-*.log
+
+# Caches e sessões
+data/sessions/
+data/ai_cache/
+*.lock
+database.sqlite.migrate.lock
+
+# Bancos de dados SQLite
+banco de dados/
+databases/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.db
+
+# Pacotes e artefatos de deploy
+deploy/hostinger-sync/
+deploy/hostinger-includes-fix/
+deploy/*.zip
+deploy/lubteksystem-production/
+
+# Sistema
+.DS_Store
+Thumbs.db
