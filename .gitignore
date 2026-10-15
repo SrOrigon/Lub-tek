@@ -79,14 +79,9 @@ debug-*.log
 *.tmp
 *.cache
 
-# Imagens raster de sistema (preserva SVGs para manter o repositorio leve para analise de codigo)
-assets/img/**/*.png
-assets/img/**/*.jpeg
-assets/img/**/*.jpg
-assets/img/system/*.png
-assets/img/system/*.jpeg
-assets/img/system/*.jpg
-!assets/img/system/*.svg
+# Imagens de uploads ignoradas, imagens de sistema preservadas
+assets/img/uploads/*
+!assets/img/system/*
 
 # Arquivos de sistema e IDE
 .DS_Store

@@ -76,40 +76,6 @@
         </div>
     </div>
 
-    <!-- Admin global: andamento de O.S. / agente em todas as empresas -->
-    <div id="admin-os-overview-section" class="admin-os-overview" data-developer-only aria-labelledby="admin-os-overview-title">
-        <div class="admin-os-overview-head">
-            <h2 id="admin-os-overview-title">
-                <i data-lucide="building-2" style="width:16px;" aria-hidden="true"></i>
-                Visão administrativa — O.S. e agente por empresa
-            </h2>
-            <button type="button" class="btn btn-sm btn-outline" onclick="if(typeof loadAdminOsOverview==='function')loadAdminOsOverview(true)">
-                Atualizar panorama
-            </button>
-        </div>
-        <p class="admin-os-overview-hint">
-            A listagem abaixo reflete o banco da sessão atual. Use esta tabela para acompanhar pendências e a última execução do agente em cada tenant.
-            Para operar uma planta específica, faça login com <strong>Empresa.usuário</strong>.
-        </p>
-        <div class="admin-os-overview-scroll">
-            <table class="lub-table admin-os-overview-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Empresa</th>
-                        <th scope="col">O.S. abertas</th>
-                        <th scope="col">Críticas</th>
-                        <th scope="col">Concluídas hoje</th>
-                        <th scope="col">Agente (última exec.)</th>
-                        <th scope="col">Geradas / vencidas</th>
-                    </tr>
-                </thead>
-                <tbody id="admin-os-overview-body">
-                    <tr><td colspan="6">Carregando panorama…</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     <!-- MAIN CONTENT -->
     <div class="dash-body">
         <div class="dash-layout-grid">
@@ -282,18 +248,18 @@
             </div>
             <div class="dash-table-scroll" aria-labelledby="os-list-heading" aria-busy="false">
                     <table class="lub-table" id="os-table"
-                        style="width:100%; min-width:800px; border-collapse: collapse;">
+                        style="width:100%; border-collapse: collapse;">
                         <thead
                             style="position: sticky; top: 0; z-index: 20; background: var(--bg-card); box-shadow: 0 1px 0 var(--border);">
                             <tr style="text-align: left;">
-                                <th scope="col" style="width:70px;">O.S</th>
-                                <th scope="col" style="width:70px;">IP</th>
-                                <th scope="col" style="width:90px;">Cód. Serv</th>
-                                <th scope="col">Serviço / Ativo</th>
-                                <th scope="col" style="width:130px;">Situação</th>
-                                <th scope="col" style="width:100px;">Emissão</th>
-                                <th scope="col" style="width:100px;">Dt. Prog.</th>
-                                <th scope="col" style="width:100px;">Dt. Exec.</th>
+                                <th scope="col" style="width:55px;">O.S</th>
+                                <th scope="col" style="width:55px;">IP</th>
+                                <th scope="col" style="width:80px;">Cód. Serv</th>
+                                <th scope="col" style="min-width:180px;">Serviço / Ativo</th>
+                                <th scope="col" style="width:115px;">Situação</th>
+                                <th scope="col" style="width:85px;">Emissão</th>
+                                <th scope="col" style="width:85px;">Dt. Prog.</th>
+                                <th scope="col" style="width:85px;">Dt. Exec.</th>
                             </tr>
                         </thead>
                         <tbody id="os-table-body">

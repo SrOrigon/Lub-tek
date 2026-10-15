@@ -1,13 +1,7 @@
 # .gitattributes — Controle de exportação e atributos de repositório
-# Garante que 'Download ZIP' do GitHub e 'git archive' exportem apenas código leve
+# Garante que 'Download ZIP' do GitHub e 'git archive' exportem código e imagens de sistema
 
-# Ignora imagens pesadas e binários no download ZIP do GitHub
-assets/img/**/*.png export-ignore
-assets/img/**/*.jpeg export-ignore
-assets/img/**/*.jpg export-ignore
-assets/img/system/*.png export-ignore
-assets/img/system/*.jpeg export-ignore
-assets/img/system/*.jpg export-ignore
+# Ignora pastas de uploads e temporários no download ZIP do GitHub
 assets/img/uploads/ export-ignore
 
 # Ignora pastas de deploy, referências pesadas e backups

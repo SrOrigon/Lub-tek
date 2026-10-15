@@ -27,7 +27,6 @@
 @media (min-width: 768px) and (max-width: 1024px) {
     /* Grids equilibrados em 2 colunas */
     .cards-grid,
-    .dash-layout-grid,
     .kpi-grid,
     .kpi-cards-container,
     .assets-grid,

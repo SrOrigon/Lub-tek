@@ -128,7 +128,6 @@
 
     /* Grids expandidos para 4 a 6 colunas completas */
     .cards-grid,
-    .dash-layout-grid,
     .kpi-grid,
     .kpi-cards-container,
     .powerbi-grid {
@@ -140,11 +139,27 @@
     /* Fallback para telas grandes com widgets variáveis */
     @media (max-width: 2559px) {
         .cards-grid,
-        .dash-layout-grid,
         .kpi-grid,
         .kpi-cards-container {
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
         }
+    }
+
+    /* Rolagem e largura estável da tabela de ordens de serviço */
+    .dash-orders-column {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    .dash-orders-column .dash-table-scroll {
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        width: 100% !important;
+        max-height: calc(100vh - 210px);
+    }
+
+    #os-table {
+        width: 100% !important;
     }
 
     /* Fontes ampliadas para leitura à distância pelo operador */

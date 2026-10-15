@@ -15,7 +15,7 @@ $relativePaths = @(
 )
 
 $relativeDirs = @(
-    'api', 'includes', 'assets\js', 'assets\css', 'assets\pwa', 'migrations', 'scripts', 'databases'
+    'api', 'includes', 'assets\js', 'assets\css', 'assets\pwa', 'assets\img', 'migrations', 'scripts', 'databases'
 )
 
 function Should-SkipFile([string]$fullPath) {
