@@ -24,29 +24,6 @@
 }
 
 /* --- TABLETS INDUSTRIAIS E IHMs (768px a 1024px) --- */
-@media (min-width: 769px) and (max-width: 1024px) {
-    body {
-        min-height: 100dvh;
-        height: auto;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    main {
-        overflow: visible !important;
-        min-height: 0;
-        flex: 1 1 auto;
-    }
-
-    .view-container.active {
-        min-height: 0;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-    }
-}
-
 @media (min-width: 768px) and (max-width: 1024px) {
     /* Grids equilibrados em 2 colunas */
     .cards-grid,

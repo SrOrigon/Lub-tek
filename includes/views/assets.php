@@ -83,10 +83,9 @@
         }
         #asset-form {
             flex: 1 1 auto;
-            min-height: 0;
             display: none;
             flex-direction: column;
-            overflow: hidden;
+            overflow: visible;
             padding: 0 0 80px 0;
             border-radius: 14px;
             border: 1px solid #e2e8f0;
@@ -100,16 +99,9 @@
             z-index: 5;
         }
         .asset-form-scroll {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow-y: auto;
-            overflow-x: hidden;
             padding: 24px;
-            scrollbar-width: thin;
-            scrollbar-color: #94a3b8 transparent;
+            overflow: visible;
         }
-        .asset-form-scroll::-webkit-scrollbar { width: 8px; }
-        .asset-form-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
         .asset-sticky-header {
             position: sticky;
             top: 0;

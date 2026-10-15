@@ -334,30 +334,58 @@ body.theme-high-contrast .kpi-card {
 }
 
 /* ==========================================================================
-   SCROLL GLOBAL, MODAIS E LIGHTBOX (destrava body + rolagem interna)
+   SCROLL — uma regra só
+   A janela rola a página. Scroll interno só na árvore da planta,
+   em modais e na horizontal de tabelas largas.
    ========================================================================== */
 
 html, body {
     height: auto !important;
-    min-height: 100% !important;
-    max-height: none !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 body:not(.password-reset-lock) {
-    display: block !important;
+    display: block;
 }
 
 main,
 .view-container,
 .view-container.active,
-.view-container.view-flex.active,
-#view-dash.dash-workspace.active,
-#view-assets.assets-workspace.active,
-.routes-workspace.active,
-.kpi-workspace.active {
+.view-container.view-flex.active {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+.lub-scroll-x,
+.dash-table-scroll,
+.os-agent-decisions-scroll,
+.table-responsive {
+    max-height: none !important;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+
+#asset-tree-panel {
+    position: sticky;
+    top: 12px;
+    align-self: flex-start;
+    max-height: calc(100vh - 24px);
+}
+
+#asset-tree-container {
+    max-height: calc(100vh - 120px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#asset-form,
+.asset-form-scroll,
+.asset-detail-panel {
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;

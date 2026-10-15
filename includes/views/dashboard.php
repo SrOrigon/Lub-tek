@@ -592,12 +592,10 @@
             overflow: visible;
         }
         .dash-orders-column .dash-table-scroll {
-            flex: 1 1 auto;
-            min-height: 160px;
+            width: 100%;
             max-height: none;
             overflow-x: auto;
-            overflow-y: auto;
-            overscroll-behavior: contain;
+            overflow-y: visible;
         }
         .dash-intel-column .ai-ops-columns {
             grid-template-columns: 1fr;
@@ -606,11 +604,9 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .os-agent-decisions-scroll {
-            flex: 1 1 auto;
-            min-height: 140px;
-            max-height: min(480px, 52vh);
-            overflow: auto;
-            overscroll-behavior: contain;
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: visible;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             background: #fff;
@@ -962,9 +958,9 @@
         border-radius: 8px;
     }
     .os-agent-decisions-scroll {
-        max-height: min(360px, 55vh);
-        overflow: auto;
-        overscroll-behavior: contain;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: visible;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
     }
@@ -1193,12 +1189,11 @@
             position: static;
             display: block;
         }
-        .dash-orders-column .dash-table-scroll {
-            max-height: min(70vh, 720px);
-            overflow: auto;
-        }
+        .dash-orders-column .dash-table-scroll,
         .os-agent-decisions-scroll {
-            max-height: min(420px, 60vh);
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: visible;
         }
         .dash-toolbar {
             position: sticky;

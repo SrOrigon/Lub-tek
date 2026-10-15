@@ -126,10 +126,10 @@
     }
 
     .dash-orders-column .dash-table-scroll {
-        overflow-x: auto !important;
-        overflow-y: auto !important;
-        width: 100% !important;
-        max-height: calc(100vh - 210px);
+        overflow-x: auto;
+        overflow-y: visible;
+        width: 100%;
+        max-height: none;
     }
 
     #os-table {
