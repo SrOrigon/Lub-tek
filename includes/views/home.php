@@ -24,9 +24,8 @@
 
         <!-- CARD 1: DASHBOARD -->
         <div onclick="nav('dash')" class="lub-card" data-perm="dashboard">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_dash.svg');">
-                <div class="overlay"></div>
-                <!-- <div class="icon-badgev2"><i data-lucide="layout-grid"></i></div> -->
+            <div class="card-img">
+                <img src="assets/img/system/thumb_dash.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -43,8 +42,8 @@
 
         <!-- CARD 2: ASSETS -->
         <div onclick="nav('assets')" class="lub-card" data-perm="assets">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_assets.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_assets.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -61,8 +60,8 @@
 
         <!-- CARD 3: INVENTORY -->
         <div onclick="nav('catalog')" class="lub-card" data-perm="catalog">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_inv.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_inv.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -79,8 +78,8 @@
 
         <!-- CARD 4: ENGINEERING -->
         <div onclick="nav('calc')" class="lub-card" data-perm="engineering">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_eng.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_eng.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -97,8 +96,8 @@
 
         <!-- CARD 5: REPORTS -->
         <div onclick="nav('reports')" class="lub-card" data-perm="reports">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_reports.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_reports.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -115,8 +114,8 @@
 
         <!-- CARD 6: KPI -->
         <div onclick="nav('kpi')" class="lub-card" data-perm="kpi">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_kpi.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_kpi.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -133,8 +132,8 @@
 
         <!-- CARD: ROTAS DE LUBRIFICAÇÃO -->
         <div onclick="nav('routes')" class="lub-card" data-perm="routes">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_routes.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_routes.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -193,8 +192,8 @@
 
         <!-- CARD 7: 3D -->
         <div onclick="window.location.href='?page=3d'" class="lub-card" data-perm="digital_twin">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_3d.svg');">
-                <div class="overlay"></div>
+            <div class="card-img">
+                <img src="assets/img/system/thumb_3d.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -296,9 +295,16 @@
 
         .card-img {
             height: 140px;
-            background-size: cover;
-            background-position: center;
+            background: #0f172a;
             position: relative;
+            overflow: hidden;
+        }
+
+        .card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         .overlay {

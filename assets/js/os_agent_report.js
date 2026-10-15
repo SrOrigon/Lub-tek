@@ -61,7 +61,9 @@
         const skipped = data.skipped_count ?? 0;
         const incomplete = data.cadastro_incomplete_count ?? 0;
         const version = data.agent_version || '—';
-        const dry = data.dry_run ? ' (simulação)' : '';
+        const dry = data.idle
+            ? ' · ativo, aguardando execução'
+            : (data.dry_run ? ' · prévia, nenhuma O.S. gravada' : ' · geração ativa');
 
         if (statsEl) {
             statsEl.innerHTML = `

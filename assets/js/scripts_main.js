@@ -2756,7 +2756,7 @@ function renderDetailForm(item) {
              <h3 style="margin:0; color:white; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:8px;">
                 <i data-lucide="shopping-cart" style="color:#38bdf8;"></i> Marketplace & Inteligência de Compras
             </h3>
-            <span class="badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.3); font-size:0.65rem;">IA ATIVA</span>
+            <span class="badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.3); font-size:0.65rem;">PREÇOS LOCAIS</span>
         </div>
 
         <div style="display:flex; flex-wrap:wrap;">
@@ -6236,11 +6236,11 @@ async function reloadMarketAnalysis(id, name) {
             if (trendBest) trendBest.textContent = '—';
             if (trendWorst) trendWorst.textContent = '—';
             if (trendAvg) trendAvg.textContent = '—';
-            if (chartEl && typeof Chart !== 'undefined') {
+            if (chartEl && typeof Chart !== 'undefined' && typeof Chart.getChart === 'function') {
                 const existingChart = Chart.getChart(chartEl);
                 if (existingChart) existingChart.destroy();
             }
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') lucide.createIcons();
             return;
         }
 
@@ -6288,7 +6288,7 @@ async function reloadMarketAnalysis(id, name) {
                 btn.disabled = true;
             }
         });
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') lucide.createIcons();
 
         // Update Savings
         const savEl = document.getElementById('market-savings-total');
@@ -6316,12 +6316,16 @@ async function reloadMarketAnalysis(id, name) {
             }
         }
         if (chartEl && typeof Chart !== 'undefined') {
-            const existingChart = Chart.getChart(chartEl);
-            if (existingChart) existingChart.destroy();
+            if (typeof Chart.getChart === 'function') {
+                const existingChart = Chart.getChart(chartEl);
+                if (existingChart) existingChart.destroy();
+            }
 
             const labels = offers.map(o => o.vendor_name || 'Fornecedor');
             const trend = offers.map(o => Number(o.price) || 0);
+            const floor = trend.length ? Math.min.apply(null, trend) : 0;
 
+            try {
             new Chart(chartEl, {
                 type: 'line',
                 data: {
@@ -6330,17 +6334,11 @@ async function reloadMarketAnalysis(id, name) {
                         label: 'Preço por fornecedor',
                         data: trend,
                         borderColor: '#10b981',
-                        backgroundColor: (context) => {
-                            const ctx = context.chart.ctx;
-                            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-                            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.2)');
-                            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
-                            return gradient;
-                        },
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
                         borderWidth: 2,
                         tension: 0.4,
-                        fill: true,
-                        pointRadius: 0,
+                        fill: false,
+                        pointRadius: 3,
                         pointHoverRadius: 4
                     }]
                 },
@@ -6350,7 +6348,7 @@ async function reloadMarketAnalysis(id, name) {
                     plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
                     scales: {
                         x: { display: false },
-                        y: { display: false, min: Math.min(...trend) * 0.8 }
+                        y: { display: false, min: floor > 0 ? floor * 0.8 : 0 }
                     },
                     interaction: {
                         mode: 'nearest',
@@ -6359,11 +6357,14 @@ async function reloadMarketAnalysis(id, name) {
                     }
                 }
             });
+            } catch (chartErr) {
+                console.warn('Gráfico de preços indisponível', chartErr);
+            }
         }
 
     } catch (e) {
         console.error(e);
-        list.innerHTML = '<div style="color:red; text-align:center; padding:10px;">Erro na IA de Mercado.</div>';
+        list.innerHTML = '<div style="text-align:center;padding:28px 16px;color:var(--text-muted);"><p style="margin:0;font-weight:700;">Comparador indisponível agora</p><p style="margin:8px 0 0;font-size:0.85rem;">Cadastre uma oferta manual abaixo. Os preços já salvos continuam no almoxarifado.</p></div>';
     }
 }
 

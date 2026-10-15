@@ -350,12 +350,15 @@ class NeuralEngineController {
 
         $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
         $nowExpr = $driver === 'mysql' ? 'NOW()' : "datetime('now')";
-        $stmt = $this->db->prepare("
-            INSERT INTO ordens (descricao, responsavel, data_planejada, prioridade, situacao, observacao, ativo_id, tipo_manutencao, data_emissao, last_sync)
-            VALUES (?, 'Pendente Atribuição', ?, 'Alta', 'Pendente', ?, ?, 'Preditiva', ?, {$nowExpr})
-        ");
-
-        $stmt->execute([$desc, $hoje, $obs, $assetId, $hoje]);
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO ordens (descricao, responsavel, data_planejada, prioridade, situacao, observacao, ativo_id, tipo_manutencao, data_emissao, last_sync)
+                VALUES (?, 'Pendente Atribuição', ?, 'Alta', 'Pendente', ?, ?, 'Preditiva', ?, {$nowExpr})
+            ");
+            $stmt->execute([$desc, $hoje, $obs, $assetId, $hoje]);
+        } catch (Exception $e) {
+            return ['error' => 'Não foi possível gravar a O.S. sugerida. Tente de novo em instantes.'];
+        }
         $osId = $this->db->lastInsertId();
 
         DB::log($this->userLabel(), 'NEURAL_OS_APPROVED', "OS #{$osId} aprovada para Ativo ID: {$assetId}");

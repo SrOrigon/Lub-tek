@@ -136,7 +136,7 @@ if (!function_exists('mb_strlen')) {
 // Versão de assets (cache busting estável — sobrescreva via env LUBTEK_BUILD ou config.local.php)
 if (!defined('LUBTEK_BUILD')) {
     $buildEnv = getenv('LUBTEK_BUILD');
-    define('LUBTEK_BUILD', is_string($buildEnv) && $buildEnv !== '' ? $buildEnv : '3.4.6');
+    define('LUBTEK_BUILD', is_string($buildEnv) && $buildEnv !== '' ? $buildEnv : '3.4.7');
 }
 
 require_once __DIR__ . '/includes/session_bootstrap.php';

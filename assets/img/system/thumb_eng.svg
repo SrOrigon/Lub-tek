@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#9333ea"/><stop offset="100%" style="stop-color:#581c87"/></linearGradient></defs>
-  <rect width="400" height="200" fill="url(#g)"/>
-  <rect x="120" y="50" width="160" height="80" rx="10" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-  <text x="200" y="85" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="bold">DN x dm</text>
-  <text x="200" y="115" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="Arial" font-size="12">Viscosidade</text>
-  <text x="200" y="170" text-anchor="middle" fill="white" font-family="Arial" font-size="14" opacity="0.8">Engenharia</text>
+  <rect width="400" height="200" fill="#7e22ce"/>
+  <rect x="110" y="42" width="180" height="88" rx="12" fill="#f3e8ff"/>
+  <text x="200" y="82" text-anchor="middle" fill="#6b21a8" font-family="Arial,sans-serif" font-size="22" font-weight="700">DN x dm</text>
+  <text x="200" y="108" text-anchor="middle" fill="#7e22ce" font-family="Arial,sans-serif" font-size="14">Viscosidade</text>
+  <text x="200" y="168" text-anchor="middle" fill="#faf5ff" font-family="Arial,sans-serif" font-size="16">Engenharia</text>
 </svg>
