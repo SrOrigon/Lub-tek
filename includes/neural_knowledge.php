@@ -28,7 +28,7 @@ class NeuralKnowledge
                     'Use os filtros: Todas, Pendentes, Concluídas na tabela.',
                     'Clique em uma linha da tabela para abrir e editar a O.S.',
                     'Botão "Preventivas" executa o Agente de Geração de O.S. (rotina a partir do cadastro).',
-                    'Painel "Agente de Geração O.S." mostra decisões, simulação e resumo IA do plano do dia.',
+                    'Painel "Agente de Geração O.S." mostra as ordens geradas e o resumo do plano do dia. Use Executar para gravar as vencidas.',
                     'Seção "Motor Neural" mostra sugestões de risco — use Aceitar ou Recusar; a IA não cria O.S. sozinha.',
                     'Menu SAP ERP permite importar/exportar ordens.',
                     'Use a busca "Localizar O.S." para filtrar por texto.'

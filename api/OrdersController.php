@@ -1058,8 +1058,9 @@ class OrdersController
             throw new Exception('Trabalhadores não podem executar o agente de geração de O.S.');
         }
 
+        // Operação real. A prévia não é exposta na interface nem na API.
         if ($dryRun === null) {
-            $dryRun = !empty($this->input['dry_run']) || !empty($this->input['simulate']);
+            $dryRun = false;
         }
 
         $userLabel = $this->user['name'] ?? $this->user['nome'] ?? 'SYSTEM';
@@ -1073,7 +1074,7 @@ class OrdersController
     }
 
     /**
-     * Relatório do agente (última execução ou simulação sob demanda).
+     * Relatório da última geração real. Se a última passagem foi prévia, gera de verdade.
      */
     public function getWorkOrderAgentReport()
     {
@@ -1081,22 +1082,15 @@ class OrdersController
             throw new Exception('Acesso negado ao relatório do agente.');
         }
 
-        $simulate = !empty($this->input['simulate']) || !empty($this->input['refresh']);
         $aiBrief = !empty($this->input['ai_brief']);
 
-        if ($simulate) {
-            $report = $this->runWorkOrderAgent(false, true);
+        $report = WorkOrderGenerationAgent::loadLastReport($this->db);
+        if (!$report || !empty($report['dry_run'])) {
+            // A última passagem gravada era só prévia. A consulta passa a gerar de verdade,
+            // com as travas que impedem ordem duplicada.
+            $report = $this->runWorkOrderAgent(false, false);
         } else {
-            $report = WorkOrderGenerationAgent::loadLastReport($this->db);
-            if (!$report) {
-                $agent = new WorkOrderGenerationAgent($this->db, [
-                    'user_label' => $this->user['name'] ?? $this->user['nome'] ?? 'SYSTEM',
-                ]);
-                $report = $agent->run(false, true);
-                $report = $this->attachAgentBriefing($report, false);
-            } else {
-                $report = $this->attachAgentBriefing($report, false);
-            }
+            $report = $this->attachAgentBriefing($report, false);
         }
 
         if ($aiBrief) {

@@ -4,7 +4,7 @@
 (function () {
     const ACTION_LABELS = {
         created: 'Gerada',
-        would_create: 'Simular: criaria',
+        would_create: 'Gerada',
         create: 'Criará',
         skip: 'Ignorada',
         not_due: 'Em dia',
@@ -61,9 +61,7 @@
         const skipped = data.skipped_count ?? 0;
         const incomplete = data.cadastro_incomplete_count ?? 0;
         const version = data.agent_version || '—';
-        const dry = data.idle
-            ? ' · ativo, aguardando execução'
-            : (data.dry_run ? ' · prévia, nenhuma O.S. gravada' : ' · geração ativa');
+        const dry = ' · em operação';
 
         if (statsEl) {
             statsEl.innerHTML = `
@@ -77,14 +75,14 @@
 
         if (briefEl) {
             const src = data.ai_briefing_source || 'local';
-            const srcLabel = src.includes('gemini') ? 'Lúbria / Gemini' : 'Motor local';
+            const srcLabel = src.includes('gemini') ? 'Lúbria / Gemini' : 'Lúbria';
             briefEl.innerHTML = `
                 <div class="os-agent-briefing-head">
                     <i data-lucide="sparkles" style="width:14px;"></i>
                     <span>Plano operacional</span>
                     <span class="os-agent-src">${esc(srcLabel)}</span>
                 </div>
-                <p>${esc(data.ai_briefing || data.insight || 'Execute uma simulação para ver o plano do dia.')}</p>
+                <p>${esc(data.ai_briefing || data.insight || 'Agente em operação. Use Executar para gerar as ordens vencidas.')}</p>
             `;
         }
 
@@ -142,7 +140,6 @@
         if (loading) loading.style.display = 'flex';
 
         const params = {};
-        if (options.simulate) params.simulate = 1;
         if (options.aiBrief) params.ai_brief = 1;
 
         const data = await fetchReport(params);
@@ -154,7 +151,8 @@
     };
 
     window.simulateOsAgent = function () {
-        loadOsAgentReport({ simulate: true });
+        if (typeof runOsAgentAndRefresh === 'function') return runOsAgentAndRefresh();
+        return loadOsAgentReport({});
     };
 
     window.refreshOsAgentAiBrief = function () {

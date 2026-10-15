@@ -4,7 +4,7 @@
  * Imagens: cache-first
  * Nunca intercepta API / navegação PHP
  */
-const CACHE_NAME = 'lubtek-pwa-v3.4.7';
+const CACHE_NAME = 'lubtek-pwa-v3.4.8';
 
 const STATIC_ASSETS = [
   './assets/js/lazy_vendors.js',

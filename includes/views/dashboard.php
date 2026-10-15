@@ -173,10 +173,7 @@
                     <span id="os-agent-meta" class="os-agent-meta">Carregando…</span>
                 </h3>
                 <div class="os-agent-bar-actions">
-                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="simulateOsAgent()" title="Simula sem gravar">
-                        Simular
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="refreshOsAgentAiBrief()" title="Resumo com Lúbria/Gemini">
+                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="refreshOsAgentAiBrief()" title="Resumo com Lúbria">
                         Resumo IA
                     </button>
                     <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="runOsAgentAndRefresh()" style="border-color:var(--success);color:var(--success);">
