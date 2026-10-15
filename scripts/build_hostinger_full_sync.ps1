@@ -5,7 +5,7 @@ $dest = Join-Path $root 'deploy\hostinger-sync'
 $zipPath = Join-Path $root 'deploy\lubtek-hostinger-sync.zip'
 
 $excludeNames = @('config.local.php', '.env', 'database.sqlite')
-$excludeDirFragments = @('\uploads\', '\data\sessions\', '\.git\', '\deploy\', '\backups\')
+$excludeDirFragments = @('\data\sessions\', '\.git\', '\deploy\', '\backups\')
 
 $relativePaths = @(
     'api.php', 'index.php', 'login.php', 'login_process.php', 'db.php', 'config.php',
@@ -15,7 +15,7 @@ $relativePaths = @(
 )
 
 $relativeDirs = @(
-    'api', 'includes', 'assets\js', 'assets\css', 'assets\pwa', 'assets\img', 'migrations', 'scripts', 'databases'
+    'api', 'includes', 'assets\js', 'assets\css', 'assets\pwa', 'assets\img', 'uploads', 'migrations', 'scripts', 'databases'
 )
 
 function Should-SkipFile([string]$fullPath) {
@@ -24,6 +24,13 @@ function Should-SkipFile([string]$fullPath) {
     if ($name -like '*.sqlite') { return $true }
     foreach ($frag in $excludeDirFragments) {
         if ($fullPath -like "*$frag*") { return $true }
+    }
+    if ($fullPath -like '*\uploads\*') {
+        $ext = [IO.Path]::GetExtension($fullPath).ToLowerInvariant()
+        $allowed = @('.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.htaccess', '.gitkeep')
+        if ($allowed -notcontains $ext -and $name -ne '.htaccess' -and $name -ne '.gitkeep') {
+            return $true
+        }
     }
     return $false
 }

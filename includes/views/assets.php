@@ -3,15 +3,18 @@
         .assets-workspace {
             display: none; /* Fallback override */
             flex-direction: column;
-            height: 100%;
-            max-height: 100%;
-            overflow: hidden;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
             padding: 12px 16px 16px;
             box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
         }
         #view-assets.assets-workspace.active {
             display: flex !important;
-            overflow: hidden !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
             padding: 12px 16px 16px !important;
         }
         .assets-page-toolbar {
@@ -56,11 +59,12 @@
         .asset-detail-panel {
             flex: 1 1 auto;
             min-width: 0;
-            min-height: auto;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             overflow-y: auto;
             padding-bottom: 80px;
+            -webkit-overflow-scrolling: touch;
         }
         #asset-empty {
             flex: 1;
@@ -77,11 +81,11 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         }
         #asset-form {
-            flex: 1;
-            min-height: auto;
+            flex: 1 1 auto;
+            min-height: 0;
             display: none;
             flex-direction: column;
-            overflow: visible;
+            overflow: hidden;
             padding: 0 0 80px 0;
             border-radius: 14px;
             border: 1px solid #e2e8f0;
@@ -586,9 +590,9 @@
                                     onclick="if(!editingNode || !editingNode.imagem || document.getElementById('af-img-display').style.display==='none') triggerUpload('af-img-input')"
                                     title="Clique para adicionar/alterar foto">
                                     <span id="af-img-placeholder"
-                                        style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:6px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+                                        style="color:var(--text-muted); font-size:0.68rem; text-align:center; padding:6px; display:flex; flex-direction:column; align-items:center; gap:4px; line-height:1.25;">
                                         <i data-lucide="camera" style="width:22px; height:22px; opacity:0.6;"></i>
-                                        <span>Adicionar Foto</span>
+                                        <span>Sem foto anexada — Clique para adicionar foto do ponto</span>
                                     </span>
                                     <!-- Image acts as trigger for Lightbox -->
                                     <img id="af-img-display"

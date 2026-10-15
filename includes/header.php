@@ -229,6 +229,10 @@ if ($auth->isLoggedIn()) {
             -webkit-font-smoothing: antialiased;
         }
 
+        html {
+            overflow-x: hidden;
+        }
+
         body {
             background-color: var(--bg-body);
             /* Subtle Mesh Gradient for depth - Light Version */
@@ -236,8 +240,11 @@ if ($auth->isLoggedIn()) {
                 radial-gradient(circle at 10% 20%, rgba(224, 242, 254, 0.5) 0%, transparent 20%),
                 radial-gradient(circle at 90% 80%, rgba(243, 232, 255, 0.5) 0%, transparent 20%);
             color: var(--text-main);
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100dvh;
+            height: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
             font-size: 16px;
@@ -382,22 +389,24 @@ if ($auth->isLoggedIn()) {
 
         /* --- MAIN CONTENT --- */
         main {
-            flex: 1;
+            flex: 1 1 auto;
             min-height: 0;
             position: relative;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: visible;
             background: transparent;
             width: 100%;
             max-width: 100%;
         }
 
         .view-container {
-            flex: 1;
+            flex: 1 1 auto;
             min-height: 0;
             padding: 24px;
+            overflow-x: hidden;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: none;
             opacity: 0;
             transform: translateY(10px);

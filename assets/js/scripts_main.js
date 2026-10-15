@@ -257,6 +257,13 @@ window.__navReady = function(viewId, btn, isPopState = false) {
     const found = document.querySelector(`.nav-item[onclick*="'${viewId}'"]`);
     if (found) found.classList.add('active');
 
+    if (typeof lubtekUnlockBodyScroll === 'function') {
+        lubtekUnlockBodyScroll();
+    } else {
+        document.body.style.overflow = '';
+        document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
+    }
+
     // 3. View Activation
     document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
     const targetId = 'view-' + (viewId === 'calc' ? 'calc' : viewId);
@@ -4156,15 +4163,16 @@ async function selectNode(id, opts = {}) {
     if (imgValInput) imgValInput.value = node.imagem || '';
 
     if (node.imagem && String(node.imagem).trim().length > 0) {
+        const imgSrc = String(node.imagem).split('?')[0] + '?t=' + Date.now();
         if (imgDisplay) {
-            imgDisplay.src = node.imagem;
+            imgDisplay.src = imgSrc;
             imgDisplay.style.display = 'block';
         }
         if (placeholder) placeholder.style.display = 'none';
         if (zoomBtn) zoomBtn.style.display = 'flex';
         if (removeBtn) removeBtn.style.display = 'inline-block';
         if (headerImg) {
-            headerImg.src = node.imagem;
+            headerImg.src = imgSrc;
             headerImg.style.display = 'block';
         }
     } else {

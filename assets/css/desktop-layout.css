@@ -37,8 +37,9 @@
     main {
         display: flex;
         flex-direction: column;
+        flex: 1 1 auto;
         min-height: 0;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .view-container {
@@ -51,7 +52,6 @@
     .view-container.active {
         flex: 1 1 auto;
         min-height: 0;
-        max-height: 100%;
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -78,10 +78,10 @@
 
     /* Workspaces com scroll interno isolado */
     #view-dash.dash-workspace.active {
-        overflow: hidden !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
         flex: 1 1 auto;
         min-height: 0;
-        max-height: 100%;
     }
 
     #view-dash.dash-workspace.active .dash-body {

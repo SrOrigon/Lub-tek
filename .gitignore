@@ -28,10 +28,16 @@ backups/
 !backups/.htaccess
 !backups/manifest.json
 
-# Uploads e Storage de tenant (manter .htaccess de proteção)
+# Uploads de tenant em runtime (fotos demo/seed versionadas abaixo)
 uploads/*
 !uploads/.htaccess
 !uploads/.gitkeep
+!uploads/*.png
+!uploads/*.jpg
+!uploads/*.jpeg
+!uploads/*.webp
+!uploads/*.gif
+!uploads/*.svg
 storage/*
 !storage/.htaccess
 !storage/.gitkeep
@@ -79,9 +85,10 @@ debug-*.log
 *.tmp
 *.cache
 
-# Imagens de uploads ignoradas, imagens de sistema preservadas
+# Legacy uploads espelhados — preferir uploads/ na raiz; system sempre versionado
 assets/img/uploads/*
 !assets/img/system/*
+!assets/img/system/**
 
 # Arquivos de sistema e IDE
 .DS_Store

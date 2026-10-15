@@ -21,7 +21,55 @@ class LubricationPlanImageHelper
         if (preg_match('#^https?://#i', $path)) {
             return $path;
         }
-        return ltrim($path, '/');
+        if (preg_match('#^data:image/#i', $path)) {
+            return $path;
+        }
+        $existing = $this->resolveExistingPath($path);
+        return ltrim($existing ?? $path, '/');
+    }
+
+    /**
+     * Resolve caminho relativo quando o arquivo existe (uploads/, assets/img/uploads/, tenant).
+     */
+    public function resolveExistingPath(string $path): ?string
+    {
+        $path = trim(str_replace('\\', '/', $path));
+        if ($path === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $path) || preg_match('#^data:image/#i', $path)) {
+            return $path;
+        }
+
+        $rel = ltrim($path, '/');
+        $candidates = [$rel];
+        $base = basename($rel);
+
+        if (stripos($rel, 'uploads/') !== 0) {
+            $candidates[] = 'uploads/' . $base;
+        }
+        if (stripos($rel, 'assets/img/uploads/') !== 0) {
+            $candidates[] = 'assets/img/uploads/' . $base;
+        }
+        if (preg_match('#^uploads/([a-z0-9-]+/)?(.+)$#i', $rel, $m)) {
+            $candidates[] = 'uploads/' . $m[2];
+            $candidates[] = 'assets/img/uploads/' . basename($m[2]);
+        }
+
+        $seen = [];
+        foreach ($candidates as $candidate) {
+            $candidate = ltrim(str_replace('\\', '/', $candidate), '/');
+            if ($candidate === '' || isset($seen[$candidate])) {
+                continue;
+            }
+            $seen[$candidate] = true;
+            $full = $this->projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
+            if (is_file($full)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     public function absolutePath(string $path): ?string
@@ -30,25 +78,28 @@ class LubricationPlanImageHelper
         if ($path === '') {
             return null;
         }
-        if (preg_match('#^https?://#i', $path)) {
+        if (preg_match('#^https?://#i', $path) || preg_match('#^data:image/#i', $path)) {
             return null;
         }
-        $rel = ltrim($path, '/');
-        $full = $this->projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+        $rel = $this->resolveExistingPath($path);
+        if ($rel === null || preg_match('#^https?://#i', $rel)) {
+            return null;
+        }
+        $full = $this->projectRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($rel, '/'));
         return is_file($full) ? $full : null;
     }
 
-    /** Só incluir imagem no PDF se o arquivo existir (ou URL http válida). */
+    /** Só incluir imagem no PDF se o arquivo existir (ou URL http / data URI válida). */
     public function isValidImage(string $path): bool
     {
         $path = trim($path);
         if ($path === '') {
             return false;
         }
-        if (preg_match('#^https?://#i', $path)) {
+        if (preg_match('#^https?://#i', $path) || preg_match('#^data:image/#i', $path)) {
             return true;
         }
-        return $this->absolutePath($path) !== null;
+        return $this->resolveExistingPath($path) !== null;
     }
 
     /**

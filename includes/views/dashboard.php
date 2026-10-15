@@ -550,13 +550,14 @@
     }
     @media (min-width: 1200px) {
         #view-dash.dash-workspace.active {
-            overflow: hidden !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
             padding-bottom: 8px;
         }
         .dash-body {
             flex: 1 1 auto;
             min-height: 0;
-            overflow: hidden;
+            overflow: visible;
         }
         .dash-layout-grid {
             display: grid;
@@ -583,15 +584,14 @@
         .dash-orders-column {
             min-width: 0;
             min-height: 0;
-            max-height: 100%;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: visible;
         }
         .dash-orders-column .dash-table-panel {
             flex: 1 1 auto;
             min-height: 0;
-            overflow: hidden;
+            overflow: visible;
         }
         .dash-orders-column .dash-table-scroll {
             flex: 1 1 auto;

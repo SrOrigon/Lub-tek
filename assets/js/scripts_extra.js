@@ -9,27 +9,38 @@
     }
 
     // --- IMAGE MODAL LOGIC ---
-    // Keeps only one definition
+    function lubtekUnlockBodyScroll() {
+        document.body.style.overflow = '';
+        document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
+        document.documentElement.classList.remove('modal-open', 'no-scroll');
+    }
+
+    function lubtekCloseLightbox(id) {
+        const el = document.getElementById(id || 'lightbox-modal');
+        if (el) {
+            el.classList.remove('is-open');
+            el.style.display = 'none';
+        }
+        lubtekUnlockBodyScroll();
+    }
+
     function openImageModal(src) {
-        // Validate Source
         if (!src || src.includes('undefined') || src.trim() === '') return;
 
         const lb = document.getElementById('lightbox-modal');
         const img = document.getElementById('lightbox-img');
         if (lb && img) {
             img.src = src;
+            lb.classList.add('is-open');
             lb.style.display = 'flex';
-            lb.style.alignItems = 'center';
-            lb.style.justifyContent = 'center';
-            lb.style.flexDirection = 'column';
         }
+        lubtekUnlockBodyScroll();
     }
 
-    // Close on Escape
     document.addEventListener('keydown', function (event) {
-        if (event.key === "Escape") {
-            const lb = document.getElementById('lightbox-modal');
-            if (lb) lb.style.display = 'none';
+        if (event.key === 'Escape') {
+            lubtekCloseLightbox('lightbox-modal');
+            lubtekCloseLightbox('img-modal');
         }
     });
 
@@ -2308,6 +2319,8 @@
     window.processScannedTag = processScannedTag;
 
     window.openImageModal = openImageModal;
+    window.lubtekUnlockBodyScroll = lubtekUnlockBodyScroll;
+    window.lubtekCloseLightbox = lubtekCloseLightbox;
     window.switchCalc = switchCalc;
     window.loadKpiView = loadKpiView;
     window.loadRoutes = loadRoutes;

@@ -332,3 +332,52 @@ body.theme-high-contrast .kpi-card {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
 }
+
+/* ==========================================================================
+   SCROLL GLOBAL, MODAIS E LIGHTBOX (destrava body + rolagem interna)
+   ========================================================================== */
+
+body.modal-open:not(.password-reset-lock),
+body.no-scroll:not(.password-reset-lock) {
+    overflow-y: auto !important;
+}
+
+.lubtek-overlay-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.92);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: max(16px, env(safe-area-inset-top)) 12px max(24px, env(safe-area-inset-bottom));
+}
+
+.lubtek-overlay-modal.is-open {
+    display: flex;
+}
+
+.lubtek-overlay-modal .lubtek-modal-body {
+    max-width: min(960px, 96vw);
+    width: 100%;
+    margin: auto;
+}
+
+.lubtek-modal-scroll-body {
+    overflow-y: auto;
+    max-height: calc(85dvh - 130px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.lub-point-photo-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    cursor: zoom-in;
+}

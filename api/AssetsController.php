@@ -118,12 +118,16 @@ class AssetsController
             $node['os_direct'] = $stat['count'];
             $node['health_direct'] = $stat['score'];
 
-            // Se apontar para arquivo local inexistente, limpa para evitar requisições 404
-            if (!empty($node['imagem']) && !preg_match('#^https?://#i', $node['imagem'])) {
-                $cleanPath = ltrim(str_replace('\\', '/', $node['imagem']), '/');
-                $fullPath = __DIR__ . '/../' . $cleanPath;
-                if (!file_exists($fullPath)) {
-                    $node['imagem'] = '';
+            // Normaliza caminhos legados (assets/img/uploads → uploads/) sem apagar referência do banco
+            if (!empty($node['imagem']) && !preg_match('#^https?://#i', $node['imagem']) && !preg_match('#^data:image/#i', $node['imagem'])) {
+                static $imgHelper = null;
+                if ($imgHelper === null) {
+                    require_once __DIR__ . '/../includes/lubrication_plan_image_helper.php';
+                    $imgHelper = new LubricationPlanImageHelper(dirname(__DIR__));
+                }
+                $resolved = $imgHelper->resolveExistingPath((string) $node['imagem']);
+                if ($resolved !== null) {
+                    $node['imagem'] = $resolved;
                 }
             }
 

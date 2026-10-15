@@ -1,21 +1,23 @@
-    <div id="img-modal"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; align-items:center; justify-content:center; flex-direction:column;">
-        <img id="img-modal-content" src=""
-            style="max-width:90%; max-height:80%; border-radius:8px; box-shadow:0 0 20px rgba(0,0,0,0.5);">
-        <button class="btn btn-outline" style="margin-top:20px; color:white; border-color:white;"
-            onclick="document.getElementById('img-modal').style.display='none'">Fechar (Esc)</button>
+    <div id="img-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Visualização ampliada">
+        <div class="lubtek-modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+            <img id="img-modal-content" src="" alt="Imagem ampliada"
+                style="max-width:min(96vw,1200px); max-height:calc(85dvh - 100px); border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.5); object-fit:contain;">
+            <button type="button" class="btn btn-outline" style="color:white; border-color:white;"
+                onclick="if(window.lubtekCloseLightbox){lubtekCloseLightbox('img-modal');}">Fechar (Esc)</button>
+        </div>
     </div>
 
     <!-- LIGHTBOX MODAL (For Asset Images) -->
-    <div id="lightbox-modal"
-        style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.95); z-index:10000; align-items:center; justify-content:center; flex-direction:column;">
-        <img id="lightbox-img"
-            style="max-width:90%; max-height:80vh; border-radius:8px; box-shadow:0 0 30px rgba(0,0,0,0.8); border:2px solid #333;">
-        <div style="margin-top:20px; display:flex; gap:15px;">
-            <button class="btn" style="background:white; color:black; font-weight:800;"
-                onclick="document.getElementById('lightbox-modal').style.display='none'">
-                <i data-lucide="x"></i> FECHAR
-            </button>
+    <div id="lightbox-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Zoom da foto do ponto">
+        <div class="lubtek-modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+            <img id="lightbox-img" class="lub-point-photo-thumb" alt="Foto do ponto em alta definição"
+                style="max-width:min(96vw,1400px); max-height:calc(85dvh - 100px); width:auto; height:auto; border:2px solid #333; box-shadow:0 0 30px rgba(0,0,0,0.8);">
+            <div style="display:flex; gap:15px;">
+                <button type="button" class="btn" style="background:white; color:black; font-weight:800;"
+                    onclick="if(window.lubtekCloseLightbox){lubtekCloseLightbox('lightbox-modal');}">
+                    <i data-lucide="x"></i> FECHAR
+                </button>
+            </div>
         </div>
     </div>
 
