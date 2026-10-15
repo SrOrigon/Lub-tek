@@ -337,9 +337,30 @@ body.theme-high-contrast .kpi-card {
    SCROLL GLOBAL, MODAIS E LIGHTBOX (destrava body + rolagem interna)
    ========================================================================== */
 
-body.modal-open:not(.password-reset-lock),
-body.no-scroll:not(.password-reset-lock) {
+html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+body:not(.password-reset-lock) {
+    display: block !important;
+}
+
+main,
+.view-container,
+.view-container.active,
+.view-container.view-flex.active,
+#view-dash.dash-workspace.active,
+#view-assets.assets-workspace.active,
+.routes-workspace.active,
+.kpi-workspace.active {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 .lubtek-overlay-modal {

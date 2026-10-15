@@ -66,10 +66,10 @@ if ($auth->isLoggedIn()) {
 
     <link rel="shortcut icon" href="assets/img/system/img_69581d7fcdbbf.jpeg" type="image/jpeg">
     <link rel="stylesheet" href="assets/css/responsive.css?v=3.2.6">
-    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=3.2.7">
+    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=3.4.2">
     <link rel="stylesheet" href="assets/css/touch-targets.css?v=3.4.0">
     <link rel="stylesheet" href="assets/css/ai-ops-panel.css?v=3.4.0">
-    <link rel="stylesheet" href="assets/css/a11y-global.css?v=3.4.1">
+    <link rel="stylesheet" href="assets/css/a11y-global.css?v=3.4.2">
     <!-- Modern Fonts & Icons -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
@@ -239,7 +239,6 @@ if ($auth->isLoggedIn()) {
 
         body {
             background-color: var(--bg-body);
-            /* Subtle Mesh Gradient for depth - Light Version */
             background-image:
                 radial-gradient(circle at 10% 20%, rgba(224, 242, 254, 0.5) 0%, transparent 20%),
                 radial-gradient(circle at 90% 80%, rgba(243, 232, 255, 0.5) 0%, transparent 20%);
@@ -249,10 +248,8 @@ if ($auth->isLoggedIn()) {
             overflow-x: hidden;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            display: flex;
-            flex-direction: column;
+            display: block;
             font-size: 16px;
-            /* Pragmatic Readability */
             line-height: 1.6;
         }
 
@@ -393,11 +390,10 @@ if ($auth->isLoggedIn()) {
 
         /* --- MAIN CONTENT --- */
         main {
-            flex: 1 1 auto;
-            min-height: 0;
+            display: block;
             position: relative;
-            display: flex;
-            flex-direction: column;
+            height: auto;
+            min-height: 0;
             overflow: visible;
             background: transparent;
             width: 100%;
@@ -405,13 +401,12 @@ if ($auth->isLoggedIn()) {
         }
 
         .view-container {
-            flex: 1 1 auto;
+            display: none;
+            height: auto;
+            max-height: none;
             min-height: 0;
             padding: 24px;
-            overflow-x: hidden;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            display: none;
+            overflow: visible;
             opacity: 0;
             transform: translateY(10px);
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
@@ -428,14 +423,17 @@ if ($auth->isLoggedIn()) {
 
         .view-container.active {
             display: block;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
             opacity: 1;
             transform: none;
         }
 
         .view-container.view-flex.active {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
+            display: block;
+            height: auto !important;
+            overflow: visible !important;
         }
 
         .view-container.view-block.active {

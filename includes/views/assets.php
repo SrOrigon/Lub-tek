@@ -1,21 +1,19 @@
 <div id="view-assets" class="view-container active view-block assets-workspace">
     <style>
         .assets-workspace {
-            display: none; /* Fallback override */
-            flex-direction: column;
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-            padding: 12px 16px 16px;
+            display: none;
+            height: auto;
+            max-height: none;
+            overflow: visible;
+            padding: 12px 16px 40px;
             box-sizing: border-box;
-            -webkit-overflow-scrolling: touch;
         }
         #view-assets.assets-workspace.active {
-            display: flex !important;
-            overflow-x: hidden !important;
-            overflow-y: auto !important;
-            padding: 12px 16px 16px !important;
+            display: block !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 12px 16px 40px !important;
         }
         .assets-page-toolbar {
             flex-shrink: 0;

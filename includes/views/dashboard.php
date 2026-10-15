@@ -488,9 +488,10 @@
         overscroll-behavior: contain;
     }
     #view-dash.dash-workspace.active {
-        display: flex !important;
-        flex: 1 1 auto;
-        min-height: 0;
+        display: block !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
         padding: 10px 12px 16px;
     }
     .dash-toolbar {
@@ -550,34 +551,31 @@
     }
     @media (min-width: 1200px) {
         #view-dash.dash-workspace.active {
-            overflow-x: hidden !important;
-            overflow-y: auto !important;
-            padding-bottom: 8px;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            padding-bottom: 24px;
         }
         .dash-body {
-            flex: 1 1 auto;
-            min-height: 0;
+            display: block;
+            height: auto;
             overflow: visible;
         }
         .dash-layout-grid {
             display: grid;
             grid-template-columns: minmax(360px, 42fr) minmax(0, 58fr);
             gap: 14px;
-            align-items: stretch;
-            flex: 1 1 auto;
+            align-items: start;
             height: auto;
-            min-height: 0;
-            max-height: 100%;
+            max-height: none;
         }
         .dash-intel-column {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            min-height: 0;
-            max-height: 100%;
-            overflow-x: hidden;
-            overflow-y: auto;
-            overscroll-behavior: contain;
+            height: auto;
+            max-height: none;
+            overflow: visible;
             padding-right: 6px;
             padding-bottom: 16px;
         }
