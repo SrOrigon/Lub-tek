@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#0369a1"/>
-  <rect x="36" y="36" width="96" height="72" rx="10" fill="#7dd3fc"/>
-  <rect x="152" y="28" width="96" height="88" rx="10" fill="#e0f2fe"/>
-  <rect x="268" y="48" width="96" height="60" rx="10" fill="#38bdf8"/>
-  <text x="200" y="168" text-anchor="middle" fill="#f0f9ff" font-family="Arial,sans-serif" font-size="16">Ordens de Serviço</text>
-</svg>

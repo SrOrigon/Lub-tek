@@ -4,7 +4,7 @@
  * Imagens: cache-first
  * Nunca intercepta API / navegação PHP
  */
-const CACHE_NAME = 'lubtek-pwa-v3.4.8';
+const CACHE_NAME = 'lubtek-pwa-v3.4.9';
 
 const STATIC_ASSETS = [
   './assets/js/lazy_vendors.js',
@@ -16,14 +16,18 @@ const STATIC_ASSETS = [
   './assets/js/scripts_main.js',
   './assets/pwa/manifest.webmanifest',
   './assets/img/system/img_69581d7fcdbbf.jpeg',
-  './assets/img/system/thumb_dash.svg',
-  './assets/img/system/thumb_assets.svg',
-  './assets/img/system/thumb_inv.svg',
-  './assets/img/system/thumb_eng.svg',
-  './assets/img/system/thumb_reports.svg',
-  './assets/img/system/thumb_kpi.svg',
-  './assets/img/system/thumb_routes.svg',
-  './assets/img/system/thumb_3d.svg',
+  './assets/img/system/thumb_dash.jpg',
+  './assets/img/system/thumb_assets.jpg',
+  './assets/img/system/thumb_inv.jpg',
+  './assets/img/system/thumb_eng.jpg',
+  './assets/img/system/thumb_reports.jpg',
+  './assets/img/system/thumb_kpi.jpg',
+  './assets/img/system/thumb_routes.jpg',
+  './assets/img/system/thumb_pi.jpg',
+  './assets/img/system/thumb_sap.jpg',
+  './assets/img/system/thumb_3d.jpg',
+  './assets/img/system/thumb_audit.jpg',
+  './assets/img/system/thumb_users.jpg',
   './assets/css/responsive.css',
   './assets/css/desktop-layout.css',
   './assets/css/touch-targets.css',

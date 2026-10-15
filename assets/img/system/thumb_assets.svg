@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#15803d"/>
-  <circle cx="200" cy="86" r="42" fill="none" stroke="#bbf7d0" stroke-width="6"/>
-  <circle cx="200" cy="86" r="16" fill="#dcfce7"/>
-  <line x1="200" y1="28" x2="200" y2="44" stroke="#bbf7d0" stroke-width="6"/>
-  <line x1="142" y1="86" x2="158" y2="86" stroke="#bbf7d0" stroke-width="6"/>
-  <line x1="242" y1="86" x2="258" y2="86" stroke="#bbf7d0" stroke-width="6"/>
-  <text x="200" y="168" text-anchor="middle" fill="#f0fdf4" font-family="Arial,sans-serif" font-size="16">Máquinas</text>
-</svg>

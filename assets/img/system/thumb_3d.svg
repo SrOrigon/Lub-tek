@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#1e293b"/>
-  <polygon points="200,32 292,88 200,144 108,88" fill="#334155" stroke="#e2e8f0" stroke-width="3"/>
-  <polygon points="200,52 262,90 200,128 138,90" fill="#0ea5e9" stroke="#e0f2fe" stroke-width="3"/>
-  <text x="200" y="176" text-anchor="middle" fill="#f8fafc" font-family="Arial,sans-serif" font-size="16">Visualizador 3D</text>
-</svg>

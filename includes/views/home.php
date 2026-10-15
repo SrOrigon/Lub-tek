@@ -25,7 +25,8 @@
         <!-- CARD 1: DASHBOARD -->
         <div onclick="nav('dash')" class="lub-card" data-perm="dashboard">
             <div class="card-img">
-                <img src="assets/img/system/thumb_dash.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_dash.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Ordens de Serviço" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -43,7 +44,8 @@
         <!-- CARD 2: ASSETS -->
         <div onclick="nav('assets')" class="lub-card" data-perm="assets">
             <div class="card-img">
-                <img src="assets/img/system/thumb_assets.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_assets.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Máquinas e Equipamentos" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -61,7 +63,8 @@
         <!-- CARD 3: INVENTORY -->
         <div onclick="nav('catalog')" class="lub-card" data-perm="catalog">
             <div class="card-img">
-                <img src="assets/img/system/thumb_inv.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_inv.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Almoxarifado de Óleos" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -79,7 +82,8 @@
         <!-- CARD 4: ENGINEERING -->
         <div onclick="nav('calc')" class="lub-card" data-perm="engineering">
             <div class="card-img">
-                <img src="assets/img/system/thumb_eng.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_eng.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Engenharia de Lubrificação" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -97,7 +101,8 @@
         <!-- CARD 5: REPORTS -->
         <div onclick="nav('reports')" class="lub-card" data-perm="reports">
             <div class="card-img">
-                <img src="assets/img/system/thumb_reports.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_reports.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Exportar Documentos" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -115,7 +120,8 @@
         <!-- CARD 6: KPI -->
         <div onclick="nav('kpi')" class="lub-card" data-perm="kpi">
             <div class="card-img">
-                <img src="assets/img/system/thumb_kpi.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_kpi.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Resumo da Fábrica" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -133,7 +139,8 @@
         <!-- CARD: ROTAS DE LUBRIFICAÇÃO -->
         <div onclick="nav('routes')" class="lub-card" data-perm="routes">
             <div class="card-img">
-                <img src="assets/img/system/thumb_routes.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_routes.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Rotas de Lubrificação" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -150,15 +157,13 @@
 
         <!-- CARD PI: TELEMETRIA PI SYSTEM -->
         <div onclick="nav('pi')" class="lub-card" data-perm="pi">
-            <div class="card-img" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); display: flex; align-items: center; justify-content: center;">
+            <div class="card-img">
+                <img src="assets/img/system/thumb_pi.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Sensores em Tempo Real" width="400" height="200" loading="lazy" decoding="async">
                 <div class="overlay"></div>
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(56, 189, 248, 0.1); border: 2px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; z-index: 1; animation: pulse 2s infinite;">
-                    <i data-lucide="activity" style="width: 30px; height: 30px; color: #38bdf8;"></i>
-                </div>
             </div>
             <div class="card-content">
                 <div class="card-header">
-                    <div class="icon-circle" style="background: #e0f2fe; color: #0284c7;"><i data-lucide="database"></i></div>
+                    <div class="icon-circle" style="background: #e0f2fe; color: #0284c7;"><i data-lucide="activity"></i></div>
                     <h3>Sensores em Tempo Real</h3>
                 </div>
                 <p>Monitoramento de sensores industriais e alertas automáticos.</p>
@@ -171,11 +176,9 @@
 
         <!-- CARD SAP: INTEGRACAO SAP ERP -->
         <div onclick="nav('sap')" class="lub-card" data-perm="sap">
-            <div class="card-img" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); display: flex; align-items: center; justify-content: center;">
+            <div class="card-img">
+                <img src="assets/img/system/thumb_sap.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Integração SAP ERP" width="400" height="200" loading="lazy" decoding="async">
                 <div class="overlay"></div>
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; z-index: 1;">
-                    <i data-lucide="refresh-cw" style="width: 30px; height: 30px; color: white;"></i>
-                </div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -193,7 +196,8 @@
         <!-- CARD 7: 3D -->
         <div onclick="window.location.href='?page=3d'" class="lub-card" data-perm="digital_twin">
             <div class="card-img">
-                <img src="assets/img/system/thumb_3d.svg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.7'); ?>" alt="" width="400" height="200">
+                <img src="assets/img/system/thumb_3d.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Visualizador 3D" width="400" height="200" loading="lazy" decoding="async">
+                <div class="overlay"></div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -210,11 +214,9 @@
 
         <!-- CARD: AUDIT LOGS -->
         <div onclick="nav('audit')" class="lub-card" data-perm="audit_logs">
-            <div class="card-img" style="background: linear-gradient(135deg, #475569 0%, #64748b 100%); display: flex; align-items: center; justify-content: center;">
+            <div class="card-img">
+                <img src="assets/img/system/thumb_audit.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Auditoria & Compliance" width="400" height="200" loading="lazy" decoding="async">
                 <div class="overlay"></div>
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; z-index: 1;">
-                    <i data-lucide="shield-check" style="width: 30px; height: 30px; color: white;"></i>
-                </div>
             </div>
             <div class="card-content">
                 <div class="card-header">
@@ -231,15 +233,13 @@
 
         <!-- CARD: EQUIPE / USUÁRIOS -->
         <div onclick="nav('users')" class="lub-card" data-perm="manage_users">
-            <div class="card-img" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); display: flex; align-items: center; justify-content: center;">
+            <div class="card-img">
+                <img src="assets/img/system/thumb_users.jpg?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.4.9'); ?>" alt="Equipe e Acessos" width="400" height="200" loading="lazy" decoding="async">
                 <div class="overlay"></div>
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; z-index: 1;">
-                    <i data-lucide="users" style="width: 30px; height: 30px; color: white;"></i>
-                </div>
             </div>
             <div class="card-content">
                 <div class="card-header">
-                    <div class="icon-circle" style="background: #e0f2fe; color: #0284c7;"><i data-lucide="user-plus"></i></div>
+                    <div class="icon-circle" style="background: #e0f2fe; color: #0284c7;"><i data-lucide="users"></i></div>
                     <h3>Equipe e Acessos</h3>
                 </div>
                 <p>Cadastre lubrificadores e gestores da sua empresa em poucos cliques.</p>
@@ -294,7 +294,7 @@
         }
 
         .card-img {
-            height: 140px;
+            height: 148px;
             background: #0f172a;
             position: relative;
             overflow: hidden;
@@ -305,6 +305,12 @@
             height: 100%;
             object-fit: cover;
             display: block;
+            transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+        }
+
+        .lub-card:hover .card-img img {
+            transform: scale(1.06);
         }
 
         .overlay {
@@ -313,7 +319,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent);
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.05) 60%, transparent 100%);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .lub-card:hover .overlay {
+            opacity: 0.85;
         }
 
         .card-content {

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#4338ca"/>
-  <circle cx="200" cy="84" r="46" fill="none" stroke="#c7d2fe" stroke-width="10"/>
-  <text x="200" y="92" text-anchor="middle" fill="#eef2ff" font-family="Arial,sans-serif" font-size="22" font-weight="700">KPI</text>
-  <text x="200" y="172" text-anchor="middle" fill="#eef2ff" font-family="Arial,sans-serif" font-size="16">Desempenho</text>
-</svg>

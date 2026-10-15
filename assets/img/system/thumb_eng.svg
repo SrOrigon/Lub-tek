@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#7e22ce"/>
-  <rect x="110" y="42" width="180" height="88" rx="12" fill="#f3e8ff"/>
-  <text x="200" y="82" text-anchor="middle" fill="#6b21a8" font-family="Arial,sans-serif" font-size="22" font-weight="700">DN x dm</text>
-  <text x="200" y="108" text-anchor="middle" fill="#7e22ce" font-family="Arial,sans-serif" font-size="14">Viscosidade</text>
-  <text x="200" y="168" text-anchor="middle" fill="#faf5ff" font-family="Arial,sans-serif" font-size="16">Engenharia</text>
-</svg>

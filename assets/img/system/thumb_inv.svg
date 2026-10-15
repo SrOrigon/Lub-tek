@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#c2410c"/>
-  <rect x="118" y="40" width="164" height="100" rx="12" fill="#ffedd5"/>
-  <rect x="138" y="62" width="124" height="12" rx="4" fill="#ea580c"/>
-  <rect x="138" y="86" width="96" height="12" rx="4" fill="#fdba74"/>
-  <rect x="138" y="110" width="72" height="12" rx="4" fill="#fed7aa"/>
-  <text x="200" y="168" text-anchor="middle" fill="#fff7ed" font-family="Arial,sans-serif" font-size="16">Almoxarifado</text>
-</svg>

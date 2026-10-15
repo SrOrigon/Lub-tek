@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" width="400" height="200">
-  <rect width="400" height="200" fill="#d97706"/>
-  <path d="M70,120 L130,78 L180,102 L230,58 L290,96 L340,70" fill="none" stroke="#fffbeb" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="130" cy="78" r="10" fill="#fffbeb"/>
-  <circle cx="230" cy="58" r="10" fill="#fffbeb"/>
-  <circle cx="340" cy="70" r="10" fill="#fffbeb"/>
-  <text x="200" y="172" text-anchor="middle" fill="#fffbeb" font-family="Arial,sans-serif" font-size="16">Rotas</text>
-</svg>
