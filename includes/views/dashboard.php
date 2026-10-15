@@ -238,6 +238,8 @@
                     <button type="button" class="filter-btn os-view-toggle" onclick="switchOSView('kanban', this)" aria-pressed="false" aria-label="Visualização em kanban">Kanban</button>
                     <button type="button" class="filter-btn os-status-filter active" onclick="filterOS('all', this)" aria-pressed="true">Todas</button>
                     <button type="button" class="filter-btn os-status-filter" onclick="filterOS('Pendente', this)" aria-pressed="false">Pendentes</button>
+                    <button type="button" class="filter-btn os-status-filter" onclick="filterOS('Em Andamento', this)" aria-pressed="false">Em Execução</button>
+                    <button type="button" class="filter-btn os-status-filter" onclick="filterOS('Atrasada', this)" aria-pressed="false">Atrasadas</button>
                     <button type="button" class="filter-btn os-status-filter" onclick="filterOS('Concluído', this)" aria-pressed="false">Concluídas</button>
                     <button type="button" class="filter-btn" onclick="exportTasksExcel()" title="Baixar Excel"
                         aria-label="Exportar ordens de serviço para Excel"

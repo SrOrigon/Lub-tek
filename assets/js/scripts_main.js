@@ -865,8 +865,13 @@ function renderOSTable() {
             if (!t) return false;
 
             // Status Filter (case-insensitive, accent-safe)
-            if (taskFilter !== 'all') {
-                const sit = String(t.situacao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const sit = String(t.situacao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (taskFilter === 'Atrasada') {
+                const open = sit === 'pendente' || sit === 'em andamento';
+                const planned = String(t.date || t.data_planejada || '').slice(0, 10);
+                const today = new Date().toISOString().slice(0, 10);
+                if (!open || !planned || planned >= today) return false;
+            } else if (taskFilter !== 'all') {
                 const want = String(taskFilter).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 if (sit !== want) return false;
             }
@@ -1003,6 +1008,52 @@ function showOSForm(show) {
 }
 window.showOSForm = showOSForm;
 
+function openQuickWorkOrder(preset) {
+    const node = (typeof editingNode !== 'undefined' && editingNode) ? editingNode : null;
+    const ativoId = (preset && preset.ativo_id) || (node && node.id);
+    if (!ativoId) return showToast('Selecione um ativo.', 'warning');
+    window.__pendingQuickOS = {
+        ativoId: ativoId,
+        nome: (preset && preset.nome) || (node && node.nome) || '',
+        desc: (preset && preset.desc) || ('Lubrificação do ativo ' + ((node && node.nome) || ativoId)),
+        prio: (preset && preset.prio) || 'Média'
+    };
+    if (typeof nav === 'function') {
+        const dashBtn = document.querySelector('.nav-item[onclick*="\'dash\'"]');
+        nav('dash', dashBtn);
+    }
+    setTimeout(applyPendingQuickOS, 350);
+}
+
+function applyPendingQuickOS() {
+    const pending = window.__pendingQuickOS;
+    if (!pending || typeof createNewOS !== 'function') return;
+    if (!document.getElementById('os-form-container')) {
+        setTimeout(applyPendingQuickOS, 200);
+        return;
+    }
+    createNewOS();
+    const ativo = document.getElementById('f-os-ativo');
+    if (ativo) ativo.value = String(pending.ativoId);
+    const serv = document.getElementById('f-os-serv');
+    if (serv) serv.value = pending.desc;
+    const prio = document.getElementById('f-os-prio');
+    if (prio) prio.value = pending.prio;
+    const title = document.getElementById('form-title');
+    if (title) title.innerText = 'Nova O.S. — ' + (pending.nome || pending.ativoId);
+    window.__pendingQuickOS = null;
+}
+
+function showLubricationPoints() {
+    const btn = document.querySelector('.asset-tab[onclick*="lub"]');
+    if (typeof setAssetTab === 'function') setAssetTab('lub', btn);
+    const tab = document.getElementById('tab-lub');
+    if (tab && tab.scrollIntoView) tab.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+window.openQuickWorkOrder = openQuickWorkOrder;
+window.showLubricationPoints = showLubricationPoints;
+
 function selectOS(id) {
     selectedOS = tasks.find(t => t.id == id);
     if (!selectedOS) return;
@@ -1111,7 +1162,11 @@ async function saveOS() {
     try {
         const res = await api('save_task', os);
         if (res.ok) {
-            showToast('Ordem de serviço salva com sucesso!', 'success');
+            if (os.situacao === 'Concluído') {
+                showToast('O.S. concluída. A baixa ficou no histórico do ativo.', 'success');
+            } else {
+                showToast('Ordem de serviço salva com sucesso!', 'success');
+            }
             showOSForm(false);
             selectedOS = null;
             await loadDash();
@@ -1419,9 +1474,12 @@ async function toggleTask(id) {
     if (t) {
         t.done = !t.done;
         t.situacao = t.done ? 'Concluído' : 'Pendente';
-        await api('save_task', t); // Update status in DB
-        renderTasks(); // Optimistic update or reload? Render is fast.
-        loadDash(); // Sync counters
+        const res = await api('save_task', t);
+        if (res && res.ok !== false && t.situacao === 'Concluído') {
+            showToast('O.S. concluída. A baixa ficou no histórico do ativo.', 'success');
+        }
+        renderTasks();
+        await loadDash();
     }
 }
 
@@ -5934,7 +5992,66 @@ async function loadAnalysisHistory(assetId) {
             }
         }
     });
+    renderOilLaudos(res.raw || []);
 }
+
+function oilLaudoNeedsAction(laudo) {
+    const s = String(laudo || '').toLowerCase();
+    return s.indexOf('crit') !== -1 || s.indexOf('alert') !== -1 || s.indexOf('aten') !== -1;
+}
+
+function renderOilLaudos(rows) {
+    const box = document.getElementById('oil-laudo-list');
+    if (!box) return;
+    window.__oilLaudos = Array.isArray(rows) ? rows : [];
+    if (!window.__oilLaudos.length) {
+        box.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">Nenhum laudo neste ativo.</div>';
+        return;
+    }
+    const latest = window.__oilLaudos[window.__oilLaudos.length - 1];
+    box.innerHTML = window.__oilLaudos.slice().reverse().map(function (row, visualIndex) {
+        const index = window.__oilLaudos.length - 1 - visualIndex;
+        const laudo = row.laudo_geral || 'Normal';
+        const alert = oilLaudoNeedsAction(laudo);
+        const action = alert
+            ? '<button type="button" class="btn btn-sm" style="margin-top:8px; background:#b45309; color:#fff; border:none; border-radius:8px; padding:8px 10px; font-weight:700; cursor:pointer;" onclick="generateOilIntervention(' + index + ')">Gerar O.S. de Intervenção (Troca/Filtragem)</button>'
+            : '';
+        return '<div style="border:1px solid ' + (alert ? '#fdba74' : '#e2e8f0') + '; border-radius:10px; padding:10px; background:' + (alert ? '#fff7ed' : '#fff') + ';">'
+            + '<div style="font-weight:800;">' + escapeHtml(String(row.data_coleta || '').slice(0, 10)) + ' · ' + escapeHtml(laudo) + '</div>'
+            + '<div style="font-size:0.8rem; color:#64748b; margin-top:4px;">ISO ' + escapeHtml(row.iso_4406 || '--')
+            + ' · Água ' + escapeHtml(String(row.agua_ppm ?? '--')) + ' ppm'
+            + ' · Fe ' + escapeHtml(String(row.fe_ppm ?? '--'))
+            + ' · Cu ' + escapeHtml(String(row.cu_ppm ?? '--')) + '</div>'
+            + action + '</div>';
+    }).join('');
+    if (latest && oilLaudoNeedsAction(latest.laudo_geral)) {
+        const status = document.querySelector('#virtual-lab-report span[style*="DENTRO"]');
+        if (status) {
+            status.textContent = String(latest.laudo_geral).toUpperCase();
+            status.style.color = '#b45309';
+        }
+    }
+}
+
+function generateOilIntervention(index) {
+    const row = (window.__oilLaudos || [])[index];
+    if (!row || !editingNode) return showToast('Laudo indisponível.', 'warning');
+    const laudo = row.laudo_geral || 'Alerta';
+    const desc = 'Intervenção de óleo (troca/filtragem) — ' + (editingNode.nome || editingNode.id)
+        + '. Laudo ' + laudo + ' em ' + String(row.data_coleta || '').slice(0, 10)
+        + '. ISO 4406 ' + (row.iso_4406 || '--')
+        + ', água ' + (row.agua_ppm ?? '--') + ' ppm'
+        + ', Fe ' + (row.fe_ppm ?? '--') + ' ppm'
+        + ', Cu ' + (row.cu_ppm ?? '--') + ' ppm.';
+    openQuickWorkOrder({
+        ativo_id: editingNode.id,
+        nome: editingNode.nome,
+        desc: desc,
+        prio: String(laudo).toLowerCase().indexOf('crit') !== -1 ? 'Crítica' : 'Alta'
+    });
+}
+
+window.generateOilIntervention = generateOilIntervention;
 
 // Hook tab switch to load chart
 // --- MARKETPLACE LOGIC ---
@@ -6659,7 +6776,13 @@ function renderOSKanban() {
         const filtered = currentTasks.filter(t => {
             if (!t) return false;
             
-            if (taskFilter !== 'all') {
+            if (taskFilter === 'Atrasada') {
+                const sit = String(t.situacao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const open = sit === 'pendente' || sit === 'em andamento';
+                const planned = String(t.date || t.data_planejada || '').slice(0, 10);
+                const today = new Date().toISOString().slice(0, 10);
+                if (!open || !planned || planned >= today) return false;
+            } else if (taskFilter !== 'all') {
                 const sit = String(t.situacao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const want = String(taskFilter).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 if (sit !== want) return false;

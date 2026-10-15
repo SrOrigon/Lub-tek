@@ -273,9 +273,24 @@
                         <i data-lucide="printer" style="width:16px;"></i> <span style="font-size:0.8rem;">Imprimir</span>
                     </button>
                 </div>
-            </div>
+                </div>
 
-            <!-- TOOLBAR / HEADER -->
+                <div id="asset-quick-actions" style="display:flex; gap:8px; flex-wrap:wrap; padding:10px 12px; border-bottom:1px solid var(--border); background:#f8fafc;">
+                    <button type="button" class="btn btn-sm" onclick="openQuickWorkOrder()"
+                        style="background:#0284c7; color:#fff; border:none; border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">
+                        Nova O.S. Rápida
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="showLubricationPoints()"
+                        style="border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">
+                        Ver Pontos de Lubrificação
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="generateAssetQRCode()"
+                        style="border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">
+                        Exportar Ficha / Etiqueta QR
+                    </button>
+                </div>
+
+                <!-- TOOLBAR / HEADER -->
             <div style="padding:16px; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.05);">
                 <div class="flex-between" style="flex-wrap:wrap; gap:10px;">
                     <h2 id="af-title" style="margin:0; color:var(--primary); font-size:1.2rem; white-space:nowrap;">
@@ -1178,6 +1193,12 @@
                                             class="af-tech"></div>
                                     <div><span class="lub-label">Si (ppm)</span><input id="mon-si" type="number"
                                             class="af-tech"></div>
+                                </div>
+                            </div>
+                            <div class="lub-group">
+                                <span class="lub-group-title">Laudos do ativo</span>
+                                <div id="oil-laudo-list" style="display:flex; flex-direction:column; gap:8px;">
+                                    <div style="color:var(--text-muted); font-size:0.85rem;">Nenhum laudo carregado.</div>
                                 </div>
                             </div>
                             <div class="lub-group">
