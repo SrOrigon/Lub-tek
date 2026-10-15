@@ -49,15 +49,18 @@ function updateReliabilityDisplay(data) {
 
     const statusEl = document.getElementById('reliability-status');
     if (statusEl) {
-        // Usa sempre textContent (nunca innerHTML) pois 'status'/'risk_level' pode vir
-        // de uma resposta da IA (Gemini) e não deve ser interpretado como HTML.
-        statusEl.textContent = data.reliability < 50 ? `⚠️ ${data.status}` : data.status;
+        const pct = data.reliability != null ? `${data.reliability}% ` : '';
+        statusEl.textContent = data.reliability < 50 ? `⚠️ ${pct}${data.status}` : `${pct}${data.status}`;
+        statusEl.style.color = data.color || '';
         statusEl.style.transition = 'color 0.5s ease';
     }
 
     const failureEl = document.getElementById('next-failure');
     if (failureEl) {
-        if (data.next_failure_days == null) {
+        if (data.next_failure_label) {
+            failureEl.textContent = data.next_failure_label;
+            failureEl.style.color = '#ef4444';
+        } else if (data.next_failure_days == null) {
             failureEl.textContent = '+-- Dias (Estimado)';
             failureEl.style.color = 'var(--text-main)';
         } else {
@@ -76,10 +79,13 @@ function updateReliabilityDisplay(data) {
     const co2El = document.getElementById('co2-impact');
     if (co2El) {
         if (data.co2_impact == null) {
-            co2El.textContent = '--.-- kg CO2 / Ano';
+            co2El.textContent = '--,-- kg CO2 / Ano';
         } else {
-            const sign = data.co2_impact >= 0 ? '-' : '+';
-            co2El.textContent = `${sign}${Math.abs(data.co2_impact).toFixed(1)}kg CO2 / Ano`;
+            const formatted = Math.abs(Number(data.co2_impact)).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            co2El.textContent = `${formatted} kg CO2 / Ano`;
         }
     }
 

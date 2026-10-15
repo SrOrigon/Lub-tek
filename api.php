@@ -998,6 +998,123 @@ class RodrigoAPI
     }
 
     /**
+     * Saúde, prazo e CO2 a partir de O.S. e pontos de lubrificação (sem IA).
+     * @return array{score:int,risk:string,summary:string,next:string,days:int,co2:float,label:?string}
+     */
+    private function deterministicAssetHealth(int $assetId): array
+    {
+        $pointCount = 0;
+        $minDays = null;
+        $ids = [$assetId];
+        try {
+            $stmt = $this->db->prepare(
+                "WITH RECURSIVE tree AS (
+                    SELECT id, tipo, dados_tecnicos FROM ativos WHERE id = ?
+                    UNION ALL
+                    SELECT a.id, a.tipo, a.dados_tecnicos FROM ativos a INNER JOIN tree t ON a.pai_id = t.id
+                ) SELECT id, tipo, dados_tecnicos FROM tree"
+            );
+            $stmt->execute([$assetId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $ids = [];
+            foreach ($rows as $row) {
+                $ids[] = (int) $row['id'];
+                $tipo = strtolower((string) ($row['tipo'] ?? ''));
+                $tech = json_decode((string) ($row['dados_tecnicos'] ?? ''), true);
+                if (!is_array($tech)) {
+                    $tech = [];
+                }
+                $isPoint = strpos($tipo, 'ponto') !== false || !empty($tech['periodo']) || !empty($tech['frequencia']) || !empty($tech['ponto_lub']);
+                if ($isPoint) {
+                    $pointCount++;
+                    $days = $this->periodToDays((string) ($tech['periodo'] ?? $tech['frequencia'] ?? ''));
+                    if ($days !== null && ($minDays === null || $days < $minDays)) {
+                        $minDays = $days;
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log('deterministicAssetHealth tree: ' . $e->getMessage());
+        }
+        if ($ids === []) {
+            $ids = [$assetId];
+        }
+
+        $total = 0;
+        $late = 0;
+        $open = 0;
+        try {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $sql = "SELECT
+                SUM(CASE WHEN situacao NOT IN ('Cancelada') THEN 1 ELSE 0 END) AS total,
+                SUM(CASE WHEN situacao NOT IN ('Concluído','Cancelada') THEN 1 ELSE 0 END) AS open_count,
+                SUM(CASE WHEN situacao NOT IN ('Concluído','Cancelada') AND data_planejada IS NOT NULL AND data_planejada < ? THEN 1 ELSE 0 END) AS late
+                FROM ordens WHERE ativo_id IN ($placeholders)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(array_merge([date('Y-m-d')], $ids));
+            $agg = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $total = (int) ($agg['total'] ?? 0);
+            $late = (int) ($agg['late'] ?? 0);
+            $open = (int) ($agg['open_count'] ?? 0);
+        } catch (Exception $e) {
+            error_log('deterministicAssetHealth orders: ' . $e->getMessage());
+        }
+
+        if ($late > 0) {
+            $ratio = $late / max(1, $total);
+            $score = (int) max(38, round(96 - (50 * $ratio)));
+            $risk = $score < 50 ? 'Alto' : 'Médio';
+            $summary = $late . ' ordem(ns) de lubrificação vencida(s).';
+            $next = 'Conclua as O.S. atrasadas antes da próxima rota.';
+        } elseif ($open > 0) {
+            $score = 88;
+            $risk = 'Baixo';
+            $summary = 'Há lubrificações em aberto, ainda dentro do prazo.';
+            $next = 'Execute as O.S. pendentes na próxima rota.';
+        } else {
+            $score = $total > 0 ? 96 : 94;
+            $risk = 'Baixo';
+            $summary = 'Plano em dia. Nenhuma lubrificação vencida neste ativo.';
+            $next = 'Mantenha a periodicidade dos pontos.';
+        }
+
+        $days = $late > 0 ? 0 : ($minDays ?? 45);
+        $co2 = round(max(1, $pointCount) * 0.46, 2);
+
+        return [
+            'score' => $score,
+            'risk' => $risk,
+            'summary' => $summary,
+            'next' => $next,
+            'days' => $days,
+            'co2' => $co2,
+            'label' => $late > 0 ? 'Lubrificação vencida' : null,
+        ];
+    }
+
+    private function periodToDays(string $period): ?int
+    {
+        $p = strtolower(trim($period));
+        if ($p === '') {
+            return null;
+        }
+        $map = [
+            'diar' => 1, 'seman' => 7, 'quinzen' => 15, 'mensal' => 30, 'bimes' => 60,
+            'trimes' => 90, 'semestr' => 180, 'anual' => 365, 'ano' => 365,
+        ];
+        foreach ($map as $needle => $days) {
+            if (strpos($p, $needle) !== false) {
+                return $days;
+            }
+        }
+        if (preg_match('/(\d+)/', $p, $m)) {
+            $n = (int) $m[1];
+            return $n > 0 ? $n : null;
+        }
+        return null;
+    }
+
+    /**
      * Asset Reliability (AI-Powered)
      */
     private function handle_get_asset_reliability()
@@ -1097,33 +1214,43 @@ class RodrigoAPI
             }
         }
 
+        // Sem score gravado: calcula pela planta (O.S. e pontos), nunca deixa o card vazio.
+        $planDays = null;
+        $planCo2 = null;
+        $planLabel = null;
+        if ($healthScore <= 0) {
+            $plan = $this->deterministicAssetHealth((int) $id);
+            $healthScore = $plan['score'];
+            $riskLevel = $plan['risk'];
+            $summary = $plan['summary'];
+            $nextAction = $plan['next'];
+            $planDays = $plan['days'];
+            $planCo2 = $plan['co2'];
+            $planLabel = $plan['label'];
+        }
+
         // Map to what the frontend expects
         $reliability = $healthScore;
-        if ($healthScore <= 0) {
-            $status = 'Sem dados';
-            $color = '#94a3b8';
-            $nextFailureDays = null;
-            $co2Impact = null;
-        } elseif ($healthScore < 50) {
+        if ($healthScore < 50) {
             $status = 'Crítico';
             $color = '#ef4444';
-            $nextFailureDays = round($healthScore * 1.2);
-            $co2Impact = round((100 - $healthScore) * 0.45, 1);
+            $nextFailureDays = $planDays !== null ? $planDays : round($healthScore * 1.2);
+            $co2Impact = $planCo2 !== null ? $planCo2 : round(max(1, (100 - $healthScore) * 0.2), 2);
         } elseif ($healthScore < 75) {
             $status = 'Atenção';
             $color = '#f59e0b';
-            $nextFailureDays = round($healthScore * 1.2);
-            $co2Impact = round((100 - $healthScore) * 0.45, 1);
+            $nextFailureDays = $planDays !== null ? $planDays : round($healthScore * 1.2);
+            $co2Impact = $planCo2 !== null ? $planCo2 : round(max(1, (100 - $healthScore) * 0.2), 2);
         } elseif ($healthScore < 90) {
             $status = 'Bom';
             $color = '#3b82f6';
-            $nextFailureDays = round($healthScore * 1.2);
-            $co2Impact = round((100 - $healthScore) * 0.45, 1);
+            $nextFailureDays = $planDays !== null ? $planDays : round($healthScore * 1.2);
+            $co2Impact = $planCo2 !== null ? $planCo2 : round(max(1, (100 - $healthScore) * 0.2), 2);
         } else {
             $status = 'Excelente';
             $color = '#10b981';
-            $nextFailureDays = round($healthScore * 1.2);
-            $co2Impact = round((100 - $healthScore) * 0.45, 1);
+            $nextFailureDays = $planDays !== null ? $planDays : round($healthScore * 1.2);
+            $co2Impact = $planCo2 !== null ? $planCo2 : round(max(1, (100 - $healthScore) * 0.2), 2);
         }
 
         $enrichedResponse = [
@@ -1131,6 +1258,7 @@ class RodrigoAPI
             'status' => $status,
             'color' => $color,
             'next_failure_days' => $nextFailureDays,
+            'next_failure_label' => $planLabel,
             'co2_impact' => $co2Impact,
             'timestamp' => round(microtime(true) * 1000),
             'breakdown' => [

@@ -168,13 +168,18 @@ class OrdersController
 
                 DB::log($this->user['name'] ?? $this->user['nome'] ?? 'SYSTEM', 'OS_STATUS_CHANGE', "OS #{$id} -> {$situacao}");
 
+                $lowStock = false;
                 // C. GATILHO DE INVENTÁRIO, CICLO DE VIDA DO ATIVO E FILA SAP DESACOPLADA
                 if ($situacao === 'Concluído' && $oldStatus !== 'Concluído') {
                     AgentFeedback::setOutcomeForOrder($db, $id, 'completed');
                     $materials = !empty($osAtual['materiais']) ? json_decode($osAtual['materiais'], true) : [];
 
+                    if (is_array($materials) && empty($materials) && $dosageAmount) {
+                        $materials = $this->materialsFromDosage($db, $osAtual['ativo_id'] ?? null, $dosageAmount, $dosageUnit);
+                    }
+
                     if (is_array($materials) && !empty($materials)) {
-                        $this->deductStockNonBlocking($db, $materials, $id);
+                        $lowStock = $this->deductStockNonBlocking($db, $materials, $id);
 
                         foreach ($materials as $item) {
                             $qtd = floatval($item['qtd'] ?? 0);
@@ -228,7 +233,7 @@ class OrdersController
                     AgentFeedback::setOutcomeForOrder($db, $id, 'reopened');
                 }
 
-                return ['success' => true, 'id' => $id, 'status' => $situacao];
+                return ['success' => true, 'id' => $id, 'status' => $situacao, 'low_stock_alert' => !empty($lowStock)];
             });
         }
 
@@ -269,7 +274,10 @@ class OrdersController
             $confirmPurge = !empty($input['confirm_purge']);
             $appliedLub = $this->appliedLubricant($input, is_array($materials) ? $materials : []);
             $ativoId = $input['ativo_id'] ?? null;
-            return DB::safeExecute(function ($db) use ($input, $isUpdate, $status, $now, $materials, $oldStatus, $confirmPurge, $appliedLub, $ativoId) {
+            $dosageAmount = isset($input['dosage_amount']) && is_numeric($input['dosage_amount']) ? floatval($input['dosage_amount']) : null;
+            $dosageUnit = isset($input['dosage_unit']) ? strip_tags(trim((string) $input['dosage_unit'])) : null;
+            $lowStock = false;
+            return DB::safeExecute(function ($db) use ($input, $isUpdate, $status, $now, $materials, $oldStatus, $confirmPurge, $appliedLub, $ativoId, $dosageAmount, $dosageUnit, &$lowStock) {
                 if ($status === 'Concluído' && $oldStatus !== 'Concluído' && $ativoId && $appliedLub !== '') {
                     GreaseCompatibility::guardOnOrder($db, $ativoId, $appliedLub, $confirmPurge, $this->user);
                 }
@@ -278,8 +286,18 @@ class OrdersController
                     if ($orderIdToExec > 0) {
                         AgentFeedback::setOutcomeForOrder($db, $orderIdToExec, 'completed');
                     }
+                    if (empty($materials) && $dosageAmount) {
+                        $materials = $this->materialsFromDosage($db, $ativoId, $dosageAmount, $dosageUnit);
+                    }
                     if (!empty($materials)) {
-                        $this->deductStockNonBlocking($db, $materials, $input['id'] ?? null);
+                        $lowStock = (bool) $this->deductStockNonBlocking($db, $materials, $input['id'] ?? null);
+                        foreach ($materials as $item) {
+                            $qtd = floatval($item['qtd'] ?? 0);
+                            $nome = $item['nome'] ?? $item['material'] ?? 'item';
+                            if ($qtd > 0) {
+                                DB::log('SYSTEM', 'INVENTORY_DEDUCT', "OS #" . ($input['id'] ?? '') . " consumiu {$qtd} de {$nome}");
+                            }
+                        }
                     }
                     if ($ativoId) {
                         try {
@@ -454,7 +472,7 @@ class OrdersController
                     } catch (Throwable $e) {}
                 }
 
-                return ['id' => $lastId, 'new_sync' => $now, 'success' => true];
+                return ['id' => $lastId, 'new_sync' => $now, 'success' => true, 'low_stock_alert' => !empty($lowStock)];
             });
         } catch (Exception $e) {
             // Rethrow specific stock errors so frontend catches them
@@ -614,6 +632,7 @@ class OrdersController
                     $orderId
                 ]);
 
+            $lowStock = false;
             if ($status === 'Concluído' && $existing['situacao'] !== 'Concluído') {
                 AgentFeedback::setOutcomeForOrder($db, (int) $input['id'], 'completed');
                 $finalMaterials = $materials ?: json_decode($existing['materiais'] ?: '[]', true) ?: [];
@@ -637,8 +656,19 @@ class OrdersController
                 if ($aid && $applied !== '') {
                     GreaseCompatibility::guardOnOrder($db, $aid, $applied, !empty($input['confirm_purge']), $this->user);
                 }
+                if (empty($finalMaterials) && $dosageAmount) {
+                    $finalMaterials = $this->materialsFromDosage($db, $aid, $dosageAmount, $dosageUnit);
+                }
+                $lowStock = false;
                 if (!empty($finalMaterials)) {
-                    $this->deductStockNonBlocking($db, $finalMaterials, $input['id']);
+                    $lowStock = (bool) $this->deductStockNonBlocking($db, $finalMaterials, $input['id']);
+                    foreach ($finalMaterials as $item) {
+                        $qtd = floatval($item['qtd'] ?? 0);
+                        $nome = $item['nome'] ?? $item['material'] ?? 'item';
+                        if ($qtd > 0) {
+                            DB::log('SYSTEM', 'INVENTORY_DEDUCT', "OS #{$input['id']} consumiu {$qtd} de {$nome}");
+                        }
+                    }
                 }
                 if ($aid) {
                     $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
@@ -661,7 +691,7 @@ class OrdersController
             }
 
             DB::log($this->user['id'], 'EXECUTE_OS', 'ordens:' . $input['id'], $existing, $input);
-            return ['id' => $input['id'], 'new_sync' => $now, 'success' => true];
+            return ['id' => $input['id'], 'new_sync' => $now, 'success' => true, 'low_stock_alert' => !empty($lowStock)];
         });
     }
 
@@ -770,9 +800,15 @@ class OrdersController
      */
     private function deductStockNonBlocking($db, $materials, $orderId)
     {
-        if (empty($materials) || !is_array($materials)) return;
+        if ($this->stockAlreadyDeducted($db, $orderId)) {
+            return false;
+        }
+        if (empty($materials) || !is_array($materials)) {
+            return false;
+        }
+        $low = false;
         try {
-            $this->processStockConsumption($db, $materials, $orderId);
+            $low = $this->processStockConsumption($db, $materials, $orderId);
         } catch (Exception $stkEx) {
             $errData = json_decode($stkEx->getMessage(), true);
             if (is_array($errData) && ($errData['error_code'] ?? '') === 'STOCK_LOW') {
@@ -785,8 +821,9 @@ class OrdersController
                         $stmtRem = $db->prepare("SELECT nome, estoque_atual FROM catalogo WHERE id = ?");
                         $stmtRem->execute([$catId]);
                         $rem = $stmtRem->fetch(PDO::FETCH_ASSOC);
-                        if ($rem && floatval($rem['estoque_atual']) < 0) {
-                            DB::log('SYSTEM', 'STOCK_NEGATIVE_WARNING', "Estoque negativo para {$rem['nome']}: saldo atual de {$rem['estoque_atual']} unidade(s).");
+                        if ($rem && floatval($rem['estoque_atual']) <= 5) {
+                            $low = true;
+                            DB::log('SYSTEM', 'STOCK_NEGATIVE_WARNING', "Estoque baixo para {$rem['nome']}: saldo atual de {$rem['estoque_atual']}.");
                         }
                     }
                 }
@@ -794,6 +831,56 @@ class OrdersController
                 throw $stkEx;
             }
         }
+        return $low;
+    }
+
+    private function stockAlreadyDeducted($db, $orderId): bool
+    {
+        if (!$orderId) {
+            return false;
+        }
+        try {
+            $stmt = $db->prepare("SELECT 1 FROM logs_auditoria WHERE acao = 'INVENTORY_DEDUCT' AND alvo LIKE ? LIMIT 1");
+            $stmt->execute(['OS #' . (int) $orderId . ' %']);
+            return (bool) $stmt->fetchColumn();
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /** Monta a linha de consumo a partir da dosagem quando a O.S. não traz materiais. */
+    private function materialsFromDosage($db, $ativoId, $amount, $unit): array
+    {
+        $amount = floatval($amount);
+        if ($amount <= 0 || !$ativoId) {
+            return [];
+        }
+        $stmt = $db->prepare("SELECT dados_tecnicos FROM ativos WHERE id = ?");
+        $stmt->execute([$ativoId]);
+        $tech = json_decode((string) $stmt->fetchColumn(), true);
+        if (!is_array($tech)) {
+            return [];
+        }
+        $name = trim((string) ($tech['material'] ?? $tech['lubrificante'] ?? ''));
+        if ($name === '') {
+            return [];
+        }
+        $find = $db->prepare("SELECT id, nome FROM catalogo WHERE LOWER(nome) LIKE LOWER(?) LIMIT 1");
+        $find->execute(['%' . $name . '%']);
+        $cat = $find->fetch(PDO::FETCH_ASSOC);
+        if (!$cat) {
+            return [];
+        }
+        $qty = $amount;
+        $unit = strtolower(trim((string) $unit));
+        if (in_array($unit, ['g', 'ml'], true)) {
+            $qty = $amount / 1000;
+        }
+        return [[
+            'catalog_id' => $cat['id'],
+            'qtd' => $qty,
+            'nome' => $cat['nome'],
+        ]];
     }
 
     /**
@@ -807,6 +894,7 @@ class OrdersController
         // Real-world would need a ledger.
 
         $missing = [];
+        $low = false;
 
         foreach ($materials as $item) {
             $catId = $item['catalog_id'] ?? $item['id'] ?? null; // Resilience
@@ -859,9 +947,10 @@ class OrdersController
             $rem = $stmtRem->fetch(PDO::FETCH_ASSOC);
             if ($rem && floatval($rem['estoque_atual']) <= 5) {
                 DB::log('SYSTEM', 'LOW_STOCK_ALERT', "Estoque crítico para {$rem['nome']}: resta(m) apenas {$rem['estoque_atual']} unidade(s).");
+                $low = true;
             }
         }
-    }
+        return $low;
 
     /**
      * Devolve ao estoque os materiais previamente baixados por uma OS que foi reaberta

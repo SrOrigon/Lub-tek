@@ -5,6 +5,7 @@
     <div style="text-align: center; margin: 40px 0 40px 0; width: 100%; max-width: 1200px; padding: 0 20px;">
         <img src="<?php echo htmlspecialchars($companyLogo); ?>"
             alt="<?php echo htmlspecialchars($companyName); ?>"
+            loading="lazy" decoding="async"
             style="width: 100px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); margin-bottom: 25px; object-fit: contain;">
         <h1 id="home-page-title" style="font-size: 3rem; margin: 0; color: #0f172a; font-weight: 800; letter-spacing: -1.5px;">
             <?php echo htmlspecialchars($companyName); ?>
@@ -23,7 +24,7 @@
 
         <!-- CARD 1: DASHBOARD -->
         <div onclick="nav('dash')" class="lub-card" data-perm="dashboard">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_dash.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_dash.svg');">
                 <div class="overlay"></div>
                 <!-- <div class="icon-badgev2"><i data-lucide="layout-grid"></i></div> -->
             </div>
@@ -42,7 +43,7 @@
 
         <!-- CARD 2: ASSETS -->
         <div onclick="nav('assets')" class="lub-card" data-perm="assets">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_assets.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_assets.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">
@@ -60,7 +61,7 @@
 
         <!-- CARD 3: INVENTORY -->
         <div onclick="nav('catalog')" class="lub-card" data-perm="catalog">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_inv.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_inv.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">
@@ -78,7 +79,7 @@
 
         <!-- CARD 4: ENGINEERING -->
         <div onclick="nav('calc')" class="lub-card" data-perm="engineering">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_eng.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_eng.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">
@@ -96,7 +97,7 @@
 
         <!-- CARD 5: REPORTS -->
         <div onclick="nav('reports')" class="lub-card" data-perm="reports">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_reports.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_reports.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">
@@ -114,7 +115,7 @@
 
         <!-- CARD 6: KPI -->
         <div onclick="nav('kpi')" class="lub-card" data-perm="kpi">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_kpi.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_kpi.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">
@@ -132,7 +133,7 @@
 
         <!-- CARD: ROTAS DE LUBRIFICAÇÃO -->
         <div onclick="nav('routes')" class="lub-card" data-perm="routes">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_routes.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_routes.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">
@@ -192,7 +193,7 @@
 
         <!-- CARD 7: 3D -->
         <div onclick="window.location.href='?page=3d'" class="lub-card" data-perm="digital_twin">
-            <div class="card-img" style="background-image: url('assets/img/system/thumb_3d.png');">
+            <div class="card-img" style="background-image: url('assets/img/system/thumb_3d.svg');">
                 <div class="overlay"></div>
             </div>
             <div class="card-content">

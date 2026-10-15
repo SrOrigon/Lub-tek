@@ -3455,6 +3455,9 @@ async function api(action, payload = null, options = null) {
         }
 
         const unwrapped = unwrapApiJson(action, json);
+        if (json && json.low_stock_alert && typeof showToast === 'function') {
+            showToast('Estoque mínimo atingido após esta O.S. Confira o almoxarifado.', 'warning');
+        }
         if (options && options._cacheKey && window.ApiSmartCache) {
             window.ApiSmartCache.put(options._cacheKey, unwrapped);
         }
@@ -4088,11 +4091,48 @@ function lubtekMediaSrc(path) {
     return '/' + p.replace(/^\.\//, '');
 }
 
+function revealNodeInTree(node) {
+    if (!node) return;
+    let current = node;
+    let changed = false;
+    let guard = 0;
+    while (current && current.pai_id && guard < 40) {
+        const pid = String(current.pai_id);
+        if (!expandedNodes.has(pid)) {
+            expandedNodes.add(pid);
+            changed = true;
+        }
+        current = allNodesMap.get(pid);
+        guard++;
+    }
+    if (changed) {
+        try { localStorage.setItem('expanded_nodes', JSON.stringify(Array.from(expandedNodes))); } catch (e) {}
+        if (typeof renderTree === 'function') renderTree();
+    }
+    const el = document.getElementById('tn-' + node.id);
+    if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+}
+
+document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || String(e.key).toLowerCase() !== 'k') return;
+    const field = document.getElementById('tree-search-input')
+        || document.getElementById('os-search')
+        || document.getElementById('search-3d');
+    if (!field) return;
+    e.preventDefault();
+    field.focus();
+    if (typeof field.select === 'function') field.select();
+});
+
 async function selectNode(id, opts = {}) {
     const soft = opts.soft === true;
     // 1. Locate Node (mapa O(1) ou busca recursiva)
     const node = allNodesMap.get(String(id)) || findNode(treeState, id);
     if (!node) return;
+
+    revealNodeInTree(node);
 
     // CHECK: Are we on the Asset Page?
     const assetForm = document.getElementById('asset-form');

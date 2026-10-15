@@ -589,6 +589,7 @@
                                     </span>
                                     <!-- Image acts as trigger for Lightbox -->
                                     <img id="af-img-display"
+                                        loading="lazy" decoding="async"
                                         style="width:100%; height:100%; object-fit:cover; display:none; cursor:zoom-in;"
                                         onclick="event.stopPropagation(); openImageModal(this.src)"
                                         onerror="this.style.display='none'; const ph=document.getElementById('af-img-placeholder'); if(ph) ph.style.display='flex'; const zb=document.getElementById('af-zoom-btn'); if(zb) zb.style.display='none'; const rb=document.getElementById('af-remove-btn'); if(rb) rb.style.display='none'; const hi=document.getElementById('ash-header-img'); if(hi) hi.src=(typeof getCompanyLogoUrl === 'function' ? getCompanyLogoUrl() : 'assets/img/system/img_69581d7fcdbbf.jpeg');">
