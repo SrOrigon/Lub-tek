@@ -10,11 +10,12 @@ $excludeDirFragments = @('\uploads\', '\data\sessions\', '\.git\', '\deploy\', '
 $relativePaths = @(
     'api.php', 'index.php', 'login.php', 'login_process.php', 'db.php', 'config.php',
     'migrate_all_tenants.php', 'generate_orders.php', 'sw.js', 'service-worker.js',
-    'AGENTS.md', '.htaccess'
+    'AGENTS.md', '.htaccess', 'manifest.json', 'robots.txt', 'clear_session.php',
+    'export_lubrication_plan.php', 'seed.php', 'sap_exporter.php'
 )
 
 $relativeDirs = @(
-    'api', 'includes', 'assets\js', 'assets\css', 'migrations'
+    'api', 'includes', 'assets\js', 'assets\css', 'assets\pwa', 'migrations', 'scripts', 'databases'
 )
 
 function Should-SkipFile([string]$fullPath) {
