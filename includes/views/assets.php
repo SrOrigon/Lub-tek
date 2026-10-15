@@ -30,11 +30,13 @@
         }
         /* Painel esquerdo — flutuante, expansivo, scroll proprio */
         #asset-tree-panel {
-            flex: 0 0 clamp(280px, 26vw, 380px);
+            flex: 0 0 clamp(300px, 28vw, 380px);
+            min-width: 300px;
             display: flex;
             flex-direction: column;
             min-height: 0;
-            height: 100%;
+            max-height: 75vh;
+            height: auto;
             padding: 0;
             overflow: hidden;
             border-radius: 14px;
@@ -46,7 +48,8 @@
         }
         #asset-tree-container {
             flex: 1 1 auto;
-            min-height: 60px;
+            min-height: 120px;
+            max-height: 75vh;
             overflow-y: auto;
             overflow-x: hidden;
             padding: 10px 12px 16px;
@@ -59,12 +62,12 @@
         .asset-detail-panel {
             flex: 1 1 auto;
             min-width: 0;
-            min-height: 0;
+            min-height: auto;
+            height: auto;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            overflow: visible;
             padding-bottom: 80px;
-            -webkit-overflow-scrolling: touch;
         }
         #asset-empty {
             flex: 1;

@@ -27,7 +27,7 @@ class Permissions
     public static function normalizeRole(string $role): string
     {
         $role = strtolower(trim($role));
-        if ($role === self::ROLE_DEVELOPER) {
+        if (in_array($role, ['developer', 'administrador global', 'admin global', 'administrador_global'], true)) {
             return self::ROLE_DEVELOPER;
         }
         if (in_array($role, self::CLIENTE_ALIASES, true)) {
@@ -44,7 +44,8 @@ class Permissions
 
     public static function isDeveloper(?string $role): bool
     {
-        return strtolower(trim($role ?? '')) === self::ROLE_DEVELOPER;
+        $role = strtolower(trim($role ?? ''));
+        return in_array($role, ['developer', 'administrador global', 'admin global', 'administrador_global'], true);
     }
 
     public static function isGestor(?string $role): bool

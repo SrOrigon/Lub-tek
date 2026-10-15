@@ -41,7 +41,7 @@ class SecurityGuard
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; " .
             "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com data:; " .
             "img-src 'self' data: blob: https:; " .
-            "connect-src 'self' https://generativelanguage.googleapis.com; " .
+            "connect-src 'self' https://generativelanguage.googleapis.com https://unpkg.com https://cdn.jsdelivr.net; " .
             "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
         );
     }

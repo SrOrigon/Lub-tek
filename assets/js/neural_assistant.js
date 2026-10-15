@@ -308,12 +308,15 @@
         updateContextLabel();
         showWelcomeIfEmpty();
 
-        if (window.AppEvents) {
+        if (window.AppEvents && typeof window.AppEvents.on === 'function') {
             window.AppEvents.on('view:changed', onPageChange);
-            // Sincroniza após o router principal ativar a view correta
-            window.AppEvents.once('app:ready', function () {
+            if (typeof window.AppEvents.once === 'function') {
+                window.AppEvents.once('app:ready', function () {
+                    onPageChange(getCurrentPage());
+                });
+            } else {
                 onPageChange(getCurrentPage());
-            });
+            }
         }
 
         // Fallback: observar mudanças na URL (popstate / SPA)

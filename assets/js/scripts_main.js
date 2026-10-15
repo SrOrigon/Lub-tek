@@ -3391,17 +3391,39 @@ async function api(action, payload = null, options = null) {
             baseHeaders['X-Idempotency-Key'] = payload.idempotency_key;
         }
 
-        const opts = payload ? {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, baseHeaders),
-            body: JSON.stringify(payload)
-        } : {
-            credentials: 'same-origin',
-            headers: baseHeaders
-        };
+        const readOnly = /^(get_|search_|list_|calc_)/.test(action);
+        let opts;
+        if (readOnly) {
+            const qs = new URLSearchParams();
+            if (payload && typeof payload === 'object') {
+                Object.keys(payload).forEach(function (k) {
+                    if (payload[k] !== undefined && payload[k] !== null && payload[k] !== '') {
+                        qs.set(k, String(payload[k]));
+                    }
+                });
+            }
+            const q = qs.toString();
+            opts = {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: baseHeaders
+            };
+            var fetchUrl = q ? (url + '&' + q) : url;
+        } else {
+            opts = payload ? {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, baseHeaders),
+                body: JSON.stringify(payload)
+            } : {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: baseHeaders
+            };
+            var fetchUrl = url;
+        }
 
-        const res = await fetch(url, opts);
+        const res = await fetch(fetchUrl, opts);
 
         if (res.status === 401) {
             showToast('Sessao expirada. Redirecionando para login...', 'warning');
@@ -3668,7 +3690,7 @@ function renderTree(nodes = treeState, level = 0, forceExpand = false) {
             let tech = node.dados_tecnicos;
             if (typeof tech === 'string') tech = JSON.parse(tech);
             if (tech && tech.ip) {
-                ipBadge = `<span style="font-size:0.75em; color:var(--text-muted); opacity:0.8; margin-left:6px; background:rgba(0,0,0,0.05); padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold;">#${escapeHtml(tech.ip)}</span>`;
+                ipBadge = `<span class="tree-ip" style="display:block; font-size:0.68rem; color:var(--text-muted); opacity:0.85; margin-top:1px; font-family:monospace; font-weight:600; line-height:1.2;">#${escapeHtml(tech.ip)}</span>`;
             }
         } catch (e) { }
 
@@ -3712,10 +3734,12 @@ function renderTree(nodes = treeState, level = 0, forceExpand = false) {
 
             <!-- LABEL CONTENT -->
             <div onclick="selectNode('${node.id}')" class="node-bg"
-                style="flex:1; display:flex; align-items:center; gap:8px; overflow:hidden; padding:4px 8px; border-radius:4px; cursor:pointer;" title="${escapeAttr(typeLabel)}: ${escapeAttr(cleanName)}">
-                <i data-lucide="${icon}" style="width:16px; color:${color}; min-width:16px;"></i>
-                <span class="node-name" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:0.9rem; font-weight:${isActive ? '700' : '400'}; color:${isActive ? 'black' : 'inherit'};">${escapeHtml(cleanName)}</span>
-                ${ipBadge}
+                style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:8px; overflow:visible; padding:4px 8px; border-radius:4px; cursor:pointer;" title="${escapeAttr(typeLabel)}: ${escapeAttr(cleanName)}">
+                <i data-lucide="${icon}" style="width:16px; color:${color}; min-width:16px; margin-top:3px;"></i>
+                <span style="display:flex; flex-direction:column; min-width:0; flex:1;">
+                    <span class="node-name" style="white-space:normal; overflow:visible; text-overflow:unset; font-size:0.9rem; font-weight:${isActive ? '700' : '400'}; color:${isActive ? 'black' : 'inherit'}; line-height:1.25;">${escapeHtml(cleanName)}</span>
+                    ${ipBadge}
+                </span>
                 ${osBadge}
             </div>
         </div>
@@ -4056,6 +4080,14 @@ function findNode(nodes, id) {
     return null;
 }
 
+function lubtekMediaSrc(path) {
+    const p = String(path || '').trim();
+    if (!p) return '';
+    if (/^(https?:|data:|blob:)/i.test(p)) return p;
+    if (p.charAt(0) === '/') return p;
+    return '/' + p.replace(/^\.\//, '');
+}
+
 async function selectNode(id, opts = {}) {
     const soft = opts.soft === true;
     // 1. Locate Node (mapa O(1) ou busca recursiva)
@@ -4163,7 +4195,7 @@ async function selectNode(id, opts = {}) {
     if (imgValInput) imgValInput.value = node.imagem || '';
 
     if (node.imagem && String(node.imagem).trim().length > 0) {
-        const imgSrc = String(node.imagem).split('?')[0] + '?t=' + Date.now();
+        const imgSrc = lubtekMediaSrc(String(node.imagem).split('?')[0]) + '?t=' + Date.now();
         if (imgDisplay) {
             imgDisplay.src = imgSrc;
             imgDisplay.style.display = 'block';

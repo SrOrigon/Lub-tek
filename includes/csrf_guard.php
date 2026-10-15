@@ -25,9 +25,7 @@ class CsrfGuard
      */
     public static function validate(?string $token = null): bool
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            return false;
-        }
+        // session_write_close() deixa status NONE, mas $_SESSION permanece legível.
         $expected = $_SESSION['csrf_token'] ?? '';
         if (!is_string($expected) || $expected === '') {
             return false;

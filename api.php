@@ -160,26 +160,10 @@ class RodrigoAPI
             $this->checkRateLimitIp();
         }
 
-        // 4. SESSION CONCURRENCY HANDLING — change_password precisa gravar $_SESSION
-        $sessionOpenActions = ['login', 'logout', 'ask_neural', 'get_tenant_branding', 'change_password'];
-        if (!$this->isStatelessIoT && !in_array($this->action, $sessionOpenActions, true)) {
-            session_write_close();
-        }
-
-        // 5. SECURITY: SESSION VALIDATION — Power BI NÃO é público
-        $publicActions = ['login', 'logout', 'get_tenant_branding'];
-        if (!$this->user && !in_array($this->action, $publicActions, true)) {
-            if (in_array($this->action, $gatewayActions, true)) {
-                if ($this->iotApiKeyProvided) {
-                    $this->error('Chave X-API-KEY inválida ou empresa não encontrada.', 403);
-                }
-                $this->error('Acesso ao gateway requer header X-API-KEY válido.', 401);
-            }
-            $this->error('Sessão expirada ou não autenticada.', 401);
-        }
-
-        // 5.5. SECURITY: CSRF GUARD PARA SESSÕES AUTENTICADAS EM REQUISIÇÕES MUTATÓRIAS
-        if (!$this->isStatelessIoT && $this->user && in_array($_SERVER['REQUEST_METHOD'] ?? '', ['POST', 'PUT', 'DELETE'], true)) {
+        // 4. CSRF antes de fechar a sessão (senão session_status vira NONE e todo POST autenticado vira 403)
+        $httpMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $safeMethods = ['GET', 'HEAD', 'OPTIONS'];
+        if (!$this->isStatelessIoT && $this->user && !in_array($httpMethod, $safeMethods, true)) {
             $exemptActions = ['login', 'logout', 'receive_pi_telemetry'];
             if (!in_array($this->action, $exemptActions, true)) {
                 $csrfHeader = $_SERVER['HTTP_X_CSRF_TOKEN']
@@ -191,7 +175,25 @@ class RodrigoAPI
             }
         }
 
-        // 6. INPUT PARSING (early returns for login/logout)
+        // 5. SESSION CONCURRENCY — change_password precisa gravar $_SESSION
+        $sessionOpenActions = ['login', 'logout', 'ask_neural', 'get_tenant_branding', 'change_password'];
+        if (!$this->isStatelessIoT && !in_array($this->action, $sessionOpenActions, true)) {
+            session_write_close();
+        }
+
+        // 6. SECURITY: SESSION VALIDATION — Power BI NÃO é público
+        $publicActions = ['login', 'logout', 'get_tenant_branding'];
+        if (!$this->user && !in_array($this->action, $publicActions, true)) {
+            if (in_array($this->action, $gatewayActions, true)) {
+                if ($this->iotApiKeyProvided) {
+                    $this->error('Chave X-API-KEY inválida ou empresa não encontrada.', 403);
+                }
+                $this->error('Acesso ao gateway requer header X-API-KEY válido.', 401);
+            }
+            $this->error('Sessão expirada ou não autenticada.', 401);
+        }
+
+        // 7. INPUT PARSING (early returns for login/logout)
         if ($this->action === 'login' || $this->action === 'logout') {
             $this->parseInput();
             return;
@@ -429,7 +431,7 @@ class RodrigoAPI
             }
 
             // RBAC: bloqueia actions não permitidas para o role
-            $userRole = $this->user['role'] ?? 'trabalhador';
+            $userRole = Permissions::normalizeRole((string) ($this->user['role'] ?? 'trabalhador'));
             if ($this->action !== 'get_tenant_branding' && $this->user && !Permissions::canAccessApiAction($userRole, $this->action)) {
                 $this->error('Permissão negada para esta operação.', 403);
             }
@@ -834,8 +836,8 @@ class RodrigoAPI
 
     private function handle_get_audit_logs()
     {
-        $role = $this->user['role'] ?? '';
-        if ($role !== 'developer' && $role !== 'admin' && $role !== 'gestor') {
+        $role = (string) ($this->user['role'] ?? '');
+        if (!Permissions::isDeveloper($role) && !Permissions::isGestor($role)) {
             $this->error('Acesso negado para esta operação.', 403);
         }
 

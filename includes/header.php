@@ -229,8 +229,12 @@ if ($auth->isLoggedIn()) {
             -webkit-font-smoothing: antialiased;
         }
 
-        html {
+        html, body {
+            height: auto !important;
+            min-height: 100%;
             overflow-x: hidden;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -240,7 +244,7 @@ if ($auth->isLoggedIn()) {
                 radial-gradient(circle at 10% 20%, rgba(224, 242, 254, 0.5) 0%, transparent 20%),
                 radial-gradient(circle at 90% 80%, rgba(243, 232, 255, 0.5) 0%, transparent 20%);
             color: var(--text-main);
-            min-height: 100dvh;
+            min-height: 100%;
             height: auto;
             overflow-x: hidden;
             overflow-y: auto;
