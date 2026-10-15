@@ -1,4 +1,12 @@
 User-agent: *
+Disallow: /api/
+Disallow: /includes/
+Disallow: /data/
+Disallow: /databases/
+Disallow: /scripts/
+Disallow: /storage/
+Disallow: /backups/
 Allow: /
+Allow: /assets/
 
 Sitemap: https://lubteksystem.com/sitemap.xml

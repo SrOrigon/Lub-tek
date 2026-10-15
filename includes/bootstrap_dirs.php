@@ -12,7 +12,7 @@ class BootstrapDirs
         $writable = [
             $root . '/uploads',
             $root . '/backups',
-            $root . '/banco de dados',
+            $root . '/databases',
             $root . '/data/sessions',
             $root . '/data/ai_cache',
         ];
@@ -24,7 +24,7 @@ class BootstrapDirs
         }
 
         HtaccessGuard::writeDenyAll($root . '/backups');
-        HtaccessGuard::writeDenyAll($root . '/banco de dados');
+        HtaccessGuard::writeDenyAll($root . '/databases');
 
         $sessionsDir = $root . '/data/sessions';
         if (is_dir($sessionsDir)) {
@@ -36,7 +36,7 @@ class BootstrapDirs
             HtaccessGuard::writeDenyAll($aiCacheDir);
         }
 
-        $legacyDb = $root . '/databases';
+        $legacyDb = $root . '/banco de dados';
         if (is_dir($legacyDb)) {
             HtaccessGuard::writeDenyAll($legacyDb);
         }

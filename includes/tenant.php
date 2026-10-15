@@ -199,10 +199,10 @@ class TenantResolver
 
     public static function getDatabasesDir(): string
     {
-        $dir = __DIR__ . '/../banco de dados';
-        $legacy = __DIR__ . '/../databases';
+        $dir = __DIR__ . '/../databases';
+        $legacy = __DIR__ . '/../banco de dados';
 
-        // Migração automática da pasta antiga "databases/" → "banco de dados/"
+        // Migração automática da pasta legada com espaços "banco de dados/" → "databases/"
         if (is_dir($legacy)) {
             if (!is_dir($dir)) {
                 @rename($legacy, $dir);
@@ -213,6 +213,7 @@ class TenantResolver
                         @rename($file, $dest);
                     }
                 }
+                @rmdir($legacy);
             }
         }
 

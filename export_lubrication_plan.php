@@ -91,7 +91,7 @@ try {
 } catch (Throwable $e) {
     http_response_code(500);
     error_log('export_lubrication_plan: ' . $e->getMessage());
-    echo '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;">';
+    echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Erro no Plano</title></head><body style="font-family:sans-serif;padding:40px;">';
     echo '<h2>Erro ao gerar plano</h2><p>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p>';
     echo '</body></html>';
 }

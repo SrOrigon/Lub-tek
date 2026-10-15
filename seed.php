@@ -4,6 +4,27 @@
  * Replicates 100% of 'https://lubteksystem.com' assets and catalog.
  */
 
+// BLINDAGEM DE PRODUÇÃO: Somente CLI ou SuperAdmin Autenticado
+if (php_sapi_name() !== 'cli') {
+    require_once __DIR__ . '/includes/auth.php';
+    require_once __DIR__ . '/includes/csrf_guard.php';
+
+    $auth = new AuthSystem();
+    $user = $auth->getCurrentUser();
+
+    if (!$user || !in_array($user['role'] ?? '', ['developer', 'gestor'], true)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => false,
+            'ok' => false,
+            'error' => 'Acesso negado. A execução do seeder requer privilégios de Administrador Global ou execução via CLI.',
+            'code' => 403
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
 class Seeder
 {
     public static function run($db)

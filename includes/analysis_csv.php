@@ -153,4 +153,30 @@ class AnalysisCsv
         }
         return $d;
     }
+
+    /**
+     * Exporta linhas para CSV com BOM UTF-8 (Anti-mojibake no Microsoft Excel)
+     */
+    public static function exportCsv(array $headers, array $rows, string $filename = 'export.csv'): void
+    {
+        if (!headers_sent()) {
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . rawurlencode($filename) . '"');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+        }
+
+        // BOM UTF-8 obrigatório para Excel em Windows/Mac
+        echo "\xEF\xBB\xBF";
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, $headers, ';');
+        foreach ($rows as $row) {
+            fputcsv($output, $row, ';');
+        }
+        fclose($output);
+        exit;
+    }
 }
+

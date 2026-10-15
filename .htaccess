@@ -44,7 +44,7 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </FilesMatch>
 
 # Bloquear arquivos críticos e metadados de pacotes/agentes na raiz
-<FilesMatch "^(config\.local\.php|config\.php|db\.php|data\.php|database\.sqlite|seed\.php|AGENTS\.md|README\.md|\.cursorignore|\.aiignore|composer\.json|composer\.lock|package\.json|package-lock\.json|\.env.*)$">
+<FilesMatch "^(config\.local\.php(\.example)?|config\.php|db\.php|data\.php|database\.sqlite|seed\.php|AGENTS\.md|README\.md|\.cursorignore|\.aiignore|composer\.json|composer\.lock|package\.json|package-lock\.json|\.env.*)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

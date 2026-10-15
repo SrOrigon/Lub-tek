@@ -352,10 +352,11 @@
         flex-shrink: 0;
     }
 
-    /* Modais como Bottom Sheet Drawer */
+    /* Modais como Bottom Sheet Drawer com Dynamic Viewport */
     .modal,
     .modal-container,
-    #modal-container {
+    #modal-container,
+    .lubtek-modal-backdrop {
         display: flex !important;
         align-items: flex-end !important;
         justify-content: center !important;
@@ -373,6 +374,9 @@
         width: 100% !important;
         max-width: 100% !important;
         max-height: 85vh !important;
+        max-height: 85dvh !important;
+        display: flex !important;
+        flex-direction: column !important;
         border-radius: 20px 20px 0 0 !important;
         border: 1px solid #cbd5e1 !important;
         border-bottom: none !important;
@@ -380,8 +384,58 @@
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         margin: 0 !important;
-        padding: 16px 18px 30px !important;
+        padding: 16px 18px 24px !important;
         animation: slideUpModalSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+
+    .modal-dialog > form,
+    .modal-content > form,
+    .lubtek-modal-box > form {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
+    }
+
+    .modal-header,
+    .lubtek-modal-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 10 !important;
+        background: inherit !important;
+        flex-shrink: 0 !important;
+    }
+
+    .modal-footer,
+    .lubtek-modal-footer {
+        position: sticky !important;
+        bottom: 0 !important;
+        z-index: 10 !important;
+        background: inherit !important;
+        flex-shrink: 0 !important;
+        padding-top: 10px !important;
+        border-top: 1px solid #f1f5f9 !important;
+    }
+
+    /* Page Headers Adaptativos para as 12 Views */
+    .view-container .flex-between:first-child,
+    .view-container .kpi-header,
+    .view-container .dash-header,
+    .view-container .sap-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+
+    /* Tabelas responsivas com scroll suave */
+    .table-responsive {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        margin-bottom: 15px !important;
     }
 
     .modal-content::before,

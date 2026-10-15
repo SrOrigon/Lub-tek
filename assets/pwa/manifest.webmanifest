@@ -10,6 +10,12 @@
   "description": "Plataforma de Confiabilidade Industrial, Lubrificação 4.0 e Gestão Preditiva",
   "icons": [
     {
+      "src": "assets/img/system/logo-lub-tek.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
       "src": "assets/img/system/img_69581d7fcdbbf.jpeg",
       "sizes": "192x192",
       "type": "image/jpeg",

@@ -835,6 +835,33 @@
         renderer.render(scene, camera);
     }
 
+    // 🔋 OTIMIZAÇÃO DE GPU E BATERIA (Eco Mode / Background Pause)
+    function checkVisibilityAndRender() {
+        const view3d = document.getElementById('view-3d');
+        const isHidden = document.hidden;
+        const isViewVisible = view3d && view3d.style.display !== 'none' && !view3d.classList.contains('hidden') && view3d.offsetWidth > 0;
+
+        if (isHidden || !isViewVisible) {
+            if (isRendering) {
+                isRendering = false;
+            }
+        } else {
+            if (!isRendering) {
+                isRendering = true;
+                lastTime = performance.now();
+                requestAnimationFrame(animate);
+            }
+        }
+    }
+
+    document.addEventListener('visibilitychange', checkVisibilityAndRender);
+    window.addEventListener('blur', () => {
+        if (document.hidden) checkVisibilityAndRender();
+    });
+    window.addEventListener('focus', checkVisibilityAndRender);
+    window.addEventListener('viewchange', checkVisibilityAndRender);
+    window.addEventListener('popstate', checkVisibilityAndRender);
+
     // 🍞 TOAST NOTIFICATION SYSTEM
     window.showToast = function (message, type = 'info') {
         const container = document.getElementById('toast-container');
