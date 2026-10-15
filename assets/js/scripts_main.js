@@ -43,6 +43,21 @@ const Events = {
         if (!this.listeners[event]) this.listeners[event] = [];
         this.listeners[event].push(cb);
     },
+    off(event, cb) {
+        if (!this.listeners[event]) return;
+        if (typeof cb !== 'function') {
+            delete this.listeners[event];
+            return;
+        }
+        this.listeners[event] = this.listeners[event].filter(function (h) { return h !== cb; });
+    },
+    once(event, cb) {
+        const wrapper = (data) => {
+            this.off(event, wrapper);
+            cb(data);
+        };
+        this.on(event, wrapper);
+    },
     emit(event, data) {
         if (this.listeners[event]) this.listeners[event].forEach(cb => cb(data));
     }

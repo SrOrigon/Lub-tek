@@ -308,6 +308,17 @@
         updateContextLabel();
         showWelcomeIfEmpty();
 
+        if (typeof window.lubtekEnsureAppEvents === 'function') window.lubtekEnsureAppEvents();
+        if (window.AppEvents && typeof window.AppEvents.on === 'function' && typeof window.AppEvents.once !== 'function') {
+            var bus = window.AppEvents;
+            bus.once = function (event, fn) {
+                var wrapper = function (payload) {
+                    if (typeof bus.off === 'function') bus.off(event, wrapper);
+                    fn(payload);
+                };
+                bus.on(event, wrapper);
+            };
+        }
         if (window.AppEvents && typeof window.AppEvents.on === 'function') {
             window.AppEvents.on('view:changed', onPageChange);
             if (typeof window.AppEvents.once === 'function') {

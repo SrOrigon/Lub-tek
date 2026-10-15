@@ -3,6 +3,30 @@
 // Real-time synchronization for all UI components
 // ==========================================
 
+/** Garante AppEvents.once mesmo se o barramento carregado não tiver o método. */
+function lubtekEnsureAppEvents() {
+    var bus = window.AppEvents;
+    if (!bus || typeof bus.on !== 'function' || typeof bus.once === 'function') return bus;
+    bus.once = function (event, fn) {
+        var wrapper = function (payload) {
+            if (typeof bus.off === 'function') bus.off(event, wrapper);
+            fn(payload);
+        };
+        bus.on(event, wrapper);
+    };
+    return bus;
+}
+
+function lubtekOnAppReady(fn) {
+    lubtekEnsureAppEvents();
+    if (window.AppEvents && typeof window.AppEvents.once === 'function') {
+        window.AppEvents.once('app:ready', fn);
+        return;
+    }
+    if (document.readyState === 'complete') fn();
+    else window.addEventListener('load', fn, { once: true });
+}
+
 /**
  * DASHBOARD SYNC
  * Auto-updates dashboard stats, KPIs, and charts
@@ -367,7 +391,7 @@ class GlobalSyncManager {
 window.GlobalSync = new GlobalSyncManager();
 
 // Sync leve: so dashboard/catalog — arvore de ativos e manual
-window.AppEvents.once('app:ready', () => {
+lubtekOnAppReady(() => {
     setTimeout(() => {
         window.GlobalSync.dashboard.start();
         window.GlobalSync.catalog.start();
@@ -376,7 +400,7 @@ window.AppEvents.once('app:ready', () => {
 });
 
 // Interceptors de save (registrar uma unica vez)
-window.AppEvents.once('app:ready', () => {
+lubtekOnAppReady(() => {
     const originalSaveToCloudSingle = window.saveToCloudSingle;
     if (typeof originalSaveToCloudSingle === 'function') {
         window.saveToCloudSingle = async function () {

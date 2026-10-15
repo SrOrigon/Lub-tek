@@ -947,6 +947,7 @@ class OrdersController
             }
         }
         return $low;
+    }
 
     /**
      * Devolve ao estoque os materiais previamente baixados por uma OS que foi reaberta
