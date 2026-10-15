@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - Asset Controller
  * Handles Asset CRUD, Tree Generation, and Analysis

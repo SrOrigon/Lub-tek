@@ -89,6 +89,48 @@ class LubricationPlanImageHelper
         return is_file($full) ? $full : null;
     }
 
+    /**
+     * Data URI do arquivo local para o PDF/impressão não depender da URL do servidor.
+     * Arquivos acima de 2,5 MB continuam como caminho relativo.
+     */
+    public function embedSrc(string $path): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+        if (preg_match('#^data:image/#i', $path)) {
+            return $path;
+        }
+        $abs = $this->absolutePath($path);
+        if ($abs && is_file($abs)) {
+            $size = filesize($abs);
+            if ($size !== false && $size > 0 && $size <= 2500000) {
+                $mime = 'image/jpeg';
+                if (function_exists('mime_content_type')) {
+                    $detected = @mime_content_type($abs);
+                    if (is_string($detected) && strpos($detected, 'image/') === 0) {
+                        $mime = $detected;
+                    }
+                } else {
+                    $ext = strtolower(pathinfo($abs, PATHINFO_EXTENSION));
+                    $map = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif', 'svg' => 'image/svg+xml'];
+                    if (isset($map[$ext])) {
+                        $mime = $map[$ext];
+                    }
+                }
+                $bin = @file_get_contents($abs);
+                if ($bin !== false && $bin !== '') {
+                    return 'data:' . $mime . ';base64,' . base64_encode($bin);
+                }
+            }
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+        return $this->resolveSrc($path);
+    }
+
     /** Só incluir imagem no PDF se o arquivo existir (ou URL http / data URI válida). */
     public function isValidImage(string $path): bool
     {
@@ -115,7 +157,7 @@ class LubricationPlanImageHelper
             return $allowMissing ? (string) ($options['placeholder'] ?? '') : '';
         }
 
-        $src = $this->resolveSrc($path);
+        $src = $this->embedSrc($path);
         if ($src === '') {
             return $allowMissing ? (string) ($options['placeholder'] ?? '') : '';
         }
@@ -130,7 +172,7 @@ class LubricationPlanImageHelper
         }
 
         $classAttr = $class !== '' ? ' class="' . htmlspecialchars($class, ENT_QUOTES, 'UTF-8') . '"' : '';
-        return '<img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" alt="' . $alt . '"' . $classAttr . $dimAttr . ' loading="lazy" decoding="async">';
+        return '<img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" alt="' . $alt . '"' . $classAttr . $dimAttr . '>';
     }
 
     /**

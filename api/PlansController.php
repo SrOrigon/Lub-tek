@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * Maintenance Plans Controller
  * Manages Frequencies, Procedures and Routes

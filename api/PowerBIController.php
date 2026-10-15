@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - Power BI Integration Controller
  * Fornece dados tabulares estruturados em JSON para conexão com Microsoft Power BI Desktop / Web Gateway.

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * MARKETPLACE INTELLIGENCE CONTROLLER
  * Handles price tracking, vendor offers, and bulk discount logic.

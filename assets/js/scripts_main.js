@@ -3315,6 +3315,25 @@ if (document.readyState === 'complete') {
     window.addEventListener('load', () => window.LubtekOfflineQueue.hydrateFromIdb());
 }
 
+function lubtekLockTrigger() {
+    const el = document.activeElement;
+    if (!el || typeof el.matches !== 'function') return null;
+    if (!el.matches('button, [role="button"], input[type="submit"], input[type="button"], .btn')) return null;
+    if (el.disabled) return { el: el, already: true };
+    el.disabled = true;
+    el.setAttribute('aria-busy', 'true');
+    el.classList.add('is-loading');
+    return { el: el, opacity: el.style.opacity };
+}
+
+function lubtekUnlockTrigger(lock) {
+    if (!lock || !lock.el || lock.already) return;
+    lock.el.disabled = false;
+    lock.el.removeAttribute('aria-busy');
+    lock.el.classList.remove('is-loading');
+    lock.el.style.opacity = lock.opacity || '';
+}
+
 // --- API HANDLER WITH VISUAL DEBUGGING ---
 async function api(action, payload = null, options = null) {
     const skipCache = !!(options && options.skipCache);
@@ -3329,6 +3348,7 @@ async function api(action, payload = null, options = null) {
     }
 
     // Fila offline (mesma chave de scripts_extra) — preserva gravações sem conexão
+    let triggerLock = null;
     try {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
             const isRead = action.startsWith('get_') || action.startsWith('calc_') || action.startsWith('list_');
@@ -3361,6 +3381,7 @@ async function api(action, payload = null, options = null) {
 
     try {
         const isMutating = typeof isMutatingApiAction === 'function' ? isMutatingApiAction(action) : (action.startsWith('save_') || action.startsWith('update_') || action.startsWith('delete_') || action.startsWith('sync_'));
+        triggerLock = isMutating ? lubtekLockTrigger() : null;
         if (payload && typeof payload === 'object' && isMutating) {
             if (!payload.idempotency_key) {
                 payload.idempotency_key = (typeof crypto !== 'undefined' && crypto.randomUUID)
@@ -3468,6 +3489,8 @@ async function api(action, payload = null, options = null) {
             throw e;
         }
         return null;
+    } finally {
+        lubtekUnlockTrigger(triggerLock);
     }
 }
 

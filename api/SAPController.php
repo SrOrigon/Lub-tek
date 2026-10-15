@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - SAP Integration Controller
  * Manages imports and exports for SAP PM (Plant Maintenance) and SAP MM (Materials Management)

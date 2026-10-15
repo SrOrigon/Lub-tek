@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * Users Controller — Multi-tenant (SQLite por empresa)
  * Gestores criam funcionários no banco isolado do tenant atual.

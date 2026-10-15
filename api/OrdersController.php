@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - Orders Controller
  * Handles Work Orders CRUD
@@ -839,13 +840,8 @@ class OrdersController
         if (!$orderId) {
             return false;
         }
-        try {
-            $stmt = $db->prepare("SELECT 1 FROM logs_auditoria WHERE acao = 'INVENTORY_DEDUCT' AND alvo LIKE ? LIMIT 1");
-            $stmt->execute(['OS #' . (int) $orderId . ' %']);
-            return (bool) $stmt->fetchColumn();
-        } catch (Exception $e) {
-            return false;
-        }
+        require_once __DIR__ . '/InventoryController.php';
+        return InventoryController::orderAlreadyDeducted($db, $orderId);
     }
 
     /** Monta a linha de consumo a partir da dosagem quando a O.S. não traz materiais. */

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * Inventory Controller
  * Manages Catalog and Stock
@@ -126,5 +127,31 @@ class InventoryController
 
         return ['success' => true];
     }
+
+    /**
+     * A O.S. já baixou estoque quando o log de consumo existe.
+     * Status Concluído sozinho não bloqueia a primeira baixa, porque ela ocorre
+     * no mesmo pedido que grava esse status.
+     */
+    public static function orderAlreadyDeducted($db, $orderId): bool
+    {
+        $orderId = (int) $orderId;
+        if ($orderId <= 0) {
+            return false;
+        }
+        try {
+            $stmt = $db->prepare("SELECT situacao FROM ordens WHERE id = ?");
+            $stmt->execute([$orderId]);
+            $status = (string) $stmt->fetchColumn();
+            if ($status === 'Cancelada') {
+                return true;
+            }
+            $log = $db->prepare("SELECT 1 FROM logs_auditoria WHERE acao = 'INVENTORY_DEDUCT' AND alvo LIKE ? LIMIT 1");
+            $log->execute(['OS #' . $orderId . ' %']);
+            return (bool) $log->fetchColumn();
+        } catch (Exception $e) {
+            error_log('orderAlreadyDeducted: ' . $e->getMessage());
+            return false;
+        }
+    }
 }
-?>

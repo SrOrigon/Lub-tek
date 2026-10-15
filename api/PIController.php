@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - PI Controller (Telemetry & Condition-Based Maintenance)
  * Integrates OSIsoft/AVEVA PI System Data and Triggers CBM Work Orders

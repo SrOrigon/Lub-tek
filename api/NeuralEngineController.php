@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - Neural Engine Controller (Lúbria)
  * Motor de Inteligência Artificial para diagnóstico preditivo e prescritivo.

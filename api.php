@@ -1,8 +1,13 @@
 <?php
+ob_start();
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
+require_once __DIR__ . '/api/json_shield.php';
 // Bootstrap: sessão e config ANTES de enviar headers HTTP
 require_once __DIR__ . '/config.php';
-ini_set('display_errors', (defined('DEBUG_MODE') && DEBUG_MODE) ? '1' : '0');
-error_reporting(E_ALL);
+ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
 require_once 'includes/auth.php';
@@ -510,14 +515,23 @@ class RodrigoAPI
                 exit;
             }
 
-            $code = 500;
-            $msg = 'Erro interno do servidor.';
+            $http = 500;
             if ($e instanceof Exception && $e->getCode() >= 400 && $e->getCode() < 600) {
-                $code = (int) $e->getCode();
-                $msg = $e->getMessage();
+                $http = (int) $e->getCode();
             }
-            $debug = (defined('DEBUG_MODE') && DEBUG_MODE) ? $e->getMessage() : null;
-            $this->error($msg, $code, $debug);
+            error_log('[API] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            $this->cleanBuffer();
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            http_response_code($http);
+            echo json_encode([
+                'success' => false,
+                'ok' => false,
+                'error' => $e->getMessage(),
+                'code' => $http >= 500 ? 'SERVER_ERROR' : $http,
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
     }
 
@@ -638,8 +652,12 @@ class RodrigoAPI
 
     private function cleanBuffer()
     {
-        while (ob_get_level() > 0)
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        while (ob_get_level() > 0) {
             ob_end_clean();
+        }
     }
 
     /**
@@ -2458,5 +2476,21 @@ Amostra da Planilha (JSON):
 
 
 // EXECUTE
-$api = new RodrigoAPI();
-$api->run();
+try {
+    $api = new RodrigoAPI();
+    $api->run();
+} catch (Throwable $e) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    error_log('[API] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(500);
+    }
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage(),
+        'code' => 'SERVER_ERROR',
+    ], JSON_UNESCAPED_UNICODE);
+}

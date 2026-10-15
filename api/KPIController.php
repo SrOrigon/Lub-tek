@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - Controlador de Indicadores de Desempenho (KPIs)
  * Retorna dados estruturados para o painel "Resumo da Fábrica".

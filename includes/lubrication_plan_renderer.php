@@ -512,7 +512,10 @@ HTML);
     private function slideCover(string $title, string $subtitle, array $meta): string
     {
         $company = $this->e($this->company['name'] ?? 'LUB-TEK');
-        $logo = $this->e($this->company['logo'] ?? 'assets/img/system/img_69581d7fcdbbf.jpeg');
+        $logoTag = $this->images->imgTag((string) ($this->company['logo'] ?? 'assets/img/system/img_69581d7fcdbbf.jpeg'), [
+            'class' => 'cover-logo',
+            'alt' => 'Logo',
+        ]);
         $date = $this->e($this->formatDate($meta['generated_at'] ?? date('c')));
         $stats = $meta['stats'] ?? [];
         $points = (int) ($stats['points'] ?? 0);
@@ -525,7 +528,7 @@ HTML);
 <div class="cover-inner">
     <div class="cover-top-bar">
         <div class="cover-brand">{$company}</div>
-        <img class="cover-logo" src="{$logo}" alt="Logo">
+        {$logoTag}
     </div>
     <div class="cover-main">
         <div class="cover-kicker">LUBRIFICAÇÃO</div>
@@ -1226,7 +1229,18 @@ html,body { background:#888; color:var(--ink); font-family:'Inter',sans-serif; f
 .ssma-train-block ul { padding-left:14px; font-size:8.5px; line-height:1.4; }
 .ssma-train-block li { margin-bottom:4px; }
 
-@media print { html,body { background:#fff; } .no-print { display:none!important; } .plan-document { width:auto; margin:0; } .slide { box-shadow:none; margin:0; } }
+@media print {
+    html, body { background:#fff; }
+    .no-print, .toolbar { display:none !important; }
+    .plan-document { width:auto; margin:0; }
+    .slide { box-shadow:none; margin:0; page-break-after:always; break-after:page; }
+    .sap-table, .simple-table, .merged-block, .station-card, .legend-item, .sig-grid, .doc-closing-footer {
+        page-break-inside:avoid; break-inside:avoid;
+    }
+    .sap-table tr, .simple-table tr, .merged-inner tr { page-break-inside:avoid; break-inside:avoid; }
+    .sap-table thead, .simple-table thead { display:table-header-group; }
+    img, .hero-img, .cell-thumb, .cover-logo { max-width:100%; page-break-inside:avoid; break-inside:avoid; }
+}
 @page { size:A4 landscape; margin:0; }
 CSS;
     }

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 require_once __DIR__ . '/../includes/lubrication_plan_builder.php';
 require_once __DIR__ . '/../includes/lubrication_plan_pattern_guard.php';
 require_once __DIR__ . '/../includes/lubrication_plan_renderer.php';

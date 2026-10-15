@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * Telemetria IA + feedback dos agentes (gestor/developer).
  */

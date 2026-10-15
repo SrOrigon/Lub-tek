@@ -1,8 +1,8 @@
 <div id="view-home" class="view-container active view-flex" role="region" aria-labelledby="home-page-title"
-    style="padding: 0; flex-direction: column; align-items: center; justify-content: flex-start; background: #f8fafc;">
+    style="padding: 0; background: #f8fafc;">
 
     <!-- HEADER (Enlarged for Impact) -->
-    <div style="text-align: center; margin: 40px 0 40px 0; width: 100%; max-width: 1200px; padding: 0 20px;">
+    <div style="text-align: center; margin: 48px auto 36px; width: 100%; max-width: 1200px; padding: 0 20px;">
         <img src="<?php echo htmlspecialchars($companyLogo); ?>"
             alt="<?php echo htmlspecialchars($companyName); ?>"
             loading="lazy" decoding="async"
@@ -254,9 +254,21 @@
     </div>
 
     <style>
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        #view-home.view-container.active {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            height: auto !important;
+            overflow: visible !important;
+        }
+
+        #view-home .cards-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+            justify-content: center;
             gap: 25px;
             width: 100%;
             max-width: 1200px;

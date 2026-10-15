@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/json_shield.php';
 /**
  * LUB-TEK - Engenharia tribologica
  * Dimensões: ISO 15 / ISO 355 / DIN 618
