@@ -6716,3 +6716,40 @@ window.loadCatalog = loadCatalog;
 window.filterCatalog = filterCatalog;
 window.loadDash = loadDash;
 window.loadTree = loadTree;
+
+/**
+ * Auto-aplica data-label em células de tabelas para modo Cards Empilhados no mobile
+ */
+function applyTableDataLabels() {
+    try {
+        document.querySelectorAll('table').forEach(table => {
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.innerText.trim());
+            if (headers.length === 0) return;
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                cells.forEach((td, idx) => {
+                    if (!td.getAttribute('data-label') && headers[idx]) {
+                        td.setAttribute('data-label', headers[idx]);
+                    }
+                });
+            });
+        });
+    } catch (e) {}
+}
+window.applyTableDataLabels = applyTableDataLabels;
+
+// Dispara na carga e com MutationObserver para renderizações dinâmicas
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyTableDataLabels);
+} else {
+    setTimeout(applyTableDataLabels, 500);
+}
+if (typeof MutationObserver !== 'undefined') {
+    let debounceTimer = null;
+    const tableObserver = new MutationObserver(() => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(applyTableDataLabels, 250);
+    });
+    tableObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+}
+

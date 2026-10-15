@@ -1,8 +1,105 @@
-/* Alvos mínimos para tablets industriais */
+/* ==========================================================================
+   LUB-TEK 4.0 — TOUCH TARGETS & ERGONOMIA INDUSTRIAL (CHÃO DE FÁBRICA)
+   Atende aos critérios da ISO 9241 e WCAG 2.5.5 (Target Size: 48px - 56px).
+   Otimizado para operação com luvas de trabalho e telas touch industriais.
+   ========================================================================== */
+
+/* Área de toque primária (48px - 56px) para botões de ação e navegação */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-outline,
 .btn-neural-accept,
 .btn-neural-reject,
+.topbar-eco-btn,
+.topbar-home,
+.topbar-logout,
+.topbar-a11y-btn,
+.nav-item,
+.filter-btn,
+.action-btn,
+.scanner-btn,
+.qr-scanner-btn,
+.btn-icon,
+.tab-btn,
+.asset-tab,
+.tree-action-btn,
+#neural-assistant-trigger,
+.empty-state-action {
+    min-height: 48px !important;
+    min-width: 48px !important;
+    padding: 12px 18px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Botões críticos de alta relevância (56px) — Leitor QR Code, Salvar O.S., Emergência */
+.btn-lg,
+.btn-hero,
+.qr-scan-giant-btn,
+.btn-save-order,
+.btn-confirm-exec,
+.scanner-trigger-main {
+    min-height: 56px !important;
+    min-width: 56px !important;
+    padding: 14px 24px !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+}
+
+/* Campos de entrada e seleção touch-friendly */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+input[type="search"],
+select,
+textarea {
+    min-height: 48px !important;
+    padding: 10px 14px !important;
+    font-size: 16px !important; /* Previne auto-zoom indesejado no iOS Safari */
+    border-radius: 10px !important;
+}
+
+/* Checkboxes & Seletores de Lista (Facilidade de toque) */
 .os-card-check,
-input[type="checkbox"].os-select {
-    min-width: 44px;
-    min-height: 44px;
+input[type="checkbox"].os-select,
+.custom-checkbox,
+.os-check-wrapper {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer;
+}
+
+input[type="checkbox"] {
+    width: 22px !important;
+    height: 22px !important;
+    cursor: pointer;
+}
+
+/* Feedback tátil visual ao toque (:active) */
+.btn:active,
+.topbar-eco-btn:active,
+.filter-btn:active,
+.nav-item:active,
+.cat-list-item:active,
+.os-card:active {
+    transform: scale(0.97) !important;
+    transition: transform 0.08s ease;
+    filter: brightness(0.95);
+}
+
+/* Espaçamento de separação para evitar cliques acidentais */
+.btn-group,
+.button-row,
+.actions-row {
+    gap: 12px !important;
 }

@@ -79,6 +79,15 @@ debug-*.log
 *.tmp
 *.cache
 
+# Imagens raster de sistema (preserva SVGs para manter o repositorio leve para analise de codigo)
+assets/img/**/*.png
+assets/img/**/*.jpeg
+assets/img/**/*.jpg
+assets/img/system/*.png
+assets/img/system/*.jpeg
+assets/img/system/*.jpg
+!assets/img/system/*.svg
+
 # Arquivos de sistema e IDE
 .DS_Store
 Thumbs.db
@@ -86,3 +95,4 @@ Thumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+

@@ -242,6 +242,7 @@
                 <div
                     style="width:60px; height:60px; min-width:60px; border-radius:8px; overflow:hidden; border:1px solid var(--border); position:relative; background:var(--bg-dark);">
                     <img id="ash-header-img" src="<?php echo htmlspecialchars($companyLogo ?? 'assets/img/system/img_69581d7fcdbbf.jpeg'); ?>"
+                        loading="lazy" decoding="async"
                         style="width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in;"
                         onclick="openImageModal(this.src)"
                         onerror="this.src=(typeof getCompanyLogoUrl === 'function' ? getCompanyLogoUrl() : 'assets/img/system/img_69581d7fcdbbf.jpeg');">

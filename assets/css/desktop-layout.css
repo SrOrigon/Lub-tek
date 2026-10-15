@@ -1,9 +1,39 @@
 /**
- * LUB-TEK — Layout desktop profissional
- * Scroll por área, conteúdo encerra no fim dos dados (sem “vácuo” infinito).
+ * ==========================================================================
+ * LUB-TEK 4.0 — LAYOUT DESKTOP ENGENHARIA & TVS GESTÃO À VISTA (1025px+)
+ * Scrollbars finas, cabeçalhos fixos (sticky), TV Wallboards (1920px+)
+ * ==========================================================================
  */
 
-@media (min-width: 1024px) {
+/* Barras de rolagem finas e elegantes (Custom Slim Scrollbars) */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 99px;
+    border: 1px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+}
+
+/* ==========================================================================
+   DESKTOP ENGENHARIA (1025px a 1919px)
+   ========================================================================== */
+@media (min-width: 1025px) {
     main {
         display: flex;
         flex-direction: column;
@@ -12,7 +42,10 @@
     }
 
     .view-container {
-        padding: 16px 20px 24px;
+        padding: 18px 24px 28px;
+        max-width: 1800px;
+        margin: 0 auto;
+        width: 100%;
     }
 
     .view-container.active {
@@ -31,8 +64,19 @@
         align-items: stretch;
     }
 
-    /* Workspaces: scroll no painel, não no body */
-    /* Dashboard: scroll interno por coluna (≥1200px em dashboard.php) */
+    /* Cabeçalhos de tabela fixos (Sticky Headers) */
+    table thead th,
+    .sticky-table-header th,
+    .dash-table-scroll table thead th,
+    .lub-table-wrap table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #ffffff !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Workspaces com scroll interno isolado */
     #view-dash.dash-workspace.active {
         overflow: hidden !important;
         flex: 1 1 auto;
@@ -45,12 +89,7 @@
         min-height: 0;
     }
 
-    .assets-workspace.active {
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        overscroll-behavior: contain;
-    }
-
+    .assets-workspace.active,
     .routes-workspace.active,
     .kpi-workspace.active {
         overflow-x: hidden !important;
@@ -59,39 +98,97 @@
         min-height: 0;
     }
 
-    #view-home.view-flex.active {
-        overflow-y: auto;
-    }
-
-    /* Ativos: colunas com scroll interno quando necessário */
-    .assets-workspace.active {
-        padding: 12px 16px 20px;
-    }
-
     .assets-workspace .assets-layout {
         align-items: start;
     }
-}
 
-/* Toolbar dashboard — quebra elegante em telas médias */
-@media (min-width: 1024px) and (max-width: 1399px) {
     .dash-toolbar {
-        flex-wrap: wrap;
-        row-gap: 10px;
+        flex-wrap: nowrap;
+        gap: 14px;
     }
 
-    .dash-toolbar > div:last-child {
-        flex-wrap: wrap;
-        justify-content: flex-end;
+    /* Grid de KPIs em Desktop */
+    .kpi-grid,
+    .kpi-cards-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
     }
 }
 
-@media (min-width: 1600px) {
+/* ==========================================================================
+   TVS DE GESTÃO À VISTA & TELAS ULTRA-WIDE (≥ 1920px)
+   Painel de Chão de Fábrica para Visualização à Distância
+   ========================================================================== */
+@media (min-width: 1920px) {
     .view-container {
-        padding: 18px 28px 28px;
+        max-width: 100% !important;
+        padding: 24px 36px 36px !important;
     }
 
-    .dash-layout-grid {
-        gap: 18px;
+    /* Grids expandidos para 4 a 6 colunas completas */
+    .cards-grid,
+    .dash-layout-grid,
+    .kpi-grid,
+    .kpi-cards-container,
+    .powerbi-grid {
+        display: grid !important;
+        grid-template-columns: repeat(6, 1fr) !important;
+        gap: 22px !important;
+    }
+
+    /* Fallback para telas grandes com widgets variáveis */
+    @media (max-width: 2559px) {
+        .cards-grid,
+        .dash-layout-grid,
+        .kpi-grid,
+        .kpi-cards-container {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+        }
+    }
+
+    /* Fontes ampliadas para leitura à distância pelo operador */
+    .view-title,
+    h1 {
+        font-size: 2.2rem !important;
+    }
+
+    h2,
+    .section-title {
+        font-size: 1.7rem !important;
+    }
+
+    .kpi-card {
+        padding: 24px 28px !important;
+        border-radius: 18px !important;
+    }
+
+    .kpi-card .kpi-value,
+    .kpi-val,
+    .metric-val,
+    .stat-val {
+        font-size: 3.2rem !important;
+        line-height: 1.15 !important;
+        margin-top: 8px !important;
+    }
+
+    .kpi-card .kpi-label,
+    .kpi-card-title {
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+    }
+
+    /* Tabelas operacionais em alta resolução */
+    table td,
+    table th {
+        padding: 16px 20px !important;
+        font-size: 1.05rem !important;
+    }
+
+    .st-pill,
+    .os-badge {
+        font-size: 0.95rem !important;
+        padding: 6px 16px !important;
+        border-radius: 99px !important;
     }
 }

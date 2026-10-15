@@ -46,7 +46,7 @@
                 <div style="display:flex; flex-direction:column; gap:6px;">
                     <label style="font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase;">Logotipo (Imagem)</label>
                     <div style="display:flex; align-items:center; gap:12px; margin-top:4px;">
-                        <img id="brand-logo-preview" src="assets/img/system/img_69581d7fcdbbf.jpeg" style="width:55px; height:55px; border-radius:12px; border:1px solid #e2e8f0; object-fit:contain; background:#fff; padding:4px;">
+                        <img id="brand-logo-preview" src="assets/img/system/img_69581d7fcdbbf.jpeg" loading="lazy" decoding="async" style="width:55px; height:55px; border-radius:12px; border:1px solid #e2e8f0; object-fit:contain; background:#fff; padding:4px;">
                         <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
                             <input type="file" id="brand-logo-file" accept="image/*" onchange="uploadBrandLogo(event)" style="display:none;">
                             <button type="button" onclick="document.getElementById('brand-logo-file').click()" class="topbar-eco-btn" style="color:#0284c7; border-color:#cbd5e1; align-self:flex-start; padding:8px 12px;">

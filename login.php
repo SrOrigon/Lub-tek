@@ -315,7 +315,7 @@ $loginError = isset($_GET['error']);
         <div class="login-card">
             <div class="logo-container">
                 <div class="logo-wrapper" id="login-logo-wrapper">
-                    <img id="login-logo-img" src="assets/img/system/img_69581d7fcdbbf.jpeg" alt="LUB-TEK Logo">
+                    <img id="login-logo-img" src="assets/img/system/img_69581d7fcdbbf.jpeg" alt="LUB-TEK Logo" decoding="async">
                 </div>
                 <h1 id="login-title-text">LUB-TEK 3.0</h1>
                 <p class="subtitle" id="login-subtitle-text">Sistema Avançado de Gestão</p>

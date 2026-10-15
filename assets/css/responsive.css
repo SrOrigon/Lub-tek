@@ -23,12 +23,57 @@
     }
 }
 
-/* --- Tablet --- */
-@media (max-width: 1024px) {
-    .cards-grid {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+/* --- TABLETS INDUSTRIAIS E IHMs (768px a 1024px) --- */
+@media (min-width: 768px) and (max-width: 1024px) {
+    /* Grids equilibrados em 2 colunas */
+    .cards-grid,
+    .dash-layout-grid,
+    .kpi-grid,
+    .kpi-cards-container,
+    .assets-grid,
+    .routes-grid,
+    .grid-2 {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 16px !important;
         padding: 0 12px 40px !important;
+    }
+
+    /* Navegação lateral compactada: apenas ícones destacados para máxima área útil */
+    aside {
+        width: 78px !important;
+        min-width: 78px !important;
+        padding: 10px 4px !important;
+        transition: width 0.2s ease;
+    }
+
+    aside .brand img {
+        max-width: 44px !important;
+    }
+
+    aside .brand div {
+        display: none !important;
+    }
+
+    aside .nav {
+        padding: 8px 4px !important;
+        gap: 8px !important;
+    }
+
+    aside .nav-item {
+        justify-content: center !important;
+        padding: 14px 0 !important;
+        border-radius: 12px !important;
+    }
+
+    aside .nav-item span {
+        display: none !important;
+    }
+
+    aside .nav-item i {
+        margin: 0 !important;
+        width: 22px !important;
+        height: 22px !important;
     }
 
     .dash-toolbar {
@@ -233,11 +278,121 @@
         padding: 0 12px 30px !important;
     }
 
-    /* Tabelas — scroll horizontal */
-    .dash-table-scroll,
-    .lub-table-wrap {
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
+    /* Tabelas Chão de Fábrica — Cards Verticais Empilhados (Zero Rolagem Horizontal) */
+    .mobile-stacked,
+    .dash-table,
+    .lub-table,
+    table.table-responsive {
+        width: 100% !important;
+        border-collapse: separate !important;
+    }
+
+    .mobile-stacked thead,
+    .dash-table thead,
+    .lub-table thead,
+    table.table-responsive thead {
+        display: none !important;
+    }
+
+    .mobile-stacked tbody,
+    .dash-table tbody,
+    .lub-table tbody,
+    table.table-responsive tbody {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .mobile-stacked tr,
+    .dash-table tr,
+    .lub-table tr,
+    table.table-responsive tr {
+        display: block !important;
+        background: #ffffff !important;
+        border: 1px solid var(--border, #e2e8f0) !important;
+        border-radius: 14px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .mobile-stacked td,
+    .dash-table td,
+    .lub-table td,
+    table.table-responsive td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 8px 0 !important;
+        border: none !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        text-align: right !important;
+        font-size: 0.88rem !important;
+        min-height: 38px;
+    }
+
+    .mobile-stacked td:last-child,
+    .dash-table td:last-child,
+    .lub-table td:last-child,
+    table.table-responsive td:last-child {
+        border-bottom: none !important;
+    }
+
+    .mobile-stacked td[data-label]::before,
+    .dash-table td[data-label]::before,
+    .lub-table td[data-label]::before,
+    table.table-responsive td[data-label]::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #64748b;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        text-align: left;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    /* Modais como Bottom Sheet Drawer */
+    .modal,
+    .modal-container,
+    #modal-container {
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        padding: 0 !important;
+    }
+
+    .modal-dialog,
+    .modal-content,
+    .lubtek-modal-box {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 85vh !important;
+        border-radius: 20px 20px 0 0 !important;
+        border: 1px solid #cbd5e1 !important;
+        border-bottom: none !important;
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.3) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        margin: 0 !important;
+        padding: 16px 18px 30px !important;
+        animation: slideUpModalSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+
+    .modal-content::before,
+    .lubtek-modal-box::before {
+        content: "";
+        display: block;
+        width: 44px;
+        height: 5px;
+        background: #cbd5e1;
+        border-radius: 99px;
+        margin: 0 auto 14px auto;
     }
 
     /* Offcanvas OS form — full width mobile */

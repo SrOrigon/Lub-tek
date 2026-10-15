@@ -59,3 +59,9 @@ deploy/lubteksystem-production/
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+# Imagens raster de mockups/thumbs de sistema (preserva SVG)
+assets/img/system/*.png
+assets/img/system/*.jpeg
+assets/img/system/*.jpg
+

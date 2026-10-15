@@ -1,9 +1,9 @@
 <?php
 // Bootstrap: sessão e config ANTES de enviar headers HTTP
 require_once __DIR__ . '/config.php';
-ini_set('display_errors', defined('DEBUG_MODE') && DEBUG_MODE ? 1 : 0);
+ini_set('display_errors', (defined('DEBUG_MODE') && DEBUG_MODE) ? '1' : '0');
 error_reporting(E_ALL);
-ini_set('log_errors', 1);
+ini_set('log_errors', '1');
 
 require_once 'includes/auth.php';
 require_once 'includes/permissions.php';
@@ -42,7 +42,17 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS
 
 
 
-// Basic error handling for API
+// Global error & fatal handling for API
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
+    error_log("[API PHP {$severity}] {$message} in {$file}:{$line}");
+    if (in_array($severity, [E_USER_ERROR, E_RECOVERABLE_ERROR], true)) {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    }
+    return true; // suprime vazamento para output em produção
+});
 register_shutdown_function(['RodrigoAPI', 'fatalHandler']);
 
 class RodrigoAPI
@@ -203,19 +213,17 @@ class RodrigoAPI
     public function handleException($e)
     {
         DB::logError($e);
+        $this->cleanBuffer();
 
-        // Erros de negócio estruturados (ex: OrdersController::processStockConsumption lança
-        // Exception cuja mensagem é um JSON {error_code, message, details, suggestion}) eram
-        // sempre mascarados como "Erro interno do servidor" (500) genérico aqui, escondendo do
-        // usuário o motivo real (ex: estoque insuficiente) e quebrando o contrato esperado
-        // pelo front (res.error_code / res.details / res.suggestion).
+        // Erros de negócio estruturados
         $decoded = json_decode($e->getMessage(), true);
         if (is_array($decoded) && isset($decoded['error_code'])) {
-            $this->cleanBuffer();
             http_response_code(409);
             echo json_encode([
+                'success' => false,
                 'ok' => false,
                 'error' => $decoded['message'] ?? 'Erro de negócio.',
+                'code' => 409,
                 'error_code' => $decoded['error_code'],
                 'details' => $decoded['details'] ?? null,
                 'suggestion' => $decoded['suggestion'] ?? null,
@@ -223,7 +231,14 @@ class RodrigoAPI
             exit;
         }
 
-        $this->error("Erro interno do servidor.", 500, $e->getMessage()); // Debug msg only for Dev
+        $code = 500;
+        $safeMsg = "Erro interno do servidor. A equipe técnica foi notificada.";
+        if ($e instanceof Exception && $e->getCode() >= 400 && $e->getCode() < 600) {
+            $code = (int) $e->getCode();
+            $safeMsg = $e->getMessage();
+        }
+        $debug = (defined('DEBUG_MODE') && DEBUG_MODE) ? $e->getMessage() : null;
+        $this->error($safeMsg, $code, $debug);
     }
 
     private function getClientIp()
@@ -361,16 +376,25 @@ class RodrigoAPI
     public static function fatalHandler()
     {
         $error = error_get_last();
-        if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_CORE_ERROR || $error['type'] === E_COMPILE_ERROR)) {
+        if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
             if (!headers_sent()) {
-                header('Content-Type: application/json');
+                header('Content-Type: application/json; charset=utf-8');
             }
             http_response_code(500);
-            $payload = ['ok' => false, 'error' => 'Erro interno do servidor.'];
+            $payload = [
+                'success' => false,
+                'ok' => false,
+                'error' => 'Erro interno crítico do servidor. Contate o suporte.',
+                'code' => 500
+            ];
             if (defined('DEBUG_MODE') && DEBUG_MODE) {
                 $payload['debug'] = $error['message'];
             }
-            echo json_encode($payload);
+            error_log('[FATAL PHP] ' . $error['message'] . ' in ' . $error['file'] . ':' . $error['line']);
+            echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         }
     }
 
@@ -473,8 +497,10 @@ class RodrigoAPI
                 $this->cleanBuffer();
                 http_response_code(409);
                 echo json_encode([
+                    'success' => false,
                     'ok' => false,
                     'error' => $decoded['message'] ?? 'Erro de negócio.',
+                    'code' => 409,
                     'error_code' => $decoded['error_code'],
                     'details' => $decoded['details'] ?? null,
                     'suggestion' => $decoded['suggestion'] ?? null,
@@ -482,7 +508,14 @@ class RodrigoAPI
                 exit;
             }
 
-            $this->error('Erro interno do servidor.', 500, $e->getMessage());
+            $code = 500;
+            $msg = 'Erro interno do servidor.';
+            if ($e instanceof Exception && $e->getCode() >= 400 && $e->getCode() < 600) {
+                $code = (int) $e->getCode();
+                $msg = $e->getMessage();
+            }
+            $debug = (defined('DEBUG_MODE') && DEBUG_MODE) ? $e->getMessage() : null;
+            $this->error($msg, $code, $debug);
         }
     }
 
@@ -588,11 +621,16 @@ class RodrigoAPI
     {
         $this->cleanBuffer();
         http_response_code($code);
-        $payload = ['ok' => false, 'error' => $message];
+        $payload = [
+            'success' => false,
+            'ok' => false,
+            'error' => $message,
+            'code' => $code
+        ];
         if (defined('DEBUG_MODE') && DEBUG_MODE && $debug !== null) {
             $payload['debug'] = $debug;
         }
-        echo json_encode($payload);
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
 

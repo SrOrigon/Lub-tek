@@ -1,10 +1,17 @@
+/* ==========================================================================
+   LUB-TEK 4.0 — PAINEL DE OPERAÇÕES DE IA (AI-OPS)
+   Layout Acoplado em Desktop e Bottom Sheet em Dispositivos Móveis
+   ========================================================================== */
+
 .ai-ops-strip {
-    background: #fff;
+    background: #ffffff;
     border: 1px solid var(--border, #e2e8f0);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ai-ops-strip.is-collapsed #ai-ops-panel-extra {
@@ -15,50 +22,67 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 10px;
 }
 
 .ai-ops-title {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.88rem;
     font-weight: 800;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     color: #0f766e;
+    letter-spacing: -0.01em;
 }
 
 .ai-ops-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 8px;
-    margin-bottom: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .ai-ops-metric {
     background: #f8fafc;
-    border-radius: 8px;
-    padding: 8px 10px;
-    font-size: 0.72rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.74rem;
     color: #64748b;
+    font-weight: 500;
 }
 
 .ai-ops-metric strong {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
+    font-weight: 800;
     color: #0f172a;
-    margin-top: 2px;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
 }
 
+.ai-ops-metric.warn {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
 .ai-ops-metric.warn strong {
     color: #b45309;
 }
 
+.ai-ops-metric.ok {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
 .ai-ops-metric.ok strong {
     color: #059669;
 }
 
+.ai-ops-metric.danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
 .ai-ops-metric.danger strong {
     color: #dc2626;
 }
@@ -66,8 +90,9 @@
 .ai-ops-features {
     margin: 0;
     padding-left: 18px;
-    font-size: 0.72rem;
+    font-size: 0.76rem;
     color: #475569;
+    line-height: 1.5;
 }
 
 .ai-ops-features .muted {
@@ -79,11 +104,80 @@
 .ai-ops-columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 14px;
 }
 
-@media (max-width: 900px) {
+/* ==========================================================================
+   MOBILE CHÃO DE FÁBRICA (< 768px): COMPORTAMENTO BOTTOM SHEET
+   ========================================================================== */
+@media (max-width: 767px) {
+    .ai-ops-strip {
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
     .ai-ops-columns {
         grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* Bottom Sheet Modal para AI-Ops e Detalhes da Operação */
+    .ai-ops-bottom-sheet,
+    .ai-ops-strip.as-bottom-sheet {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 85vh !important;
+        background: #ffffff !important;
+        border-radius: 20px 20px 0 0 !important;
+        border: 1px solid #cbd5e1 !important;
+        border-bottom: none !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25) !important;
+        z-index: 1200 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 16px 18px 28px !important;
+        margin: 0 !important;
+        animation: slideUpAiOps 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .ai-ops-sheet-handle {
+        width: 44px;
+        height: 5px;
+        background: #cbd5e1;
+        border-radius: 99px;
+        margin: 0 auto 12px auto;
+        display: block;
+    }
+}
+
+@keyframes slideUpAiOps {
+    from {
+        transform: translateY(100%);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ==========================================================================
+   DESKTOP ACOPLADO (≥ 1025px)
+   ========================================================================== */
+@media (min-width: 1025px) {
+    .ai-ops-strip {
+        border-left: 4px solid #0d9488;
+        background: #fafafa;
+    }
+
+    .ai-ops-strip:hover {
+        background: #ffffff;
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.08);
     }
 }
