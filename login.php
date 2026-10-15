@@ -1,6 +1,8 @@
 <?php
 require_once 'config.php';
 require_once 'includes/auth.php';
+require_once 'includes/csrf_guard.php';
+$csrfToken = CsrfGuard::getToken();
 $auth = new AuthSystem();
 if ($auth->isLoggedIn()) {
     header('Location: index.php');
@@ -342,6 +344,7 @@ $loginError = isset($_GET['error']);
             <?php endif; ?>
 
             <form id="login-form" method="POST" action="login_process.php">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="form-group">
                     <label for="username">Usuário</label>
                     <div class="input-wrapper">

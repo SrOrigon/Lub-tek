@@ -193,27 +193,77 @@ class SecurityGuard
     }
 
     /**
-     * Verifica se o IP ou usuário está bloqueado por excesso de tentativas (desativado para validação social)
+     * Verifica se o IP ou usuário está bloqueado por excesso de tentativas.
      */
     public static function isLockedOut($username = '')
     {
+        if (defined('BRUTE_FORCE_PROTECTION_DISABLED') && BRUTE_FORCE_PROTECTION_DISABLED) {
+            return false;
+        }
+
+        $attempts = self::loadAttempts();
+        if (empty($attempts)) {
+            return false;
+        }
+
+        self::cleanExpiredAttempts($attempts);
+        $ip = self::getClientIp();
+        $keys = ['ip:' . $ip];
+        if (!empty($username)) {
+            $keys[] = 'user:' . strtolower(trim($username));
+        }
+
+        foreach ($keys as $k) {
+            if (isset($attempts[$k]) && count($attempts[$k]) >= self::$maxAttempts) {
+                return true;
+            }
+        }
+
         return false;
     }
 
     /**
-     * Registra uma falha de login (lockout desativado a pedido do cliente)
+     * Registra uma falha de login com timestamp atômico
      */
     public static function recordFailedAttempt($username = '')
     {
-        return;
+        if (defined('BRUTE_FORCE_PROTECTION_DISABLED') && BRUTE_FORCE_PROTECTION_DISABLED) {
+            return;
+        }
+
+        $ip = self::getClientIp();
+        $now = time();
+        self::mutateAttempts(function ($attempts) use ($ip, $username, $now) {
+            $ipKey = 'ip:' . $ip;
+            if (!isset($attempts[$ipKey])) {
+                $attempts[$ipKey] = [];
+            }
+            $attempts[$ipKey][] = $now;
+
+            if (!empty($username)) {
+                $userKey = 'user:' . strtolower(trim($username));
+                if (!isset($attempts[$userKey])) {
+                    $attempts[$userKey] = [];
+                }
+                $attempts[$userKey][] = $now;
+            }
+            return $attempts;
+        });
     }
 
     /**
-     * Reseta as falhas de login após sucesso
+     * Reseta as falhas de login após autenticação bem-sucedida
      */
     public static function resetFailedAttempts($username = '')
     {
-        return;
+        $ip = self::getClientIp();
+        self::mutateAttempts(function ($attempts) use ($ip, $username) {
+            unset($attempts['ip:' . $ip]);
+            if (!empty($username)) {
+                unset($attempts['user:' . strtolower(trim($username))]);
+            }
+            return $attempts;
+        });
     }
 }
 

@@ -27,7 +27,8 @@ class NeuralKnowledge
                     'Clique em "Nova Ordem" para criar uma O.S. manualmente.',
                     'Use os filtros: Todas, Pendentes, Concluídas na tabela.',
                     'Clique em uma linha da tabela para abrir e editar a O.S.',
-                    'Botão "Preventivas" gera ordens preventivas automaticamente (admin).',
+                    'Botão "Preventivas" executa o Agente de Geração de O.S. (rotina a partir do cadastro).',
+                    'Painel "Agente de Geração O.S." mostra decisões, simulação e resumo IA do plano do dia.',
                     'Seção "Motor Neural" mostra sugestões de risco — use Aceitar ou Recusar; a IA não cria O.S. sozinha.',
                     'Menu SAP ERP permite importar/exportar ordens.',
                     'Use a busca "Localizar O.S." para filtrar por texto.'
@@ -195,16 +196,20 @@ class NeuralKnowledge
 
         $q = self::toLower(trim($prompt));
 
-        // Palavras-chave de navegação, ajuda e comandos operacionais respondidos localmente
-        $localKeywords = [
-            'como', 'onde', 'ajuda', 'usar', 'funciona', 'fazer',
-            'criar', 'cadastrar', 'exportar', 'importar', 'ordem', 'ordens',
-            'os', 'limpar', 'relatório', 'relatorio',
-            'kpi', 'oee', 'rotas'
+        // Somente perguntas claras de navegação/ajuda do sistema (não bloquear análise técnica com IA)
+        $localPatterns = [
+            '/\b(ajuda|help|tutorial|manual)\b/u',
+            '/\bcomo\s+(usar|criar|cadastrar|exportar|importar|funciona|fazer)\b/u',
+            '/\bonde\s+(fica|encontr|acesso|clic)\b/u',
+            '/\bo\s+que\s+[eé]\s+(o|a)\s+(m[oó]dulo|tela|menu|kpi|oee|motor\s+neural)\b/u',
+            '/\b(navegar|atalho|passo\s+a\s+passo)\b/u',
         ];
-
-        $pattern = '/\b(' . implode('|', array_map('preg_quote', $localKeywords)) . ')\b/ui';
-        return (bool) preg_match($pattern, $q);
+        foreach ($localPatterns as $pattern) {
+            if (preg_match($pattern, $q)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -9,14 +9,24 @@ if (file_exists($localConfig)) {
     require_once $localConfig;
 }
 
-// Chave da API do Google Gemini — defina em config.local.php ou variavel de ambiente
+// Chave da API do Google Gemini — defina via variável de ambiente GEMINI_API_KEY ou em config.local.php
 if (!defined('GEMINI_API_KEY')) {
-    define('GEMINI_API_KEY', getenv('GEMINI_API_KEY') ?: '');
+    $geminiKeyEnv = getenv('GEMINI_API_KEY');
+    define(
+        'GEMINI_API_KEY',
+        is_string($geminiKeyEnv) && $geminiKeyEnv !== '' ? $geminiKeyEnv : ''
+    );
 }
 
-// Modelo Gemini (Flash = rapido e economico)
+// Modelo Gemini (alinhado ao endpoint gemini-flash-latest usado nos testes)
 if (!defined('GEMINI_MODEL')) {
-    define('GEMINI_MODEL', getenv('GEMINI_MODEL') ?: 'gemini-2.5-flash');
+    $geminiModelEnv = getenv('GEMINI_MODEL');
+    define(
+        'GEMINI_MODEL',
+        is_string($geminiModelEnv) && $geminiModelEnv !== ''
+            ? $geminiModelEnv
+            : 'gemini-flash-latest'
+    );
 }
 
 // TTL do cache da IA (segundos). A chave também muda quando os dados da planta mudam.
@@ -39,6 +49,11 @@ if (!defined('AI_GEMINI_ENABLED')) {
 // Limite de chamadas Gemini por usuário/sessão por minuto (protege quota global)
 if (!defined('AI_GEMINI_RATE_LIMIT')) {
     define('AI_GEMINI_RATE_LIMIT', (int) (getenv('AI_GEMINI_RATE_LIMIT') ?: 12));
+}
+
+// Orçamento diário de tokens (entrada+saída) por tenant; 0 = ilimitado
+if (!defined('AI_DAILY_TOKEN_BUDGET')) {
+    define('AI_DAILY_TOKEN_BUDGET', (int) (getenv('AI_DAILY_TOKEN_BUDGET') ?: 50000));
 }
 
 define('APP_NAME', 'LUB-TEK');
@@ -116,6 +131,12 @@ if (!function_exists('mb_strlen')) {
     function mb_strlen($string, $encoding = null) {
         return strlen($string);
     }
+}
+
+// Versão de assets (cache busting estável — sobrescreva via env LUBTEK_BUILD ou config.local.php)
+if (!defined('LUBTEK_BUILD')) {
+    $buildEnv = getenv('LUBTEK_BUILD');
+    define('LUBTEK_BUILD', is_string($buildEnv) && $buildEnv !== '' ? $buildEnv : '3.4.1');
 }
 
 require_once __DIR__ . '/includes/session_bootstrap.php';

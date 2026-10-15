@@ -1,0 +1,7 @@
+[
+  {"id": "local-01", "prompt": "como criar ordem de serviço?", "page": "home", "context": {"os_pendentes": 3, "os_criticas": 1, "total_ativos": 120}, "expect_substrings": ["Ordens", "pendentes", "3"]},
+  {"id": "local-02", "prompt": "quantos ativos temos?", "page": "assets", "context": {"total_ativos": 88}, "expect_substrings": ["Ativos", "88"]},
+  {"id": "local-03", "prompt": "o que é ia neural?", "page": "dash", "context": {}, "expect_substrings": ["Assistente", "Neural"]},
+  {"id": "local-04", "prompt": "ajuda neste módulo", "page": "kpi", "context": {}, "expect_substrings": ["KPI"]},
+  {"id": "local-05", "prompt": "como exportar relatório?", "page": "reports", "context": {}, "expect_substrings": ["Relat"]}
+]

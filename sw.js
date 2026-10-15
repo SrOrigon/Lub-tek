@@ -4,12 +4,31 @@
  * Imagens: cache-first
  * Nunca intercepta API / navegação PHP
  */
-const CACHE_NAME = 'lubtek-pwa-v3.2.6';
+const CACHE_NAME = 'lubtek-pwa-v3.4.1';
 
 const STATIC_ASSETS = [
+  './assets/js/lazy_vendors.js',
+  './assets/js/a11y_core.js',
+  './assets/js/api_client.js',
+  './assets/js/error_prevention.js',
+  './assets/js/realtime_core.js',
+  './assets/js/modules/events_bus.js',
+  './assets/js/scripts_main.js',
   './assets/pwa/manifest.webmanifest',
   './assets/img/system/img_69581d7fcdbbf.jpeg',
-  './assets/css/responsive.css'
+  './assets/img/system/thumb_dash.svg',
+  './assets/img/system/thumb_assets.svg',
+  './assets/img/system/thumb_inv.svg',
+  './assets/img/system/thumb_eng.svg',
+  './assets/img/system/thumb_reports.svg',
+  './assets/img/system/thumb_kpi.svg',
+  './assets/img/system/thumb_routes.svg',
+  './assets/img/system/thumb_3d.svg',
+  './assets/css/responsive.css',
+  './assets/css/desktop-layout.css',
+  './assets/css/touch-targets.css',
+  './assets/css/a11y-global.css',
+  './assets/css/ai-ops-panel.css'
 ];
 
 self.addEventListener('install', (event) => {

@@ -1,0 +1,7 @@
+[
+  {"id": "force-01", "prompt": "como criar ordem?", "force_ai": false, "expect_local_only": true},
+  {"id": "force-02", "prompt": "como criar ordem?", "force_ai": true, "expect_local_only": false},
+  {"id": "force-03", "prompt": "analise ISO VG 220 rolamento 6310", "force_ai": false, "expect_local_only": false},
+  {"id": "force-04", "prompt": "analise ISO VG 220 rolamento 6310", "force_ai": true, "expect_local_only": false},
+  {"id": "force-05", "prompt": "ajuda no KPI", "force_ai": true, "expect_local_only": false}
+]

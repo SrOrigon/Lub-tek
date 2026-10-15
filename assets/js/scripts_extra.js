@@ -330,7 +330,7 @@
         }, 1000);
     }
 
-    function export3Dmodel() {
+    async function export3Dmodel() {
         if (!selected3DNode) return;
 
         const element = document.getElementById('viewport-3d');
@@ -338,6 +338,12 @@
 
         showToast('<i data-lucide="camera" class="spin"></i> Renderizando imagem 3D...', 'info');
         lucide.createIcons();
+
+        if (typeof lubtekEnsureHtml2Canvas === 'function') {
+            try { await lubtekEnsureHtml2Canvas(); } catch (e) {
+                return showToast('Erro ao carregar captura de tela.', 'error');
+            }
+        }
 
         // Use html2canvas to screenshot the rendered view
         html2canvas(element, {
@@ -1380,10 +1386,13 @@
 
             try {
                 const url = `${API_URL}?action=${action}`;
+                const postHeaders = { 'Content-Type': 'application/json' };
+                if (window.csrfToken) postHeaders['X-CSRF-TOKEN'] = window.csrfToken;
+                postHeaders['X-Requested-With'] = 'XMLHttpRequest';
                 const opts = payload ? {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: postHeaders,
                     body: JSON.stringify(payload)
                 } : { credentials: 'same-origin' };
 

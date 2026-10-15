@@ -153,6 +153,8 @@ class LubricationPlanAiEnricher
         $equipments = [];
 
         $chunks = array_chunk($compact['equipments'], 8);
+        $maxChunks = defined('AI_PLAN_ENRICH_MAX_CHUNKS') ? (int) AI_PLAN_ENRICH_MAX_CHUNKS : 3;
+        $chunks = array_slice($chunks, 0, max(1, $maxChunks));
         foreach ($chunks as $chunk) {
             $batch = $this->fetchEquipmentBatch($compact, $chunk);
             if (is_array($batch)) {

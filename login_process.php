@@ -5,9 +5,15 @@
 
 require_once 'config.php';
 require_once 'includes/auth.php';
+require_once 'includes/csrf_guard.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: login.php');
+    exit;
+}
+
+if (!CsrfGuard::validate($_POST['csrf_token'] ?? null)) {
+    header('Location: login.php?error=1');
     exit;
 }
 

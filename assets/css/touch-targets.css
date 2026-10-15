@@ -1,0 +1,8 @@
+/* Alvos mínimos para tablets industriais */
+.btn-neural-accept,
+.btn-neural-reject,
+.os-card-check,
+input[type="checkbox"].os-select {
+    min-width: 44px;
+    min-height: 44px;
+}

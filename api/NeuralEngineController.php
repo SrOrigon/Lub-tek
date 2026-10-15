@@ -6,6 +6,12 @@
 
 require_once __DIR__ . '/../includes/gemini_service.php';
 require_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/agent_feedback.php';
+require_once __DIR__ . '/../includes/prompt_registry.php';
+require_once __DIR__ . '/../includes/asset_rag_context.php';
+require_once __DIR__ . '/../includes/agent_weights.php';
+require_once __DIR__ . '/../includes/reliability_metrics.php';
+require_once __DIR__ . '/../includes/agent_eval_scoring.php';
 
 class NeuralEngineController {
     private $db;
@@ -34,10 +40,6 @@ class NeuralEngineController {
             return ['error' => 'ID do ativo é obrigatório para o diagnóstico.'];
         }
 
-        if (!$this->gemini->isConfigured()) {
-            return ['error' => 'Motor Neural (Gemini) não está configurado neste tenant.'];
-        }
-
         $stmt = $this->db->prepare("SELECT nome, tipo, fabricante, modelo, dados_tecnicos FROM ativos WHERE id = ?");
         $stmt->execute([$assetId]);
         $asset = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -60,12 +62,25 @@ class NeuralEngineController {
         $prompt .= "Últimos Alertas de Sensores (CBM):\n" . json_encode($alertas) . "\n\n";
         $prompt .= "Com base nisso, identifique a causa raiz provável de desgaste ou anomalia e sugira 3 passos de ação imediata.";
 
-        $systemInstruction = "Você é a Lúbria, Inteligência Artificial Orquestradora e Engenheira Chefe de Confiabilidade do sistema LUB-TEK. Sua missão é auxiliar engenheiros, gestores e lubrificadores industriais com precisão técnica absoluta. Use terminologia industrial real (fator DN, ISO VG, NLGI, Polichemia, Sulfonato de Cálcio, CBM), focando em prevenção de falhas e diagnósticos práticos em formato Markdown com tópicos claros.";
+        $ragBlock = AssetRagContext::buildForAsset($this->db, $assetId);
+        if ($ragBlock !== '') {
+            $prompt .= "\n\nContexto adicional do cadastro:\n" . $ragBlock;
+        }
 
-        $response = $this->gemini->ask($prompt, $systemInstruction);
+        $systemInstruction = PromptRegistry::get('neural_diagnose_system');
+
+        $response = $this->gemini->isConfigured()
+            ? $this->gemini->ask($prompt, $systemInstruction, false, 768, false, 'neural_diagnose')
+            : ['error' => 'offline'];
 
         if (isset($response['error']) && empty($response['text'])) {
-            return ['error' => 'Falha no processamento neural: ' . $response['error']];
+            $local = $this->buildLocalDiagnosisFallback($asset, $analises, $alertas);
+            return [
+                'asset_name' => $asset['nome'],
+                'diagnosis_markdown' => $local,
+                'timestamp' => date('Y-m-d H:i:s'),
+                'source' => 'local',
+            ];
         }
 
         DB::log($this->userLabel(), 'NEURAL_DIAGNOSIS', "Ativo ID: {$assetId}");
@@ -73,8 +88,57 @@ class NeuralEngineController {
         return [
             'asset_name' => $asset['nome'],
             'diagnosis_markdown' => $response['text'] ?? 'Sem resposta da IA.',
-            'timestamp' => date('Y-m-d H:i:s')
+            'timestamp' => date('Y-m-d H:i:s'),
+            'source' => $response['source'] ?? 'gemini',
         ];
+    }
+
+    private function buildLocalDiagnosisFallback(array $asset, array $analises, array $alertas): string
+    {
+        $lines = [
+            '**Diagnóstico local (sem Gemini)**',
+            '',
+            'Ativo: **' . ($asset['nome'] ?? '') . '**',
+        ];
+        if (!empty($analises[0])) {
+            $a = $analises[0];
+            $lines[] = '- Última análise: ISO ' . ($a['iso_4406'] ?? '—') . ', água ' . ($a['agua_ppm'] ?? '—') . ' ppm, Fe ' . ($a['fe_ppm'] ?? '—') . ' ppm.';
+        } else {
+            $lines[] = '- Sem análises de óleo recentes no cadastro.';
+        }
+        if (!empty($alertas)) {
+            $lines[] = '- Alertas CBM recentes: ' . count($alertas) . '.';
+        }
+        $lines[] = '';
+        $lines[] = '**Ações sugeridas:**';
+        $lines[] = '1. Coletar nova amostra de óleo se a última análise tiver mais de 90 dias.';
+        $lines[] = '2. Inspecionar vedações e pontos de contaminação.';
+        $lines[] = '3. Abrir O.S. preventiva se houver desvio de partículas ou umidade.';
+        return implode("\n", $lines);
+    }
+
+    public function saveAgentFeedback(): array
+    {
+        $action = strtolower(trim((string) ($this->input['action'] ?? '')));
+        if (!in_array($action, ['accept', 'reject'], true)) {
+            return ['success' => false, 'error' => 'Ação inválida (accept/reject).'];
+        }
+
+        $id = AgentFeedback::save($this->db, [
+            'agent' => trim((string) ($this->input['agent'] ?? 'neural_engine')),
+            'decision_id' => $this->input['decision_id'] ?? null,
+            'asset_id' => (int) ($this->input['asset_id'] ?? 0) ?: null,
+            'order_id' => (int) ($this->input['order_id'] ?? 0) ?: null,
+            'action' => $action,
+            'reason' => trim((string) ($this->input['reason'] ?? '')),
+            'meta' => is_array($this->input['meta'] ?? null) ? $this->input['meta'] : [
+                'risk' => $this->input['risk'] ?? null,
+                'suggestion' => $this->input['suggestion'] ?? null,
+            ],
+            'created_by' => $this->userLabel(),
+        ]);
+
+        return ['success' => true, 'feedback_id' => $id];
     }
 
     /**
@@ -147,10 +211,14 @@ class NeuralEngineController {
             }
         }
 
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $sinceExpr = $driver === 'mysql'
+            ? 'DATE_SUB(CURDATE(), INTERVAL 90 DAY)'
+            : "date('now', '-90 days')";
         $stmt = $this->db->prepare(
             "SELECT COUNT(*) as total,
                     SUM(CASE WHEN tipo_manutencao = 'Corretiva' OR prioridade IN ('Crítica', 'Alta') THEN 1 ELSE 0 END) as corretivas
-             FROM ordens WHERE ativo_id = ? AND COALESCE(data_conclusao, data_emissao, data_planejada) >= date('now', '-90 days')"
+             FROM ordens WHERE ativo_id = ? AND COALESCE(data_conclusao, data_emissao, data_planejada) >= {$sinceExpr}"
         );
         $stmt->execute([$assetId]);
         $hist = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -158,19 +226,39 @@ class NeuralEngineController {
         $total = intval($hist['total'] ?? 0);
         $corretivas = intval($hist['corretivas'] ?? 0);
 
-        $riskScore = 15.0;
-        if ($total > 0) {
-            $riskScore += ($corretivas / max(1, $total)) * 70;
-        }
-        if (in_array($ativoRow['status'] ?? '', ['Alerta', 'Danger'], true)) {
-            $riskScore = max($riskScore, 45);
-        }
-        if (($ativoRow['status'] ?? '') === 'Crítico') {
-            $riskScore = max($riskScore, 75);
+        $w = AgentWeights::load($this->db)['neural_risk'] ?? AgentWeights::defaults()['neural_risk'];
+        $signals = [
+            'total' => $total,
+            'corretivas' => $corretivas,
+            'status' => $ativoRow['status'] ?? '',
+        ];
+
+        try {
+            $rel = ReliabilityMetrics::compute($this->db, $assetId);
+            $mtbf = (float) ($rel['mtbf_hours'] ?? 0);
+            if ($mtbf > 0) {
+                $signals['mtbf_hours'] = $mtbf;
+            }
+        } catch (Exception $e) {
+            // métricas opcionais
         }
 
-        $riskScore = min(99.0, round($riskScore, 1));
-        $health = $riskScore > 60 ? 'Crítico' : ($riskScore > 30 ? 'Atenção' : 'Excelente');
+        try {
+            $oil = $this->db->prepare(
+                'SELECT laudo_geral, agua_ppm FROM analises WHERE ativo_id = ? ORDER BY data_coleta DESC LIMIT 1'
+            );
+            $oil->execute([$assetId]);
+            $lastOil = $oil->fetch(PDO::FETCH_ASSOC);
+            if ($lastOil) {
+                $signals['laudo_geral'] = $lastOil['laudo_geral'] ?? null;
+                $signals['agua_ppm'] = $lastOil['agua_ppm'] ?? null;
+            }
+        } catch (Exception $e) {
+            // tabela analises opcional
+        }
+
+        $riskScore = AgentEvalScoring::neuralRiskPercentage($signals, $w);
+        $health = AgentEvalScoring::neuralHealthLabel($riskScore);
 
         return [
             'asset_id' => $assetId,
@@ -259,15 +347,28 @@ class NeuralEngineController {
         $desc = "[LÚBRIA IA] " . (function_exists('mb_substr') ? mb_substr($aiRecommendation, 0, 80) : substr($aiRecommendation, 0, 80));
         $obs = "Ordem de Serviço aprovada manualmente a partir de sugestão da Lúbria.\nAprovado por: {$gestor}\n\nPrescrição sugerida:\n" . $aiRecommendation;
 
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $nowExpr = $driver === 'mysql' ? 'NOW()' : "datetime('now')";
         $stmt = $this->db->prepare("
             INSERT INTO ordens (descricao, responsavel, data_planejada, prioridade, situacao, observacao, ativo_id, tipo_manutencao, data_emissao, last_sync)
-            VALUES (?, 'Pendente Atribuição', ?, 'Alta', 'Pendente', ?, ?, 'Preditiva', ?, datetime('now'))
+            VALUES (?, 'Pendente Atribuição', ?, 'Alta', 'Pendente', ?, ?, 'Preditiva', ?, {$nowExpr})
         ");
 
         $stmt->execute([$desc, $hoje, $obs, $assetId, $hoje]);
         $osId = $this->db->lastInsertId();
 
         DB::log($this->userLabel(), 'NEURAL_OS_APPROVED', "OS #{$osId} aprovada para Ativo ID: {$assetId}");
+
+        AgentFeedback::save($this->db, [
+            'agent' => 'neural_engine',
+            'decision_id' => 'asset:' . $assetId,
+            'asset_id' => $assetId,
+            'order_id' => (int) $osId,
+            'action' => 'accept',
+            'reason' => null,
+            'meta' => ['suggestion' => $aiRecommendation],
+            'created_by' => $this->userLabel(),
+        ]);
 
         return [
             'success' => true,

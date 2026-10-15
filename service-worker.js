@@ -3,11 +3,20 @@
  * Cache apenas assets estáticos — NUNCA intercepta HTML/navegação/API.
  * JS/CSS: network-first para não servir código antigo com bugs.
  */
-const CACHE_NAME = 'lub-tek-static-v3.2.6';
+const CACHE_NAME = 'lub-tek-static-v3.3.0';
 
 const STATIC_ASSETS = [
   './assets/img/system/img_69581d7fcdbbf.jpeg',
+  './assets/img/system/thumb_dash.svg',
+  './assets/img/system/thumb_assets.svg',
+  './assets/img/system/thumb_inv.svg',
+  './assets/img/system/thumb_eng.svg',
+  './assets/img/system/thumb_reports.svg',
+  './assets/img/system/thumb_kpi.svg',
+  './assets/img/system/thumb_routes.svg',
+  './assets/img/system/thumb_3d.svg',
   './assets/css/responsive.css',
+  './assets/css/desktop-layout.css',
   './assets/pwa/manifest.webmanifest'
 ];
 

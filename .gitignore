@@ -26,6 +26,18 @@ backups/
 !backups/.htaccess
 !backups/manifest.json
 
+# Uploads de tenant (manter .htaccess)
+uploads/*
+!uploads/.htaccess
+
+# Deploy Hostinger (tokens / sessao TUS — nunca versionar)
+deploy/.tus_session.json
+deploy/.deploy_token
+deploy/hostinger_apply_sync.php
+
+# Fixtures HTML locais de preview
+data/test_*.html
+
 # Dados de sessao e caches temporarios de IA
 data/users.json
 data/sessions/*

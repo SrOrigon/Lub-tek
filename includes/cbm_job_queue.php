@@ -86,8 +86,12 @@ class CbmJobQueue
             return;
         }
 
-        $checkStmt = $db->prepare("SELECT id FROM ordens WHERE ativo_id = ? AND situacao = 'Pendente' AND prioridade = 'Crítica'");
-        $checkStmt->execute([$ativoId]);
+        $checkStmt = $db->prepare(
+            "SELECT id FROM ordens WHERE ativo_id = ? AND situacao = 'Pendente' AND prioridade = 'Crítica'
+             AND (descricao LIKE ? OR observacao LIKE ?)"
+        );
+        $tagNeedle = '%' . str_replace(['%', '_'], '', (string) $tagName) . '%';
+        $checkStmt->execute([$ativoId, '%' . $tagName . '%', $tagNeedle]);
         $existingOs = $checkStmt->fetchColumn();
         $osId = $existingOs ? (int) $existingOs : null;
 

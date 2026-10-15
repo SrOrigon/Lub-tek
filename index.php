@@ -25,7 +25,7 @@ if (!$auth->canAccessPage($page)) {
 // ===========================================
 // SYSTEM INCLUDES
 // ===========================================
-$BUILD_VER = "3.2." . date('YmdHis');
+$BUILD_VER = defined('LUBTEK_BUILD') ? LUBTEK_BUILD : '3.4.1';
 
 // LUB-TEK System Entry Point
 ?>
@@ -142,8 +142,10 @@ foreach ($orderedRoutes as $routeKey => $routePath) {
 
 </main>
 
+<div id="a11y-live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
 <!-- TOAST NOTIFICATION CONTAINER -->
-<div id="toast-container"></div>
+<div id="toast-container" role="region" aria-label="Notificações"></div>
 
 <?php include 'includes/neural_assistant.php'; ?>
 
@@ -212,7 +214,10 @@ foreach ($orderedRoutes as $routeKey => $routePath) {
 
 <!-- CORE SCRIPTS -->
 <!-- 0. ERROR PREVENTION (Must load VERY FIRST) -->
-<script src="assets/js/error_prevention.js?v=<?php echo $BUILD_VER; ?>"></script>
+<script src="assets/js/error_prevention.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/lazy_vendors.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/api_client.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/a11y_core.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 <script>
     // Navegacao temporaria ate scripts_main.js carregar (SPA)
     window.nav = function(viewId, btn, isPopState) {
@@ -226,36 +231,54 @@ foreach ($orderedRoutes as $routeKey => $routePath) {
 </script>
 
 <!-- 1. REAL-TIME ECOSYSTEM CORE (Must load FIRST before anything) -->
-<script src="assets/js/realtime_core.js?v=<?php echo $BUILD_VER; ?>"></script>
+<script src="assets/js/realtime_core.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/modules/events_bus.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 
 <!-- 2. MAIN SCRIPTS (API canônica) — carrega antes dos extras -->
-<script src="assets/js/scripts_main.js?v=3.2.6_<?php echo time(); ?>"></script>
+<script src="assets/js/scripts_main.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 
 <!-- 2b. ECOSYSTEM BRIDGE -->
-<script src="assets/js/ecosystem_bridge.js?v=<?php echo $BUILD_VER; ?>"></script>
+<script src="assets/js/ecosystem_bridge.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 
 <!-- 3. MODALS -->
 <?php include 'includes/modals.php'; ?>
 
 <!-- 4. COMPONENT AUTO-SYNC -->
-<script src="assets/js/component_sync.js?v=<?php echo $BUILD_VER; ?>"></script>
+<script src="assets/js/component_sync.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 
 <!-- 4b. OS MANAGER -->
-<script src="assets/js/os_manager.js?v=<?php echo $BUILD_VER; ?>"></script>
+<?php
+$__allowedJsPages = Permissions::allowedPages($currentUser['role'] ?? '');
+$__needDash = in_array('dash', $__allowedJsPages, true);
+$__needReports = in_array('reports', $__allowedJsPages, true);
+$__needKpi = in_array('kpi', $__allowedJsPages, true);
+$__needCatalog = in_array('catalog', $__allowedJsPages, true) || in_array('assets', $__allowedJsPages, true);
+?>
+<?php if ($__needDash): ?>
+<script src="assets/js/os_manager.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/os_agent_report.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/ai_ops_panel.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<?php endif; ?>
 
 <!-- 5. EXTRA (rotas, calculadoras) — depois do main para não sobrescrever api() -->
-<script src="assets/js/scripts_extra.js?v=<?php echo $BUILD_VER; ?>"></script>
-<script src="assets/js/lubricant_consumption_report.js?v=<?php echo $BUILD_VER; ?>"></script>
-<script src="assets/js/lubrication_plan_export.js?v=<?php echo $BUILD_VER; ?>"></script>
+<script src="assets/js/scripts_extra.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<?php if ($__needReports): ?>
+<script src="assets/js/lubricant_consumption_report.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<script src="assets/js/lubrication_plan_export.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<?php endif; ?>
 
 <!-- 6. MARKETPLACE -->
-<script src="assets/js/marketplace_intelligence.js?v=<?php echo $BUILD_VER; ?>"></script>
+<?php if ($__needCatalog): ?>
+<script src="assets/js/marketplace_intelligence.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<?php endif; ?>
 
 <!-- 7. RELIABILITY MONITOR -->
-<script src="assets/js/reliability_monitor.js?v=<?php echo $BUILD_VER; ?>"></script>
+<?php if ($__needKpi || $__needDash): ?>
+<script src="assets/js/reliability_monitor.js?v=<?php echo $BUILD_VER; ?>" defer></script>
+<?php endif; ?>
 
 <!-- 8. NEURAL ASSISTANT -->
-<script src="assets/js/neural_assistant.js?v=<?php echo $BUILD_VER; ?>"></script>
+<script src="assets/js/neural_assistant.js?v=<?php echo $BUILD_VER; ?>" defer></script>
 
 <!-- MODAL OBRIGATÓRIO DE TROCA DE SENHA (PRIMEIRO ACESSO) -->
 <div id="modal-troca-senha-obrigatoria" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="titulo-troca-senha">
@@ -337,14 +360,17 @@ foreach ($orderedRoutes as $routeKey => $routePath) {
         btn.textContent = 'Salvando...';
 
         try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
             const response = await fetch('api.php?action=change_password', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                headers: headers,
                 body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
             });
             const data = await response.json();
 
-            if (data.ok || data.success) {
+            if (response.ok && (data.ok || data.success)) {
                 if (window.currentUser) window.currentUser.password_reset_required = false;
                 document.body.classList.remove('password-reset-lock');
                 document.getElementById('modal-troca-senha-obrigatoria').classList.remove('active');
@@ -372,13 +398,18 @@ foreach ($orderedRoutes as $routeKey => $routePath) {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       const swScript = 'sw.js';
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (reg) {
+          if (reg.active && reg.active.scriptURL && reg.active.scriptURL.indexOf('service-worker.js') !== -1) {
+            reg.unregister();
+          }
+        });
+      });
       navigator.serviceWorker.register(swScript)
         .then(registration => {
           console.log('SW PWA Registrado:', registration.scope);
         })
-        .catch(err => {
-          navigator.serviceWorker.register('service-worker.js').catch(() => {});
-        });
+        .catch(() => {});
     });
   }
 </script>

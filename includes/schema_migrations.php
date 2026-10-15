@@ -33,7 +33,12 @@ class SchemaMigrations
             if (is_callable($fn)) {
                 $fn($pdo);
             }
-            $ins = $pdo->prepare('INSERT INTO schema_migrations (filename, applied_at) VALUES (?, datetime(\'now\'))');
+            $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            if ($driver === 'mysql') {
+                $ins = $pdo->prepare('INSERT INTO schema_migrations (filename, applied_at) VALUES (?, NOW())');
+            } else {
+                $ins = $pdo->prepare('INSERT INTO schema_migrations (filename, applied_at) VALUES (?, datetime(\'now\'))');
+            }
             $ins->execute([$name]);
             $applied[] = $name;
         }

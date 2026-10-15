@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/permissions.php';
 require_once __DIR__ . '/../includes/tenant.php';
 require_once __DIR__ . '/../includes/lubrication_tech_sync.php';
 require_once __DIR__ . '/../includes/grease_compatibility.php';
+require_once __DIR__ . '/../includes/lubrication_schedule.php';
 
 class AssetsController
 {
@@ -24,6 +25,29 @@ class AssetsController
     }
 
     private static $seeding = false;
+
+    /** @var array<int,int|null>|null id => pai_id */
+    private ?array $ativoParentMap = null;
+
+    private function getAtivoParentMap(): array
+    {
+        if ($this->ativoParentMap !== null) {
+            return $this->ativoParentMap;
+        }
+        $map = [];
+        try {
+            $stmt = $this->db->query('SELECT id, pai_id FROM ativos');
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $id = (int) $row['id'];
+                $pai = $row['pai_id'];
+                $map[$id] = ($pai === null || $pai === '') ? null : (int) $pai;
+            }
+        } catch (Exception $e) {
+            DB::logError($e);
+        }
+        $this->ativoParentMap = $map;
+        return $this->ativoParentMap;
+    }
 
     public function getTree()
     {
@@ -172,16 +196,14 @@ class AssetsController
     // Fix 1 Helper: Check for Cycle
     private function isDescendant($targetId, $potentialAncestorId)
     {
+        $map = $this->getAtivoParentMap();
         $current = $potentialAncestorId;
-        // Safety limit to prevent infinite loops if db is already corrupt
         $steps = 0;
         while ($current && $steps < 100) {
-            if ($current == $targetId)
+            if ((int) $current === (int) $targetId) {
                 return true;
-
-            $stmt = $this->db->prepare("SELECT pai_id FROM ativos WHERE id = ?");
-            $stmt->execute([$current]);
-            $current = $stmt->fetchColumn();
+            }
+            $current = $map[(int) $current] ?? null;
             $steps++;
         }
         return false;
@@ -345,6 +367,7 @@ class AssetsController
                 }
                 if ($newId) {
                     LubricationTechSync::syncAsset($db, (int) $newId);
+                    LubricationSchedule::refreshCadastroDates($db, (int) $newId);
                 }
             });
         }
@@ -392,6 +415,7 @@ class AssetsController
 
         $stmt = $this->db->prepare("UPDATE ativos SET pai_id = ? WHERE id = ?");
         $stmt->execute([$newParent, $id]);
+        $this->ativoParentMap = null;
         return ['ok' => true];
     }
 
@@ -450,16 +474,32 @@ class AssetsController
             $db = $this->db;
             $db->exec('PRAGMA foreign_keys = OFF');
             try {
+                $db->beginTransaction();
                 $ids = [];
                 $this->collectSubtreeIds($id, $ids);
-                $in = implode(',', array_map('intval', $ids));
-                if ($in !== '') {
-                    try { $db->exec("DELETE FROM pi_telemetry WHERE tag_id IN (SELECT id FROM pi_tags WHERE ativo_id IN ($in))"); } catch (Exception $x) {}
-                    try { $db->exec("DELETE FROM pi_tags WHERE ativo_id IN ($in)"); } catch (Exception $x) {}
-                    try { $db->exec("DELETE FROM ativos_lubrificacao WHERE ativo_id IN ($in)"); } catch (Exception $x) {}
-                    try { $db->exec("UPDATE ordens SET ativo_id = NULL WHERE ativo_id IN ($in)"); } catch (Exception $x) {}
-                    $db->exec("DELETE FROM ativos WHERE id IN ($in)");
+                require_once __DIR__ . '/../includes/db_dialect.php';
+                [$inPh, $idList] = DbDialect::placeholdersIn($ids);
+                if ($inPh !== '') {
+                    try {
+                        $db->prepare("DELETE FROM pi_telemetry WHERE tag_id IN (SELECT id FROM pi_tags WHERE ativo_id IN ($inPh))")->execute($idList);
+                    } catch (Exception $x) {}
+                    try {
+                        $db->prepare("DELETE FROM pi_tags WHERE ativo_id IN ($inPh)")->execute($idList);
+                    } catch (Exception $x) {}
+                    try {
+                        $db->prepare("DELETE FROM ativos_lubrificacao WHERE ativo_id IN ($inPh)")->execute($idList);
+                    } catch (Exception $x) {}
+                    try {
+                        $db->prepare("UPDATE ordens SET ativo_id = NULL WHERE ativo_id IN ($inPh)")->execute($idList);
+                    } catch (Exception $x) {}
+                    $db->prepare("DELETE FROM ativos WHERE id IN ($inPh)")->execute($idList);
                 }
+                $db->commit();
+            } catch (Exception $fallbackEx) {
+                if ($db->inTransaction()) {
+                    $db->rollBack();
+                }
+                throw $fallbackEx;
             } finally {
                 $db->exec('PRAGMA foreign_keys = ON');
             }
@@ -580,6 +620,7 @@ class AssetsController
                     }
                     if ($realId) {
                         LubricationTechSync::syncAsset($db, (int) $realId);
+                        LubricationSchedule::refreshCadastroDates($db, (int) $realId);
                     }
                     $count++;
 

@@ -1,0 +1,137 @@
+/* Acessibilidade global — foco, skip link, movimento reduzido, alto contraste opcional */
+
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    z-index: 1000000;
+    padding: 12px 20px;
+    background: #0284c7;
+    color: #fff;
+    font-weight: 700;
+    border-radius: 0 0 10px 10px;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.45);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+    left: 12px;
+    top: 0;
+    width: auto;
+    height: auto;
+    overflow: visible;
+}
+
+.sr-only,
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+:focus {
+    outline: none;
+}
+
+:focus-visible {
+    outline: 3px solid #0284c7;
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid #0284c7;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+body.theme-high-contrast {
+    --text-main: #000;
+    --text-muted: #1a1a1a;
+    --border: #000;
+    --primary: #0047ab;
+    --bg-card: #fff;
+    --bg-body: #fff;
+}
+
+body.theme-high-contrast .st-pill {
+    border: 2px solid currentColor !important;
+    font-weight: 800 !important;
+}
+
+.dash-table-scroll {
+    position: relative;
+}
+
+.dash-table-scroll.is-scrollable::after {
+    content: "Role para ver mais ordens";
+    display: block;
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 6px;
+    background: linear-gradient(transparent, var(--bg-card));
+    pointer-events: none;
+}
+
+.os-loading-row td {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.status-pill-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-pill-inner .status-icon {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.topbar-a11y-btn {
+    min-width: 44px;
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: #475569;
+}
+
+.topbar-a11y-btn[aria-pressed="true"] {
+    background: #0f172a;
+    color: #fff;
+    border-color: #0f172a;
+}

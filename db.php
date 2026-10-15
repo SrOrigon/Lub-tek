@@ -52,6 +52,7 @@ class DB
                 $this->pdo->exec("CREATE TABLE IF NOT EXISTS tenant_api_keys (
                     api_key TEXT PRIMARY KEY,
                     tenant_slug TEXT UNIQUE NOT NULL,
+                    scope TEXT NOT NULL DEFAULT 'full',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )");
             }
@@ -315,6 +316,22 @@ class DB
         }
         catch (Exception $e) {
             error_log("Index optimization failed: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Otimiza estatísticas de índices e query planner do SQLite
+     */
+    public static function optimize(?string $tenant = null): bool
+    {
+        try {
+            $pdo = self::getInstance($tenant);
+            $pdo->exec('PRAGMA optimize;');
+            $pdo->exec('PRAGMA wal_checkpoint(PASSIVE);');
+            return true;
+        } catch (Exception $e) {
+            error_log('DB::optimize failed: ' . $e->getMessage());
+            return false;
         }
     }
 
@@ -893,8 +910,12 @@ class DB
             }
 
             // Move Orphans
-            $inQuery = implode(',', array_map('intval', $orphans));
-            $pdo->exec("UPDATE ativos SET pai_id = $rootId WHERE id IN ($inQuery)");
+            require_once __DIR__ . '/includes/db_dialect.php';
+            [$inQuery, $ids] = DbDialect::placeholdersIn($orphans);
+            if ($inQuery !== '') {
+                $stmt = $pdo->prepare("UPDATE ativos SET pai_id = ? WHERE id IN ($inQuery)");
+                $stmt->execute(array_merge([(int) $rootId], $ids));
+            }
 
             // Log this fix
             self::log('SYSTEM', 'AUTO_FIX', 'tree_integrity', null, ['moved_orphans' => count($orphans), 'target_root' => $rootId]);

@@ -228,36 +228,73 @@ class Permissions
             'get_kpis', 'get_stats', 'get_dash_stats', 'get_sync_revision',
             'get_plans', 'get_lubricant_consumption',
             'suggest_lubrication', 'calc_bearing', 'calc_dn', 'calc_viscosity', 'calc_kappa', 'calc_bushing',
-            'calc_filtering', 'search_engineering_catalog',
+            'calc_filtering', 'search_engineering_catalog', 'get_grease_guns', 'calc_grease_strokes',
             'get_analysis_history', 'generate_checklist_report',
             'get_lubrication_plan_meta', 'get_lubrication_plan_chunk', 'render_lubrication_plan_cover',
-            'ask_neural', 'get_neural_context', 'neural_predict', 'get_asset_reliability',
+            'ask_neural', 'get_neural_context',             'neural_predict', 'get_asset_reliability', 'save_agent_feedback',
         ];
     }
+    /** Gestor — operação da planta (sem wipe/cleanup global de developer) */
+    public static function gestorApiWhitelist(): array
+    {
+        return array_values(array_unique(array_merge(
+            self::clienteApiWhitelist(),
+            self::trabalhadorApiWhitelist(),
+            [
+                'save_asset', 'delete_asset', 'save_catalog_item', 'delete_catalog_item', 'delete_task',
+                'generate_scheduled_orders', 'run_work_order_agent', 'get_work_order_agent_report',
+                'get_users', 'save_user', 'delete_user', 'save_plan', 'delete_plan',
+                'get_market_data', 'save_market_offer', 'delete_market_offer', 'get_market_stats',
+                'save_grease_gun', 'get_pi_tags', 'save_pi_tag', 'delete_pi_tag', 'get_pi_telemetry',
+                'sap_import_orders', 'sap_import_materials', 'sap_export_orders', 'sap_export_assets', 'sap_export_materials',
+                'save_branding', 'get_audit_logs', 'get_tenant_api_key', 'rotate_tenant_api_key',
+                'save_snapshot', 'save_3d_view', 'upload_model', 'apply_machine_template', 'migrate',
+                'neural_generate_os', 'neural_diagnose', 'lubria_excel_mapper', 'save_agent_feedback',
+                'get_ai_usage_summary', 'get_agent_feedback_stats',
+            ]
+        )));
+    }
+
     public static function trabalhadorApiWhitelist(): array
     {
         return [
             'login', 'logout',
             'get_tree', 'get_catalog', 'get_tasks', 'get_asset_timeline', 'get_thickener',
             'save_task', 'suggest_lubrication', 'calc_bearing', 'calc_dn', 'calc_viscosity', 'calc_kappa', 'calc_bushing',
-            'calc_filtering', 'search_engineering_catalog',
+            'calc_filtering', 'search_engineering_catalog', 'get_grease_guns', 'calc_grease_strokes',
             'get_analysis_history', 'generate_checklist_report', 'ask_neural', 'get_neural_context',
             'get_lubrication_plan_meta', 'get_lubrication_plan_chunk', 'render_lubrication_plan_cover',
             'get_lubricant_consumption',
             'neural_predict', 'get_asset_reliability', 'get_sync_revision',
             'set_asset_status', 'report_route_alert', 'change_password', 'upload_image', 'update_asset_image', 'get_stats', 'get_dash_stats',
-            'import_analysis_csv', 'save_analysis',
+            'import_analysis_csv', 'save_analysis', 'save_agent_feedback',
         ];
     }
 
-    /** Gateway IoT / Power BI — privilégio mínimo (nunca developer) */
-    public static function gatewayApiWhitelist(): array
+    /** Gateway IoT — escrita telemetria / ativos / ordens */
+    public static function iotGatewayApiWhitelist(): array
     {
         return [
             'receive_pi_telemetry', 'pi_ai_diagnose', 'save_asset', 'save_order', 'update_order_status', 'save_task',
+        ];
+    }
+
+    /** Gateway Power BI — somente leitura */
+    public static function powerbiGatewayApiWhitelist(): array
+    {
+        return [
             'powerbi_kpis', 'powerbi_orders', 'powerbi_telemetry', 'powerbi_assets', 'powerbi_audit',
             'powerbi', 'powerbi_all',
         ];
+    }
+
+    /** @deprecated Use iotGatewayApiWhitelist ou powerbiGatewayApiWhitelist */
+    public static function gatewayApiWhitelist(): array
+    {
+        return array_values(array_unique(array_merge(
+            self::iotGatewayApiWhitelist(),
+            self::powerbiGatewayApiWhitelist()
+        )));
     }
 
     public static function isGatewayRole(?string $role): bool
@@ -270,8 +307,11 @@ class Permissions
     {
         $role = strtolower(trim($role));
 
-        if (self::isGatewayRole($role)) {
-            return in_array($action, self::gatewayApiWhitelist(), true);
+        if ($role === 'iot_gateway') {
+            return in_array($action, self::iotGatewayApiWhitelist(), true);
+        }
+        if ($role === 'powerbi_reader') {
+            return in_array($action, self::powerbiGatewayApiWhitelist(), true);
         }
 
         if (self::isDeveloper($role)) {
@@ -279,10 +319,7 @@ class Permissions
         }
 
         if (self::isGestor($role)) {
-            if (in_array($action, ['wipe_db', 'cleanup_sem_nome'], true)) {
-                return false;
-            }
-            return true;
+            return in_array($action, self::gestorApiWhitelist(), true);
         }
 
         if (self::isCliente($role)) {

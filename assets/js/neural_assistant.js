@@ -146,14 +146,27 @@
     }
 
     async function neuralApi(action, payload) {
+        if (typeof LubtekApi !== 'undefined' && LubtekApi.post) {
+            try {
+                const data = await LubtekApi.post(action, payload || {});
+                if (data && typeof data === 'object') {
+                    return Object.assign({ ok: true, success: true }, data);
+                }
+                return data;
+            } catch (e) {
+                return null;
+            }
+        }
         const url = (window.API_URL || 'api.php') + '?action=' + action;
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 30000);
         try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
             const res = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify(payload || {}),
                 signal: controller.signal
             });
@@ -162,7 +175,7 @@
                 return null;
             }
             const json = await res.json();
-            if (!json.ok) return null;
+            if (!res.ok || (json.success === false) || (json.ok === false)) return null;
             if (json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
                 return Object.assign({}, json.data, json);
             }

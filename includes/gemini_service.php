@@ -5,6 +5,10 @@
 
 require_once __DIR__ . '/neural_knowledge.php';
 require_once __DIR__ . '/ai_cache.php';
+require_once __DIR__ . '/ai_usage_logger.php';
+require_once __DIR__ . '/agent_routing.php';
+require_once __DIR__ . '/logger.php';
+require_once __DIR__ . '/../db.php';
 
 class GeminiService
 {
@@ -68,9 +72,8 @@ class GeminiService
         if (!isset($_SESSION['gemini_rate_limit']) || ($now - (int) ($_SESSION['gemini_rate_limit']['start'] ?? 0)) >= 60) {
             $_SESSION['gemini_rate_limit'] = ['count' => 0, 'start' => $now];
         }
-        $_SESSION['gemini_rate_limit']['count']++;
-
-        if ($_SESSION['gemini_rate_limit']['count'] > $limit) {
+        $nextCount = (int) ($_SESSION['gemini_rate_limit']['count'] ?? 0) + 1;
+        if ($nextCount > $limit) {
             return [
                 'error' => 'Limite de requisições IA atingido. Aguarde 1 minuto e tente novamente.',
                 'text' => null,
@@ -79,10 +82,11 @@ class GeminiService
             ];
         }
 
+        $_SESSION['gemini_rate_limit']['count'] = $nextCount;
         return null;
     }
 
-    public function ask($prompt, $systemInstruction = null, $jsonMode = false, $maxTokens = null, $forceRefresh = false)
+    public function ask($prompt, $systemInstruction = null, $jsonMode = false, $maxTokens = null, $forceRefresh = false, $feature = 'gemini')
     {
         if ($systemInstruction === null) {
             $systemInstruction = $this->getDefaultSystemPrompt();
@@ -105,8 +109,29 @@ class GeminiService
             if (is_array($hit) && !empty($hit['text'])) {
                 $hit['cached'] = true;
                 $hit['source'] = $hit['source'] ?? 'gemini';
+                $this->logUsage($feature, [
+                    'model' => $this->model,
+                    'cache_hit' => true,
+                    'source' => 'gemini_cache',
+                    'tokens_in' => 0,
+                    'tokens_out' => 0,
+                    'latency_ms' => 0,
+                ]);
                 return $hit;
             }
+        }
+
+        try {
+            $pdo = DB::getInstance();
+            if (AiUsageLogger::isDailyBudgetExceeded($pdo)) {
+                return [
+                    'error' => 'Orçamento diário de IA do tenant atingido. Tente amanhã ou use respostas locais.',
+                    'text' => null,
+                    'source' => 'budget',
+                ];
+            }
+        } catch (Exception $e) {
+            // segue sem bloquear se DB indisponível
         }
 
         $rateErr = self::checkRateLimit();
@@ -121,6 +146,15 @@ class GeminiService
                 ? (defined('AI_CACHE_TTL_JSON') ? AI_CACHE_TTL_JSON : AiCache::JSON_TTL)
                 : (defined('AI_CACHE_TTL') ? AI_CACHE_TTL : AiCache::DEFAULT_TTL);
             AiCache::set($cacheKey, ['text' => $result['text'], 'source' => 'gemini'], (int) $ttl);
+            $this->logUsage($feature, [
+                'model' => $this->model,
+                'cache_hit' => false,
+                'source' => 'gemini',
+                'tokens_in' => (int) ($result['tokens_in'] ?? 0),
+                'tokens_out' => (int) ($result['tokens_out'] ?? 0),
+                'latency_ms' => (int) ($result['latency_ms'] ?? 0),
+                'prompt_version' => $result['prompt_version'] ?? null,
+            ]);
         }
         return $result;
     }
@@ -134,8 +168,8 @@ class GeminiService
         $page = $context['page'] ?? 'home';
         $guide = NeuralKnowledge::getModuleGuide($page);
 
-        // Perguntas operacionais → sempre local (economia de tokens)
-        if (NeuralKnowledge::shouldUseLocalFirst($prompt)) {
+        // Sem opt-in explícito → guia local (perguntas de navegação) ou dica
+        if (AgentRouting::shouldUseLocalOnly($prompt, $forceAi)) {
             $localText = NeuralKnowledge::getLocalAnswer($prompt, $context);
             return [
                 'text' => $localText,
@@ -145,7 +179,6 @@ class GeminiService
             ];
         }
 
-        // Sem opt-in explícito → guia local + dica (não chama Gemini automaticamente)
         if (!$forceAi) {
             $localText = NeuralKnowledge::getLocalAnswer($prompt, $context);
             return [
@@ -228,7 +261,8 @@ class GeminiService
 
     private function getDefaultSystemPrompt()
     {
-        return "Você é a Lúbria, Inteligência Artificial Orquestradora e Engenheira Chefe de Confiabilidade do sistema LUB-TEK. Sua missão é auxiliar engenheiros, gestores e lubrificadores industriais com precisão técnica absoluta. Use terminologia industrial real (fator DN, ISO VG, NLGI, Polichemia, Sulfonato de Cálcio, CBM), focando em prevenção de falhas e diagnósticos práticos.";
+        require_once __DIR__ . '/prompt_registry.php';
+        return PromptRegistry::get('lubria_assistant_core');
     }
 
     public function askWithContext($prompt, $context = [])
@@ -266,8 +300,18 @@ class GeminiService
         return ['insight' => 'Sistema estável.', 'recommendation' => 'Manter monitoramento.', 'severity' => 'optimal'];
     }
 
+    private function logUsage(string $feature, array $meta): void
+    {
+        try {
+            AiUsageLogger::log(DB::getInstance(), $feature, $meta);
+        } catch (Exception $e) {
+            error_log('GeminiService logUsage: ' . $e->getMessage());
+        }
+    }
+
     private function request($prompt, $systemInstruction, $mimeType, $maxTokens)
     {
+        $started = microtime(true);
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent";
 
         $payload = [
@@ -298,12 +342,14 @@ class GeminiService
         curl_close($ch);
 
         if ($curlError) {
+            Logger::error('gemini_curl_error', ['error' => $curlError, 'feature' => 'gemini']);
             return ['error' => 'Falha de conexao', 'text' => null];
         }
 
         if ($httpCode !== 200) {
             $body = json_decode($response, true);
             $msg = $body['error']['message'] ?? "Erro API ($httpCode)";
+            Logger::error('gemini_http_error', ['http' => $httpCode, 'message' => $msg]);
             return ['error' => $msg, 'text' => null];
         }
 
@@ -314,7 +360,13 @@ class GeminiService
             return ['error' => 'Resposta vazia', 'text' => null];
         }
 
-        return ['text' => trim($candidate['content']['parts'][0]['text'])];
+        $usage = $result['usageMetadata'] ?? [];
+        return [
+            'text' => trim($candidate['content']['parts'][0]['text']),
+            'tokens_in' => (int) ($usage['promptTokenCount'] ?? 0),
+            'tokens_out' => (int) ($usage['candidatesTokenCount'] ?? 0),
+            'latency_ms' => (int) round((microtime(true) - $started) * 1000),
+        ];
     }
 
     /** Extrai JSON mesmo quando a IA envolve em ```json ... ``` ou texto extra. */

@@ -80,16 +80,41 @@ class AiCache
      */
     public static function plantRevision($pdo): string
     {
+        require_once __DIR__ . '/db_dialect.php';
         $bits = [
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || COALESCE(SUM(length(COALESCE(dados_tecnicos,''))),0) || ':' || COALESCE(SUM(length(COALESCE(status,''))),0) FROM ativos"),
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || COALESCE(MAX(last_sync),'') || ':' || SUM(CASE WHEN situacao = 'Concluído' THEN 1 ELSE 0 END) FROM ordens"),
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || COALESCE(SUM(length(COALESCE(specs,''))),0) || ':' || COALESCE(SUM(estoque_atual),0) FROM catalogo"),
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || COALESCE(SUM(quantidade),0) FROM planos"),
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || COALESCE(SUM(price),0) FROM mercado_ofertas"),
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) FROM analises"),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'ativos', [
+                'COUNT(*)', "':'", 'COALESCE(MAX(id),0)', "':'",
+                "COALESCE(SUM(length(COALESCE(dados_tecnicos,''))),0)", "':'",
+                "COALESCE(SUM(length(COALESCE(status,''))),0)",
+            ])),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'ordens', [
+                'COUNT(*)', "':'", 'COALESCE(MAX(id),0)', "':'",
+                "COALESCE(MAX(last_sync),'')", "':'",
+                "SUM(CASE WHEN situacao = 'Concluído' THEN 1 ELSE 0 END)",
+            ])),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'catalogo', [
+                'COUNT(*)', "':'", 'COALESCE(MAX(id),0)', "':'",
+                "COALESCE(SUM(length(COALESCE(specs,''))),0)", "':'",
+                'COALESCE(SUM(estoque_atual),0)',
+            ])),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'planos', [
+                'COUNT(*)', "':'", 'COALESCE(MAX(id),0)', "':'", 'COALESCE(SUM(quantidade),0)',
+            ])),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'mercado_ofertas', [
+                'COUNT(*)', "':'", 'COALESCE(MAX(id),0)', "':'", 'COALESCE(SUM(price),0)',
+            ])),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'analises', [
+                'COUNT(*)', "':'", 'COALESCE(MAX(id),0)',
+            ])),
         ];
 
         return hash('sha256', implode('|', $bits));
+    }
+
+    private static function revConcat(PDO $pdo, string $table, array $parts): string
+    {
+        require_once __DIR__ . '/db_dialect.php';
+        return DbDialect::concat($pdo, $parts) . ' FROM ' . $table;
     }
 
     /**
@@ -98,8 +123,8 @@ class AiCache
     public static function piRevision($pdo): string
     {
         $bits = [
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) FROM pi_tags"),
-            self::scalar($pdo, "SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) FROM pi_telemetry"),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'pi_tags', ['COUNT(*)', "':'", 'COALESCE(MAX(id),0)'])),
+            self::scalar($pdo, 'SELECT ' . self::revConcat($pdo, 'pi_telemetry', ['COUNT(*)', "':'", 'COALESCE(MAX(id),0)'])),
         ];
 
         return hash('sha256', implode('|', $bits));

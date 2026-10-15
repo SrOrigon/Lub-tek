@@ -13,10 +13,11 @@ require_once 'includes/gemini_service.php';
 require_once 'includes/ai_cache.php';
 require_once 'includes/upload_helper.php';
 require_once 'includes/event_dispatcher.php';
+require_once 'includes/csrf_guard.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-API-KEY');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-API-KEY, X-CSRF-TOKEN');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: no-referrer');
@@ -99,11 +100,21 @@ class RodrigoAPI
         if ($this->iotApiKeyProvided && in_array($this->action, $gatewayActions, true)) {
             try {
                 $masterPdo = DB::getMaster();
-                $stmt = $masterPdo->prepare("SELECT tenant_slug FROM tenant_api_keys WHERE api_key = ?");
+                $stmt = $masterPdo->prepare("SELECT tenant_slug, scope FROM tenant_api_keys WHERE api_key = ?");
                 $stmt->execute([$apiKey]);
-                $tenantSlug = $stmt->fetchColumn();
+                $keyRow = $stmt->fetch(PDO::FETCH_ASSOC);
+                $tenantSlug = $keyRow['tenant_slug'] ?? false;
+                $keyScope = strtolower(trim((string) ($keyRow['scope'] ?? 'full')));
 
                 if ($tenantSlug) {
+                    $needsIot = in_array($this->action, $iotActions, true);
+                    $needsBi = in_array($this->action, $powerbiActions, true);
+                    $scopeAllowsIot = in_array($keyScope, ['full', 'iot_write'], true);
+                    $scopeAllowsBi = in_array($keyScope, ['full', 'bi_read'], true);
+                    if (($needsIot && !$scopeAllowsIot) || ($needsBi && !$scopeAllowsBi)) {
+                        $this->error('Esta chave X-API-KEY não possui escopo para esta operação.', 403);
+                    }
+
                     $this->isStatelessIoT = true;
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_write_close();
@@ -155,6 +166,19 @@ class RodrigoAPI
                 $this->error('Acesso ao gateway requer header X-API-KEY válido.', 401);
             }
             $this->error('Sessão expirada ou não autenticada.', 401);
+        }
+
+        // 5.5. SECURITY: CSRF GUARD PARA SESSÕES AUTENTICADAS EM REQUISIÇÕES MUTATÓRIAS
+        if (!$this->isStatelessIoT && $this->user && in_array($_SERVER['REQUEST_METHOD'] ?? '', ['POST', 'PUT', 'DELETE'], true)) {
+            $exemptActions = ['login', 'logout', 'receive_pi_telemetry'];
+            if (!in_array($this->action, $exemptActions, true)) {
+                $csrfHeader = $_SERVER['HTTP_X_CSRF_TOKEN']
+                    ?? $_SERVER['HTTP_X_XSRF_TOKEN']
+                    ?? ($_POST['csrf_token'] ?? null);
+                if (!CsrfGuard::validate($csrfHeader)) {
+                    $this->error('Validação CSRF falhou. Requisição não autorizada.', 403);
+                }
+            }
         }
 
         // 6. INPUT PARSING (early returns for login/logout)
@@ -239,17 +263,8 @@ class RodrigoAPI
             // Conecta ao banco master centralizado para armazenar logs de rate limits globais
             $masterPdo = DB::getMaster();
             
-            // Migração defensiva: se a tabela legado existir com coluna 'ip' em vez de 'ip_key', ajusta o esquema
-            $cols = $masterPdo->query("PRAGMA table_info(rate_limits)")->fetchAll(PDO::FETCH_COLUMN, 1);
-            if (!empty($cols) && !in_array('ip_key', $cols, true)) {
-                $masterPdo->exec("DROP TABLE rate_limits");
-            }
-
-            $masterPdo->exec("CREATE TABLE IF NOT EXISTS rate_limits (
-                ip_key TEXT PRIMARY KEY,
-                count INTEGER NOT NULL DEFAULT 0,
-                window_start INTEGER NOT NULL
-            )");
+            require_once __DIR__ . '/includes/rate_limit_store.php';
+            RateLimitStore::ensureTable($masterPdo);
 
             $isAuth = !empty($this->user);
             $userId = $this->user['id'] ?? 'guest';
@@ -366,125 +381,11 @@ class RodrigoAPI
 
     private function dispatch()
     {
-        // ROUTING TABLE: Map actions to [ControllerFile, ControllerClass, Method]
-        $routes = [
-            // Assets
-            'get_tree' => ['api/AssetsController.php', 'AssetsController', 'getTree'],
-            'save_asset' => ['api/AssetsController.php', 'AssetsController', 'saveAsset'],
-            'save_asset_batch' => ['api/AssetsController.php', 'AssetsController', 'saveBatch'],
-            'move_asset' => ['api/AssetsController.php', 'AssetsController', 'moveAsset'],
-            'delete_asset' => ['api/AssetsController.php', 'AssetsController', 'deleteAsset'],
-            'get_asset_timeline' => ['api/AssetsController.php', 'AssetsController', 'getTimeline'],
-
-            // Inventory / Catalog
-            'get_catalog' => ['api/InventoryController.php', 'InventoryController', 'getCatalog'],
-            'save_catalog_item' => ['api/InventoryController.php', 'InventoryController', 'saveItem'],
-            'delete_catalog_item' => ['api/InventoryController.php', 'InventoryController', 'deleteItem'],
-
-            // Orders / Tasks
-            'get_tasks' => ['api/OrdersController.php', 'OrdersController', 'getTasks'],
-            'save_task' => ['api/OrdersController.php', 'OrdersController', 'saveTask'],
-            'save_order' => ['api/OrdersController.php', 'OrdersController', 'saveTask'], // Alias IoT
-            'update_order_status' => ['api/OrdersController.php', 'OrdersController', 'saveTask'], // Alias IoT
-            'delete_task' => ['api/OrdersController.php', 'OrdersController', 'deleteTask'],
-            'generate_scheduled_orders' => ['api/OrdersController.php', 'OrdersController', 'generateScheduledOrders'],
-
-            // Users
-            'get_users' => ['api/UsersController.php', 'UsersController', 'getAll'],
-            'save_user' => ['api/UsersController.php', 'UsersController', 'saveUser'],
-            'delete_user' => ['api/UsersController.php', 'UsersController', 'deleteUser'],
-
-            // Plans
-            'get_plans' => ['api/PlansController.php', 'PlansController', 'getPlans'],
-            'save_plan' => ['api/PlansController.php', 'PlansController', 'savePlan'],
-            'delete_plan' => ['api/PlansController.php', 'PlansController', 'deletePlan'],
-
-            // Marketplace
-            'get_market_data' => ['api/MarketController.php', 'MarketController', 'getMarketData'],
-            'save_market_offer' => ['api/MarketController.php', 'MarketController', 'saveOffer'],
-            'delete_market_offer' => ['api/MarketController.php', 'MarketController', 'deleteOffer'],
-            'get_market_stats' => ['api/MarketController.php', 'MarketController', 'getStats'],
-
-            // KPI & Engineering
-            'get_kpis' => ['api/KPIController.php', 'KPIController', 'getDashboardKPIs'],
-            'suggest_lubrication' => ['api/EngineeringController.php', 'EngineeringController', 'handleSuggestLubrication'],
-            'calc_bearing' => ['api/EngineeringController.php', 'EngineeringController', 'handleSuggestLubrication'], // Alias
-            'calc_dn' => ['api/EngineeringController.php', 'EngineeringController', 'handleCalcDN'],
-            'calc_viscosity' => ['api/EngineeringController.php', 'EngineeringController', 'handleCalcViscosity'],
-            'calc_kappa' => ['api/EngineeringController.php', 'EngineeringController', 'handleCalcKappa'],
-            'calc_bushing' => ['api/EngineeringController.php', 'EngineeringController', 'handleCalcBushing'],
-            'calc_filtering' => ['api/EngineeringController.php', 'EngineeringController', 'handleCalcFiltering'],
-            'search_engineering_catalog' => ['api/EngineeringController.php', 'EngineeringController', 'handleSearchCatalog'],
-            'get_lubricant_consumption' => ['api/ReportsController.php', 'ReportsController', 'getLubricantConsumption'],
-
-            // Plano de Lubrificação (PDF/HTML)
-            'get_lubrication_plan_meta' => ['api/PdfController.php', 'PdfController', 'getLubricationPlanMeta'],
-            'get_lubrication_plan_chunk' => ['api/PdfController.php', 'PdfController', 'getLubricationPlanChunk'],
-            'render_lubrication_plan_cover' => ['api/PdfController.php', 'PdfController', 'renderLubricationPlanCover'],
-
-            // PI System (Telemetry & CBM)
-            'get_pi_tags' => ['api/PIController.php', 'PIController', 'getPITags'],
-            'save_pi_tag' => ['api/PIController.php', 'PIController', 'savePITag'],
-            'delete_pi_tag' => ['api/PIController.php', 'PIController', 'deletePITag'],
-            'get_pi_telemetry' => ['api/PIController.php', 'PIController', 'getTelemetry'],
-            'receive_pi_telemetry' => ['api/PIController.php', 'PIController', 'receiveTelemetry'],
-            'pi_ai_diagnose' => ['api/PIController.php', 'PIController', 'aiDiagnose'],
-
-            // SAP ERP Integration Actions
-            'sap_import_orders' => ['api/SAPController.php', 'SAPController', 'importOrders'],
-            'sap_import_materials' => ['api/SAPController.php', 'SAPController', 'importMaterials'],
-            'sap_export_orders' => ['api/SAPController.php', 'SAPController', 'exportOrders'],
-            'sap_export_assets' => ['api/SAPController.php', 'SAPController', 'exportAssets'],
-            'sap_export_materials' => ['api/SAPController.php', 'SAPController', 'exportMaterials'],
-
-            // Power BI Integration Actions
-            'powerbi' => ['api/PowerBIController.php', 'PowerBIController', 'getOrders'],
-            'powerbi_all' => ['api/PowerBIController.php', 'PowerBIController', 'getOrders'],
-            'powerbi_kpis' => ['api/PowerBIController.php', 'PowerBIController', 'getKPIs'],
-            'powerbi_orders' => ['api/PowerBIController.php', 'PowerBIController', 'getOrders'],
-            'powerbi_telemetry' => ['api/PowerBIController.php', 'PowerBIController', 'getTelemetry'],
-            'powerbi_assets' => ['api/PowerBIController.php', 'PowerBIController', 'getAssets'],
-            'powerbi_audit' => ['api/PowerBIController.php', 'PowerBIController', 'getAudit'],
-
-            // Neural Engine
-            'neural_predict' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'predictAsset'],
-            'neural_generate_os' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'generateOS'],
-            'neural_diagnose' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'diagnoseSystem'],
-
-            // Internal / Legacy (Keep method binding)
-            'save_branding' => [null, null, 'handle_save_branding'],
-            'get_tenant_branding' => [null, null, 'handle_get_tenant_branding'],
-            'get_audit_logs' => [null, null, 'handle_get_audit_logs'],
-            'get_tenant_api_key' => [null, null, 'handle_get_tenant_api_key'],
-            'rotate_tenant_api_key' => [null, null, 'handle_rotate_tenant_api_key'],
-            'login' => [null, null, 'handle_login'],
-            'logout' => [null, null, 'handle_logout'],
-            'change_password' => [null, null, 'handle_change_password'],
-            'get_stats' => [null, null, 'handle_get_stats'],
-            'get_dash_stats' => [null, null, 'handle_get_stats'], // Alias
-            'get_sync_revision' => [null, null, 'handle_get_sync_revision'],
-            'get_asset_reliability' => [null, null, 'handle_get_asset_reliability'], // AI/Reliability
-            'wipe_db' => [null, null, 'handle_wipe_db'],
-            'save_snapshot' => [null, null, 'handle_save_snapshot'],
-            'list_mockups' => [null, null, 'handle_list_mockups'], // New 3D Mockup Route
-            'cleanup_sem_nome' => [null, null, 'handle_cleanup_sem_nome'],
-            'save_3d_view' => [null, null, 'handle_save_3d_view'],
-            'upload_model' => [null, null, 'handle_upload_model'],
-            'upload_image' => [null, null, 'handle_upload_image'],
-            'update_asset_image' => [null, null, 'handle_update_asset_image'],
-            'set_asset_status' => [null, null, 'handle_set_asset_status'],
-            'report_route_alert' => [null, null, 'handle_report_route_alert'],
-            'get_thickener' => [null, null, 'handle_get_thickener'],
-            'apply_machine_template' => [null, null, 'handle_apply_machine_template'],
-            'migrate' => [null, null, 'handle_migrate'],
-            'ask_neural' => [null, null, 'handle_ask_neural'],
-            'lubria_excel_mapper' => [null, null, 'handle_lubria_excel_mapper'],
-            'get_neural_context' => [null, null, 'handle_get_neural_context'],
-            'save_analysis' => [null, null, 'handle_save_analysis'],
-            'import_analysis_csv' => [null, null, 'handle_import_analysis_csv'],
-            'get_analysis_history' => [null, null, 'handle_get_analysis_history'],
-            'generate_checklist_report' => [null, null, 'handle_generate_checklist_report'],
-        ];
+        require_once __DIR__ . '/api/ApiRouteRegistry.php';
+        $routes = ApiRouteRegistry::routes();
+        foreach (ApiRouteRegistry::internalRoutes() as $action => $handler) {
+            $routes[$action] = [null, null, $handler];
+        }
 
         try {
             if (empty($this->action)) {
@@ -635,11 +536,14 @@ class RodrigoAPI
             }
         }
 
-        $response = ['ok' => true];
+        $response = ['success' => true, 'ok' => true];
         if ($isList) {
             $response['data'] = $data;
         } elseif (!empty($data)) {
             $response = array_merge($response, $data);
+            if (!isset($response['success'])) {
+                $response['success'] = true;
+            }
         }
 
         if (!empty($extra))

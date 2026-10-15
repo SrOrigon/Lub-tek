@@ -1,0 +1,10 @@
+[
+  {"id": "weights-os-01", "section": "os_agent", "key": "overdue_day_score", "expect_type": "float", "expect_min": 0.5, "expect_max": 10},
+  {"id": "weights-os-02", "section": "os_agent", "key": "critical_bonus", "expect_type": "float", "expect_min": 5, "expect_max": 50},
+  {"id": "weights-os-03", "section": "os_agent", "key": "high_bonus", "expect_type": "float", "expect_min": 0, "expect_max": 30},
+  {"id": "weights-os-04", "section": "os_agent", "key": "medium_bonus", "expect_type": "float", "expect_min": 0, "expect_max": 20},
+  {"id": "weights-neural-01", "section": "neural_risk", "key": "base", "expect_type": "float", "expect_min": 5, "expect_max": 40},
+  {"id": "weights-neural-02", "section": "neural_risk", "key": "corrective_ratio_multiplier", "expect_type": "float", "expect_min": 20, "expect_max": 100},
+  {"id": "weights-neural-03", "section": "neural_risk", "key": "mtbf_penalty_max", "expect_type": "float", "expect_min": 5, "expect_max": 40},
+  {"id": "weights-neural-04", "section": "neural_risk", "key": "oil_alert_bonus", "expect_type": "float", "expect_min": 1, "expect_max": 25}
+]

@@ -11,7 +11,10 @@
 // define('GEMINI_API_KEY', 'SUA_CHAVE_AQUI');
 
 // Modelo recomendado (rápido e econômico)
-// define('GEMINI_MODEL', 'gemini-2.5-flash');
+// define('GEMINI_MODEL', 'gemini-flash-latest');
+
+// Versão estável de assets (cache busting no deploy — incremente ao publicar)
+// define('LUBTEK_BUILD', '3.4.1');
 
 // Modo debug — NUNCA true em produção (vaza caminhos e mensagens internas)
 // define('DEBUG_MODE', false);

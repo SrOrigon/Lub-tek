@@ -173,7 +173,9 @@ const NOMBRES_AMIGAVEIS_PAGINAS = {
     audit: 'Histórico de Atividades',
     '3d': 'Visualizador 3D',
     pi: 'Sensores em Tempo Real',
-    sap: 'Integração SAP'
+    sap: 'Integração SAP',
+    orders: 'Ordens de Serviço',
+    dash: 'Ordens de Serviço'
 };
 window.NOMBRES_AMIGAVEIS_PAGINAS = NOMBRES_AMIGAVEIS_PAGINAS;
 
@@ -188,18 +190,23 @@ function atualizarTituloBreadcrumb(viewId, assetName) {
     }
 
     const label = NOMBRES_AMIGAVEIS_PAGINAS[viewId] || 'LUB-TEK';
+    const safeLabel = typeof escapeHtml === 'function' ? escapeHtml(label) : label;
     if (assetName) {
-        trail.innerHTML = `<strong id="breadcrumb-page-title">${label}</strong> › ${String(assetName).replace(/</g, '&lt;')}`;
+        const safeName = typeof escapeHtml === 'function' ? escapeHtml(assetName) : String(assetName).replace(/</g, '&lt;');
+        trail.innerHTML = `<strong id="breadcrumb-page-title">${safeLabel}</strong> › ${safeName}`;
     } else if (titleEl) {
         titleEl.textContent = label;
     } else {
-        trail.innerHTML = `<strong id="breadcrumb-page-title">${label}</strong>`;
+        trail.innerHTML = `<strong id="breadcrumb-page-title">${safeLabel}</strong>`;
     }
 }
 window.atualizarTituloBreadcrumb = atualizarTituloBreadcrumb;
 
 // --- NAVIGATION ENGINE (SPA Mode) ---
 window.__navReady = function(viewId, btn, isPopState = false) {
+    if (viewId === 'orders') {
+        viewId = 'dash';
+    }
     if (viewId === '3d') {
         window.location.href = '?page=3d';
         return;
@@ -308,9 +315,24 @@ function hasPerm(key) {
     return val === true || val === 'read_only' || val === 'basic';
 }
 
+function normalizeRoleFrontend(role) {
+    return String(role || 'trabalhador').toLowerCase().trim();
+}
+
+/** Gestor/supervisor/admin da empresa (não inclui developer global). */
 function isGestorUser() {
-    const role = (window.currentUser && window.currentUser.role) ? window.currentUser.role : '';
-    return role === 'developer' || role === 'admin' || role === 'gestor' || role === 'supervisor';
+    const role = normalizeRoleFrontend(window.currentUser && window.currentUser.role);
+    return role === 'admin' || role === 'administrador' || role === 'gestor' || role === 'supervisor';
+}
+
+/** Painel de O.S. / agente / preventivas — gestor, admin e developer. */
+function isPowerUser() {
+    const role = normalizeRoleFrontend(window.currentUser && window.currentUser.role);
+    return role === 'developer' || isGestorUser();
+}
+
+function isDeveloperUser() {
+    return normalizeRoleFrontend(window.currentUser && window.currentUser.role) === 'developer';
 }
 
 function isClienteUser() {
@@ -325,14 +347,21 @@ function isTrabalhadorUser() {
 }
 
 function applyRoleBasedUI() {
-    const role = (window.currentUser && window.currentUser.role) ? window.currentUser.role.toLowerCase() : 'trabalhador';
-    const isPower = isGestorUser() || role === 'developer';
+    const role = normalizeRoleFrontend(window.currentUser && window.currentUser.role);
+    const isPower = typeof isPowerUser === 'function' ? isPowerUser() : (isGestorUser() || role === 'developer');
 
+    document.querySelectorAll('[data-power-only]').forEach(el => {
+        el.style.display = isPower ? '' : 'none';
+    });
     document.querySelectorAll('[data-admin-only]').forEach(el => {
         el.style.display = isPower ? '' : 'none';
     });
     document.querySelectorAll('[data-gestor-only]').forEach(el => {
         el.style.display = isPower ? '' : 'none';
+    });
+    document.querySelectorAll('[data-developer-only]').forEach(el => {
+        const showDev = isDeveloperUser();
+        el.style.display = showDev ? '' : 'none';
     });
     document.querySelectorAll('[data-trabalhador-only]').forEach(el => {
         el.style.display = isTrabalhadorUser() ? '' : 'none';
@@ -383,6 +412,8 @@ function applyRoleBasedUI() {
 
 window.hasPerm = hasPerm;
 window.isGestorUser = isGestorUser;
+window.isPowerUser = isPowerUser;
+window.isDeveloperUser = isDeveloperUser;
 window.isTrabalhadorUser = isTrabalhadorUser;
 window.isClienteUser = isClienteUser;
 
@@ -452,8 +483,16 @@ function showToast(message, type = 'info', options = {}) {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
+    if (window.LubtekA11y && options.announce !== false) {
+        const plain = String(message).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (plain) {
+            window.LubtekA11y.announce(plain, type === 'error' ? 'assertive' : 'polite');
+        }
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}${options.large ? ' toast-large' : ''}`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
 
     let icon = 'info';
     if (type === 'success') icon = 'check-circle';
@@ -501,6 +540,16 @@ function statusPillClass(status) {
     return 'st-warn';
 }
 window.statusPillClass = statusPillClass;
+
+function statusPillIcon(status) {
+    const s = String(status || 'pendente').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+    if (['concluido', 'cancelado', 'ok', 'executada', 'normal'].includes(s)) return '✓';
+    if (['critico', 'critica', 'atrasado', 'atrasada', 'falha', 'falhatecnica'].includes(s)) return '!';
+    if (['emandamento', 'aguardandomaterial'].includes(s)) return '◷';
+    return '●';
+}
+window.statusPillIcon = statusPillIcon;
 
 /** O.S. rápida — atalho global no header para campo */
 function quickCreateOS() {
@@ -641,6 +690,12 @@ async function loadDash() {
         }
     }, 15000);
 
+    if (tableBody) {
+        tableBody.innerHTML = '<tr class="os-loading-row"><td colspan="8" role="status">Carregando ordens de serviço…</td></tr>';
+        const scrollWrap = document.querySelector('.dash-table-scroll');
+        if (scrollWrap) scrollWrap.setAttribute('aria-busy', 'true');
+    }
+
     try {
         // 1. Basic Counts
         const d = await api('get_stats');
@@ -677,8 +732,18 @@ async function loadDash() {
         // Motor Neural — insights do dashboard
         if (typeof loadNeuralInsights === 'function') loadNeuralInsights();
 
+        if (typeof loadOsAgentReport === 'function') loadOsAgentReport({});
+        if (typeof loadAdminOsOverview === 'function') loadAdminOsOverview();
+
+        if (window.LubtekA11y && window.LubtekA11y.updateDashTableScrollHint) {
+            window.LubtekA11y.updateDashTableScrollHint();
+        }
+
     } catch (e) {
         showToast("Falha ao carregar dashboard.", "error");
+    } finally {
+        const scrollWrap = document.querySelector('.dash-table-scroll');
+        if (scrollWrap) scrollWrap.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -790,6 +855,10 @@ function renderOSTable() {
             const ip = t.ip || '';
             const cod = t.cod_serv || '';
             const desc = t.desc || 'Sem Descrição';
+            const descStr = String(desc);
+            const isRoutineFixed = descStr.includes('[TAREFA FIXA #') || descStr.toLowerCase().includes('tarefa fixa de lubrificação');
+            const isCriticalAi = descStr.includes('[LÚBRIA') || descStr.includes('[ALERTA');
+            const descTitle = descStr.split('\n')[0] || descStr;
             const resp = t.resp || '-';
             const status = t.situacao || 'Pendente';
             const dateEmit = formatDateBR(t.data_emissao);
@@ -807,10 +876,15 @@ function renderOSTable() {
                     <td style="padding:12px 10px;">${escapeHtml(ip)}</td>
                     <td style="padding:12px 10px;">${escapeHtml(cod)}</td>
                     <td style="padding:12px 10px;">
-                        <div style="font-weight:600; color:var(--text-main); margin-bottom:2px;">${escapeHtml(desc)}</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted);">Técnico: ${escapeHtml(resp)}</div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                            ${isRoutineFixed ? '<span style="font-size:0.65rem; font-weight:800; letter-spacing:0.04em; padding:2px 8px; border-radius:999px; background:rgba(16,185,129,0.15); color:#10b981;">ROTINA FIXA</span>' : ''}
+                            ${isCriticalAi ? '<span style="font-size:0.65rem; font-weight:800; letter-spacing:0.04em; padding:2px 8px; border-radius:999px; background:rgba(239,68,68,0.12); color:#ef4444;">CRÍTICA / IA</span>' : ''}
+                        </div>
+                        <div style="font-weight:600; color:var(--text-main); margin-bottom:2px;">${escapeHtml(descTitle)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.35; max-height:2.7em; overflow:hidden;">${escapeHtml(descStr.replace(/\n/g, ' · '))}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Técnico: ${escapeHtml(resp)}</div>
                     </td>
-                    <td style="padding:12px 10px;"><span class="st-pill ${pillClass}">${escapeHtml(status)}</span></td>
+                    <td style="padding:12px 10px;"><span class="st-pill ${pillClass} status-pill-inner"><span class="status-icon" aria-hidden="true">${statusPillIcon(status)}</span><span>${escapeHtml(status)}</span></span></td>
                     <td style="font-size:0.85rem; color:var(--text-muted); padding:12px 10px;">${escapeHtml(dateEmit)}</td>
                     <td style="font-size:0.85rem; color:var(--text-muted); padding:12px 10px;">${escapeHtml(dateProg)}</td>
                     <td style="font-size:0.85rem; color:var(--text-muted); padding:12px 10px;">${escapeHtml(dateExec)}</td>
@@ -824,6 +898,10 @@ function renderOSTable() {
         }
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        if (window.LubtekA11y && window.LubtekA11y.updateDashTableScrollHint) {
+            window.LubtekA11y.updateDashTableScrollHint();
+        }
 
     } catch (e) {
         // Silent fail
@@ -847,10 +925,24 @@ function showOSForm(show) {
     if (!form) return;
     if (show) {
         form.classList.add('os-form-visible');
-        if (overlay) overlay.classList.add('active');
+        form.setAttribute('aria-hidden', 'false');
+        if (overlay) {
+            overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
+        }
+        if (window.LubtekA11y && window.LubtekA11y.trapFocusInPanel) {
+            window.LubtekA11y.trapFocusInPanel(form, true);
+        }
     } else {
         form.classList.remove('os-form-visible');
-        if (overlay) overlay.classList.remove('active');
+        form.setAttribute('aria-hidden', 'true');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+        if (window.LubtekA11y && window.LubtekA11y.trapFocusInPanel) {
+            window.LubtekA11y.trapFocusInPanel(form, false);
+        }
     }
 }
 window.showOSForm = showOSForm;
@@ -989,9 +1081,15 @@ async function deleteSelectedOS() {
 
 function filterOS(status, btn) {
     taskFilter = status;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    renderOSTable();
+    document.querySelectorAll('.os-status-filter').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+    });
+    if (btn) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+    }
+    refreshOSView();
 }
 
 async function syncAssetData(assetId) {
@@ -1345,12 +1443,14 @@ async function exportCatalog(format) {
 
     const ts = new Date().toISOString().slice(0, 10);
     if (format === 'excel') {
+        if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx();
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Catalogo");
         XLSX.writeFile(wb, `CATALOGO_LUBTEK_${ts}.xlsx`);
     }
     else if (format === 'pdf') {
+        if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf();
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.text("Relatório de Catálogo - Rodrigo 3.0", 10, 10);
@@ -1368,6 +1468,11 @@ async function exportCatalogExcel() {
         const list = await api('get_catalog');
 
         if (!list || list.length === 0) return showToast('O inventário está vazio.', 'warning');
+        if (typeof lubtekEnsureExcelJs === 'function') {
+            try { await lubtekEnsureExcelJs(); } catch (e) {
+                return showToast('Biblioteca ExcelJS não carregada.', 'error');
+            }
+        }
         if (typeof ExcelJS === 'undefined') return showToast('Biblioteca ExcelJS não carregada.', 'error');
 
         const workbook = new ExcelJS.Workbook();
@@ -1769,17 +1874,23 @@ window.addEventListener('afterprint', () => {
 });
 
 async function generateScheduledOrders() {
-    showToast('Iniciando geração de preventivas...', 'info');
+    showToast('Gerando tarefas fixas vencidas para hoje...', 'info');
     try {
         const res = await api('generate_scheduled_orders');
         if (res && res.success) {
-            showToast(res.message || 'Ordens geradas com sucesso!', 'success');
-            // Refresh stats and tasks
-            if (window.GlobalSync && window.GlobalSync.dashboard.isActive) {
-                await window.GlobalSync.dashboard.refreshStats();
-            } else if (typeof loadDash === 'function') {
-                await loadDash();
+            const detail = (res.scanned_points != null)
+                ? ` (${res.scanned_points} ponto(s), ${res.generated_orders_count || 0} nova(s))`
+                : '';
+            showToast((res.message || 'Ordens geradas com sucesso!') + detail, 'success');
+            if (res.insight && typeof showToast === 'function') {
+                setTimeout(() => showToast(res.insight, 'info'), 800);
             }
+            if (typeof loadDash === 'function') {
+                await loadDash();
+            } else if (window.GlobalSync && window.GlobalSync.dashboard.isActive) {
+                await window.GlobalSync.dashboard.refreshStats();
+            }
+            if (typeof loadOsAgentReport === 'function') loadOsAgentReport({});
         } else {
             showToast('Erro ao processar ordens preventivas.', 'error');
         }
@@ -1790,6 +1901,11 @@ async function generateScheduledOrders() {
 
 async function exportDetailedPlanExcel() {
     if (!editingNode) return showToast('Selecione uma planta.', 'warning');
+    if (typeof lubtekEnsureExcelJs === 'function') {
+        try { await lubtekEnsureExcelJs(); } catch (e) {
+            return showToast('ExcelJS não carregado.', 'error');
+        }
+    }
     if (typeof ExcelJS === 'undefined') return showToast('ExcelJS não carregado.', 'error');
 
     showToast('Gerando Plano Diretor Executivo...', 'info');
@@ -2072,7 +2188,7 @@ async function exportLabelSheet() {
     showToast('Planilha de etiquetas gerada!', 'success');
 }
 
-function exportTasks(format) {
+async function exportTasks(format) {
     const data = tasks.map(t => ({
         Descricao: t.desc,
         Responsavel: t.resp,
@@ -2083,12 +2199,14 @@ function exportTasks(format) {
 
     const ts = new Date().toISOString().slice(0, 10);
     if (format === 'excel') {
+        if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx();
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Tarefas");
         XLSX.writeFile(wb, `ORDENS_SERVICO_${ts}.xlsx`);
     }
     else if (format === 'pdf') {
+        if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf();
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.text("Relatório de Ordens de Serviço - LUB-TEK", 10, 10);
@@ -2470,7 +2588,7 @@ function renderDetailForm(item) {
         <div class="flex-between" style="align-items:flex-start;">
             <div style="flex:1;">
                 <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px;">
-                    Ficha de Item #${item.ip || 'N/A'}
+                    Ficha de Item #${escapeHtml(String(item.ip || 'N/A'))}
                 </div>
                 <input id="ced-name" value="${escapeAttr(item.nome || '')}" 
                     style="font-size:1.5rem; font-weight:800; color:var(--text-main); border:none; border-bottom:2px solid transparent; width:100%; transition:0.2s;"
@@ -2727,6 +2845,26 @@ function triggerUpload(inputId) {
     document.getElementById(inputId).click();
 }
 
+async function lubtekFormUpload(action, formData) {
+    if (typeof LubtekApi !== 'undefined' && LubtekApi.upload) {
+        return LubtekApi.upload(action, formData);
+    }
+    const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
+    const res = await fetch('api.php?action=' + encodeURIComponent(action), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: headers,
+        body: formData
+    });
+    const text = await res.text();
+    try {
+        return text ? JSON.parse(text) : {};
+    } catch (e) {
+        return { ok: false, error: 'Resposta inválida' };
+    }
+}
+
 async function uploadImage(input, previewId, valueId) {
     const file = input.files[0];
     if (!file) return;
@@ -2744,11 +2882,7 @@ async function uploadImage(input, previewId, valueId) {
 
     try {
         showToast('Enviando imagem...', 'info');
-        const res = await fetch('api.php?action=upload_image', {
-            method: 'POST',
-            body: fd
-        });
-        const json = await res.json();
+        const json = await lubtekFormUpload('upload_image', fd);
 
         if (json.ok && json.path) {
             const cacheBustedPath = json.path + '?t=' + Date.now();
@@ -3154,12 +3288,22 @@ async function api(action, payload = null, options = null) {
         }
 
         const url = `${API_URL}?action=${action}`;
+        const baseHeaders = {
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+        if (window.csrfToken) {
+            baseHeaders['X-CSRF-TOKEN'] = window.csrfToken;
+        }
+
         const opts = payload ? {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, baseHeaders),
             body: JSON.stringify(payload)
-        } : { credentials: 'same-origin' };
+        } : {
+            credentials: 'same-origin',
+            headers: baseHeaders
+        };
 
         const res = await fetch(url, opts);
 
@@ -4617,6 +4761,12 @@ async function importAssetsFromExcel(input) {
     if (!input.files || !input.files[0]) return;
     const file = input.files[0];
 
+    if (typeof lubtekEnsureExcelJs === 'function') {
+        try { await lubtekEnsureExcelJs(); } catch (e) {
+            showToast('Erro: ExcelJS não carregado.', 'error');
+            return;
+        }
+    }
     if (typeof ExcelJS === 'undefined') {
         showToast('Erro: ExcelJS não carregado.', 'error');
         return;
@@ -4800,11 +4950,21 @@ async function importAssetsFromExcel(input) {
             showToast('Lúbria analisando a inteligência da planilha...', 'info');
             const sampleRows = rows.slice(0, 5);
             try {
-                const mapRes = await fetch('api.php?action=lubria_excel_mapper', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sample: sampleRows, force_ai: 1 })
-                }).then(r => r.json());
+                let mapRes;
+                if (typeof api === 'function') {
+                    mapRes = await api('lubria_excel_mapper', { sample: sampleRows, force_ai: 1 });
+                } else if (typeof LubtekApi !== 'undefined') {
+                    mapRes = await LubtekApi.post('lubria_excel_mapper', { sample: sampleRows, force_ai: 1 });
+                } else {
+                    const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+                    if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
+                    mapRes = await fetch('api.php?action=lubria_excel_mapper', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: headers,
+                        body: JSON.stringify({ sample: sampleRows, force_ai: 1 })
+                    }).then(r => r.json());
+                }
 
                 if (mapRes.map) {
                     cognitiveMap = mapRes.map;
@@ -4844,8 +5004,7 @@ async function importAssetsFromExcel(input) {
                 try {
                     const fd = new FormData();
                     fd.append('file', extra.imageBlob, `import_${Date.now()}.png`);
-                    const upRes = await fetch('api.php?action=upload_image', { method: 'POST', body: fd });
-                    const up = await upRes.json().catch(() => null);
+                    const up = await lubtekFormUpload('upload_image', fd).catch(() => null);
                     if (up && up.ok) imgPath = up.path;
                 } catch (uploadErr) {
                     console.warn('Import image upload failed:', uploadErr);
@@ -5502,8 +5661,7 @@ async function importAnalysisCsv(input) {
     const fd = new FormData();
     fd.append('file', input.files[0]);
     try {
-        const previewRes = await fetch('api.php?action=import_analysis_csv', { method: 'POST', body: fd, credentials: 'same-origin' });
-        const preview = await previewRes.json();
+        const preview = await lubtekFormUpload('import_analysis_csv', fd);
         if (!preview || preview.ok === false) {
             showToast((preview && preview.error) || 'CSV inválido.', 'error');
             input.value = '';
@@ -5518,8 +5676,7 @@ async function importAnalysisCsv(input) {
         const fd2 = new FormData();
         fd2.append('file', input.files[0]);
         fd2.append('confirm', '1');
-        const res = await fetch('api.php?action=import_analysis_csv', { method: 'POST', body: fd2, credentials: 'same-origin' });
-        const json = await res.json();
+        const json = await lubtekFormUpload('import_analysis_csv', fd2);
         if (json && json.ok) {
             showToast('Importados ' + (json.imported || 0) + ' laudo(s).', 'success');
             if (editingNode && editingNode.id) loadAnalysisHistory(editingNode.id);
@@ -5829,6 +5986,11 @@ async function reloadMarketAnalysis(id, name) {
         }
 
         // Chart — apenas com preços reais das ofertas atuais
+        if (chartEl) {
+            if (typeof lubtekEnsureChart === 'function') {
+                try { await lubtekEnsureChart(); } catch (e) { /* skip chart */ }
+            }
+        }
         if (chartEl && typeof Chart !== 'undefined') {
             const existingChart = Chart.getChart(chartEl);
             if (existingChart) existingChart.destroy();
@@ -5944,7 +6106,12 @@ function getTodayISOStr() {
     return new Date().toISOString().split('T')[0];
 }
 
-function exportToExcel(data, filename, sheetName = 'Sheet1') {
+async function exportToExcel(data, filename, sheetName = 'Sheet1') {
+    if (typeof lubtekEnsureXlsx === 'function') {
+        try { await lubtekEnsureXlsx(); } catch (e) {
+            return showToast('Erro ao carregar biblioteca Excel.', 'error');
+        }
+    }
     if (typeof XLSX === 'undefined') return showToast('Erro: Biblioteca Excel (SheetJS) não carregada.', 'error');
     if (!data || data.length === 0) return showToast('Sem dados para exportar.', 'warning');
 
@@ -5999,7 +6166,7 @@ function exportCatalogExcel() {
 }
 
 // 2. Tasks / OS Export
-function exportTasksExcel() {
+async function exportTasksExcel() {
     // Assume 'tasks' global variable
     if (typeof tasks === 'undefined' || !tasks || tasks.length === 0) return showToast('Nenhuma tarefa carregada.', 'warning');
 
@@ -6015,11 +6182,16 @@ function exportTasksExcel() {
         Execucao: t.data_execucao || '-'
     }));
 
-    exportToExcel(cleanData, 'Ordens_Servico_LUBTEK_' + getTodayISOStr(), 'Servicos');
+    await exportToExcel(cleanData, 'Ordens_Servico_LUBTEK_' + getTodayISOStr(), 'Servicos');
 }
 
 // 4. Relatório Técnico PDF (Laudo de Engenharia)
-window.downloadTechnicalReport = function () {
+window.downloadTechnicalReport = async function () {
+    if (typeof lubtekEnsureJsPdf === 'function') {
+        try { await lubtekEnsureJsPdf(); } catch (e) {
+            return showToast('Erro ao carregar biblioteca PDF.', 'error');
+        }
+    }
     if (typeof jspdf === 'undefined') return showToast('Erro: Biblioteca jsPDF não carregada.', 'error');
 
     try {
@@ -6250,8 +6422,14 @@ let activeOSView = 'table'; // 'table' or 'kanban'
 
 function switchOSView(view, btn) {
     activeOSView = view;
-    document.querySelectorAll('.view-toggle-group .filter-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    document.querySelectorAll('.os-view-toggle').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+    });
+    if (btn) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+    }
 
     const tableWrap = document.getElementById('os-table-view-wrapper');
     const kanbanWrap = document.getElementById('os-kanban-view-wrapper');
@@ -6264,6 +6442,9 @@ function switchOSView(view, btn) {
         if (tableWrap) tableWrap.style.display = 'none';
         if (kanbanWrap) kanbanWrap.style.display = 'block';
         if (typeof renderOSKanban === 'function') renderOSKanban();
+    }
+    if (window.LubtekA11y) {
+        window.LubtekA11y.announce(view === 'kanban' ? 'Visualização kanban ativa' : 'Visualização em lista ativa', 'polite');
     }
 }
 

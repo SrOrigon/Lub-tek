@@ -13,6 +13,7 @@ if (php_sapi_name() !== 'cli') {
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/includes/tenant.php';
 require_once __DIR__ . '/api/OrdersController.php';
+require_once __DIR__ . '/includes/work_order_generation_agent.php';
 
 echo "=== INICIANDO GERACAO AUTOMATICA DE ORDENS DE SERVICO ===\n";
 echo "Data: " . date('Y-m-d H:i:s') . "\n\n";
@@ -33,8 +34,8 @@ function runOrderGenerationForTenant(?string $tenant): void
             'tenant' => $tenant
         ];
 
-        $ordersCtrl = new OrdersController($db, $mockUser, []);
-        $result = $ordersCtrl->generateScheduledOrders();
+        $agent = new WorkOrderGenerationAgent($db, ['user_label' => 'SYSTEM_CRON']);
+        $result = $agent->run(true, false);
         
         // Check both possible formats of return
         $count = 0;

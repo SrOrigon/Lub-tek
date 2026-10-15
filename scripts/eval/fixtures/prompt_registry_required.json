@@ -1,0 +1,6 @@
+[
+  {"id": "prompt-01", "prompt_id": "lubria_assistant_core", "min_length": 80},
+  {"id": "prompt-02", "prompt_id": "neural_diagnose_system", "min_length": 80},
+  {"id": "prompt-03", "prompt_id": "os_agent_briefing", "min_length": 40},
+  {"id": "prompt-04", "prompt_id": "lubrication_plan_enrich", "min_length": 40}
+]

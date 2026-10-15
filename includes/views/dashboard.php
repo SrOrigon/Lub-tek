@@ -1,17 +1,18 @@
-<div id="view-dash" class="view-container active view-flex dash-workspace">
+<div id="view-dash" class="view-container active view-flex dash-workspace" role="region" aria-labelledby="dash-page-title">
 
     <!-- TOP BAR: COMPACT KPI & ACTIONS -->
     <div class="dash-toolbar"
         style="display:flex; justify-content:space-between; align-items:center; background:white; padding:12px 20px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 5px rgba(0,0,0,0.02);">
         <div style="display:flex; align-items:center; gap:20px;">
             <div style="display:flex; flex-direction:column;">
-                <h1 style="font-size:1.4rem; margin:0; font-weight:800; color:var(--primary); letter-spacing: -0.5px;">Ordens de Serviço</h1>
+                <h1 id="dash-page-title" style="font-size:1.4rem; margin:0; font-weight:800; color:var(--primary); letter-spacing: -0.5px;">Ordens de Serviço</h1>
                 <span
                     style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing: 0.5px;">Painel de Manutenção</span>
             </div>
 
             <div
-                style="display:flex; gap:25px; border-left:1px solid var(--border); padding-left:25px; margin-left:15px;">
+                style="display:flex; gap:25px; border-left:1px solid var(--border); padding-left:25px; margin-left:15px;"
+                aria-live="polite" aria-atomic="true" aria-label="Resumo de ordens de serviço">
                 <div class="mini-stat card-kpi">
                     <span class="label">PENDENTES</span>
                     <span class="val" id="dash-pending-count" style="color:var(--warning); font-size: 1.5rem;">0</span>
@@ -27,27 +28,34 @@
             </div>
         </div>
 
-        <div style="display:flex; gap:12px;">
+        <div class="dash-toolbar-actions" style="display:flex; gap:12px;">
             <div style="position:relative;">
-                <i data-lucide="search"
+                <label for="os-search" class="sr-only">Localizar ordem de serviço</label>
+                <i data-lucide="search" aria-hidden="true"
                     style="position:absolute; left:12px; top:12px; width:16px; color:var(--text-muted);"></i>
-                <input type="text" id="os-search" placeholder="Localizar O.S..." oninput="filterOSText(this.value)"
+                <input type="search" id="os-search" placeholder="Localizar O.S..." oninput="filterOSText(this.value)"
+                    autocomplete="off" aria-describedby="os-search-hint"
                     style="padding:10px 10px 10px 38px; font-size:0.9rem; width:220px; border-radius:10px; height:42px; border:1px solid var(--border);">
+                <span id="os-search-hint" class="sr-only">Filtra a tabela de ordens enquanto você digita</span>
             </div>
-            <button class="btn btn-sm btn-action" onclick="createNewOS()" data-gestor-only
+            <button type="button" class="btn btn-sm btn-action" onclick="createNewOS()" data-gestor-only
+                aria-label="Criar nova ordem de serviço"
                 style="padding:0 25px; height:42px; font-size:0.85rem; background:var(--primary); font-weight: 700; border-radius: 10px;">
                 <i data-lucide="plus" style="margin-right: 8px;"></i> Nova Ordem
             </button>
-            <button class="btn btn-sm btn-outline" onclick="generateScheduledOrders()" 
+            <button type="button" class="btn btn-sm btn-outline" onclick="generateScheduledOrders()" 
                 style="padding:0 15px; height:42px; border-radius: 10px; border-color: var(--success); color: var(--success); display: flex; align-items: center; gap: 6px; font-weight: 700;" 
-                title="Cria ordens preventivas automaticamente"
-                data-admin-only>
+                title="Gera ordens das tarefas fixas vencidas hoje (cadastro + período)"
+                aria-label="Gerar ordens preventivas das tarefas fixas vencidas"
+                data-power-only data-admin-only>
                 <i data-lucide="calendar" style="width:16px;"></i> Preventivas
             </button>
             
             <!-- SAP ERP (admin) -->
             <div style="position:relative; display:inline-block;" id="sap-sync-dropdown-container" data-admin-only>
-                <button class="btn btn-sm btn-outline" onclick="toggleSAPDropdown()" 
+                <button type="button" class="btn btn-sm btn-outline" onclick="toggleSAPDropdown()" 
+                    aria-haspopup="true" aria-expanded="false" id="sap-sync-toggle"
+                    aria-label="Menu de integração SAP ERP"
                     style="padding:0 15px; height:42px; border-radius: 10px; border-color: #1e3a8a; color: #1e3a8a; display: flex; align-items: center; gap: 6px; font-weight: 700; background: #f0f7ff;">
                     <i data-lucide="refresh-cw" style="width:16px;"></i> SAP ERP <i data-lucide="chevron-down" style="width:14px;"></i>
                 </button>
@@ -61,15 +69,52 @@
                 </div>
             </div>
 
-            <button class="btn btn-sm btn-outline" onclick="loadDash()" style="padding:0 15px; height:42px; border-radius: 10px;">
-                <i data-lucide="refresh-cw" style="width:18px;"></i>
+            <button type="button" class="btn btn-sm btn-outline" onclick="loadDash()" style="padding:0 15px; height:42px; border-radius: 10px;"
+                aria-label="Atualizar painel de ordens de serviço">
+                <i data-lucide="refresh-cw" style="width:18px;" aria-hidden="true"></i>
             </button>
+        </div>
+    </div>
+
+    <!-- Admin global: andamento de O.S. / agente em todas as empresas -->
+    <div id="admin-os-overview-section" class="admin-os-overview" data-developer-only aria-labelledby="admin-os-overview-title">
+        <div class="admin-os-overview-head">
+            <h2 id="admin-os-overview-title">
+                <i data-lucide="building-2" style="width:16px;" aria-hidden="true"></i>
+                Visão administrativa — O.S. e agente por empresa
+            </h2>
+            <button type="button" class="btn btn-sm btn-outline" onclick="if(typeof loadAdminOsOverview==='function')loadAdminOsOverview(true)">
+                Atualizar panorama
+            </button>
+        </div>
+        <p class="admin-os-overview-hint">
+            A listagem abaixo reflete o banco da sessão atual. Use esta tabela para acompanhar pendências e a última execução do agente em cada tenant.
+            Para operar uma planta específica, faça login com <strong>Empresa.usuário</strong>.
+        </p>
+        <div class="admin-os-overview-scroll">
+            <table class="lub-table admin-os-overview-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Empresa</th>
+                        <th scope="col">O.S. abertas</th>
+                        <th scope="col">Críticas</th>
+                        <th scope="col">Concluídas hoje</th>
+                        <th scope="col">Agente (última exec.)</th>
+                        <th scope="col">Geradas / vencidas</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-os-overview-body">
+                    <tr><td colspan="6">Carregando panorama…</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
     <!-- MAIN CONTENT -->
     <div class="dash-body">
+        <div class="dash-layout-grid">
 
+        <div class="dash-intel-column dash-column-scroll">
         <!-- MOCKUPS SECTION (New) -->
         <div id="mockups-section" style="display:none; flex-direction:column; gap:10px;">
             <div style="display:flex; justify-content:space-between; align-items:center; padding:0 10px;">
@@ -83,7 +128,7 @@
         </div>
 
         <!-- NEURAL INSIGHTS — faixa compacta para a listagem de O.S. ficar visível -->
-        <div id="neural-insights-section" class="neural-dash-strip">
+        <div id="neural-insights-section" class="neural-dash-strip" aria-expanded="true" aria-controls="neural-dash-extra">
             <div class="neural-dash-bar">
                 <h3 class="neural-dash-title">
                     <i data-lucide="brain" style="width:14px; color:var(--success);"></i>
@@ -91,10 +136,12 @@
                     <span id="neural-dash-count" class="neural-dash-count"></span>
                 </h3>
                 <div class="neural-dash-bar-actions">
-                    <button type="button" class="btn btn-sm btn-outline neural-dash-mini-btn" onclick="if(typeof loadNeuralInsights === 'function') loadNeuralInsights()">
+                    <button type="button" class="btn btn-sm btn-outline neural-dash-mini-btn" onclick="if(typeof loadNeuralInsights === 'function') loadNeuralInsights()"
+                        aria-label="Atualizar sugestões do motor neural">
                         Atualizar
                     </button>
-                    <button type="button" id="neural-dash-toggle" class="btn btn-sm btn-outline neural-dash-mini-btn" onclick="toggleDashNeuralStrip()">
+                    <button type="button" id="neural-dash-toggle" class="btn btn-sm btn-outline neural-dash-mini-btn" onclick="toggleDashNeuralStrip()"
+                        aria-expanded="true" aria-controls="neural-dash-extra">
                         Recolher
                     </button>
                 </div>
@@ -102,12 +149,15 @@
 
             <div id="neural-dash-extra">
                 <div id="neural-dash-query-box" class="neural-dash-query">
+                    <label for="neural-dash-input" class="sr-only">Pergunta à Lúbria no dashboard</label>
                     <input type="text" id="neural-dash-input"
                         placeholder="Perguntar à Lúbria…"
                         autocomplete="off"
+                        aria-describedby="neural-dash-response"
                         onkeydown="if(event.key==='Enter'){event.preventDefault();if(typeof sendDashNeuralQuery==='function')sendDashNeuralQuery();}">
-                    <button type="button" id="neural-dash-send-btn" onclick="if(typeof sendDashNeuralQuery==='function')sendDashNeuralQuery()">
-                        <i data-lucide="send" style="width:14px;"></i>
+                    <button type="button" id="neural-dash-send-btn" onclick="if(typeof sendDashNeuralQuery==='function')sendDashNeuralQuery()"
+                        aria-label="Enviar pergunta à Lúbria">
+                        <i data-lucide="send" style="width:14px;" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div id="neural-dash-response"></div>
@@ -119,36 +169,131 @@
             </div>
         </div>
 
+        <!-- Telemetria IA + feedback (gestor) -->
+        <div id="ai-ops-panel-section" class="ai-ops-strip" data-gestor-only aria-expanded="true" aria-controls="ai-ops-panel-extra">
+            <div class="ai-ops-bar">
+                <h3 class="ai-ops-title">
+                    <i data-lucide="activity" style="width:14px;"></i>
+                    Operação dos Agentes (IA)
+                </h3>
+                <div style="display:flex;gap:6px;">
+                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="if(typeof loadAiOpsPanel==='function')loadAiOpsPanel()">
+                        Atualizar
+                    </button>
+                    <button type="button" id="ai-ops-toggle" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="if(typeof toggleAiOpsPanel==='function')toggleAiOpsPanel()"
+                        aria-expanded="true" aria-controls="ai-ops-panel-extra">
+                        Recolher
+                    </button>
+                </div>
+            </div>
+            <div id="ai-ops-panel-extra" class="ai-ops-columns">
+                <div>
+                    <div style="font-size:0.68rem;font-weight:700;color:#64748b;margin-bottom:4px;text-transform:uppercase;">Uso Gemini (7 dias)</div>
+                    <div id="ai-ops-usage"></div>
+                </div>
+                <div>
+                    <div style="font-size:0.68rem;font-weight:700;color:#64748b;margin-bottom:4px;text-transform:uppercase;">Feedback operadores (30 dias)</div>
+                    <div id="ai-ops-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AGENTE DE GERAÇÃO O.S. — relatório de rotina -->
+        <div id="os-agent-report-section" class="os-agent-strip" data-gestor-only aria-expanded="true" aria-controls="os-agent-report-extra">
+            <div class="os-agent-bar">
+                <h3 class="os-agent-title">
+                    <i data-lucide="bot" style="width:14px; color:#0d9488;"></i>
+                    Agente de Geração O.S.
+                    <span id="os-agent-meta" class="os-agent-meta">Carregando…</span>
+                </h3>
+                <div class="os-agent-bar-actions">
+                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="simulateOsAgent()" title="Simula sem gravar">
+                        Simular
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="refreshOsAgentAiBrief()" title="Resumo com Lúbria/Gemini">
+                        Resumo IA
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="runOsAgentAndRefresh()" style="border-color:var(--success);color:var(--success);">
+                        Executar
+                    </button>
+                    <button type="button" id="os-agent-toggle" class="btn btn-sm btn-outline os-agent-mini-btn" onclick="toggleOsAgentPanel()"
+                        aria-expanded="true" aria-controls="os-agent-report-extra">
+                        Recolher
+                    </button>
+                </div>
+            </div>
+            <div id="os-agent-report-extra">
+                <div id="os-agent-loading" class="os-agent-loading" style="display:none;" role="status" aria-live="polite">
+                    <i data-lucide="loader-circle" style="width:18px; animation: spin 1s linear infinite;" aria-hidden="true"></i>
+                    Analisando cadastro…
+                </div>
+                <div id="os-agent-stats" class="os-agent-stats"></div>
+                <div id="os-agent-briefing" class="os-agent-briefing card"></div>
+                <div class="os-agent-table-wrap">
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">
+                        Decisões do agente (vencidos / fila)
+                    </div>
+                    <div id="os-agent-empty" class="os-agent-empty" style="display:none;">
+                        Nenhuma tarefa vencida ou pendente de geração no momento.
+                    </div>
+                    <div class="os-agent-decisions-scroll">
+                        <table class="lub-table os-agent-table">
+                            <thead>
+                                <tr>
+                                    <th>Ponto</th>
+                                    <th>TAG</th>
+                                    <th>Rota</th>
+                                    <th>Serviço</th>
+                                    <th>Ação</th>
+                                    <th>Prio</th>
+                                    <th>Score</th>
+                                    <th>Atraso</th>
+                                    <th class="col-motivo">Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="os-agent-decisions-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div><!-- /.dash-intel-column -->
+
+        <div class="dash-orders-column">
         <!-- SECTION 1: OS DATA GRID (The Table) -->
+        <div id="os-table-view-wrapper">
         <div class="card dash-table-panel"
             style="padding:0; display:flex; flex-direction:column; border-radius:12px; border:1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
             <div
                 style="background:var(--bg-input); padding:10px 15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
-                <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">LISTAGEM DE ORDENS</span>
-                <div class="filter-group" style="display:flex; gap:5px;">
-                    <button class="filter-btn active" onclick="filterOS('all', this)">Todas</button>
-                    <button class="filter-btn" onclick="filterOS('Pendente', this)">Pendentes</button>
-                    <button class="filter-btn" onclick="filterOS('Concluído', this)">Concluídas</button>
-                    <button class="filter-btn" onclick="exportTasksExcel()" title="Baixar Excel"
+                <span id="os-list-heading" style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">LISTAGEM DE ORDENS</span>
+                <div class="filter-group view-toggle-group" style="display:flex; gap:5px;" role="group" aria-labelledby="os-list-heading">
+                    <button type="button" class="filter-btn os-view-toggle active" onclick="switchOSView('table', this)" aria-pressed="true" aria-label="Visualização em lista">Lista</button>
+                    <button type="button" class="filter-btn os-view-toggle" onclick="switchOSView('kanban', this)" aria-pressed="false" aria-label="Visualização em kanban">Kanban</button>
+                    <button type="button" class="filter-btn os-status-filter active" onclick="filterOS('all', this)" aria-pressed="true">Todas</button>
+                    <button type="button" class="filter-btn os-status-filter" onclick="filterOS('Pendente', this)" aria-pressed="false">Pendentes</button>
+                    <button type="button" class="filter-btn os-status-filter" onclick="filterOS('Concluído', this)" aria-pressed="false">Concluídas</button>
+                    <button type="button" class="filter-btn" onclick="exportTasksExcel()" title="Baixar Excel"
+                        aria-label="Exportar ordens de serviço para Excel"
                         style="border-left:1px solid var(--border); margin-left:5px; padding-left:10px;">
-                        <i data-lucide="download" style="width:12px;"></i>
+                        <i data-lucide="download" style="width:12px;" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
-            <div class="dash-table-scroll">
+            <div class="dash-table-scroll" aria-labelledby="os-list-heading" aria-busy="false">
                     <table class="lub-table" id="os-table"
                         style="width:100%; min-width:800px; border-collapse: collapse;">
                         <thead
                             style="position: sticky; top: 0; z-index: 20; background: var(--bg-card); box-shadow: 0 1px 0 var(--border);">
                             <tr style="text-align: left;">
-                                <th style="width:70px;">O.S</th>
-                                <th style="width:70px;">IP</th>
-                                <th style="width:90px;">Cód. Serv</th>
-                                <th>Serviço / Ativo</th>
-                                <th style="width:130px;">Situação</th>
-                                <th style="width:100px;">Emissão</th>
-                                <th style="width:100px;">Dt. Prog.</th>
-                                <th style="width:100px;">Dt. Exec.</th>
+                                <th scope="col" style="width:70px;">O.S</th>
+                                <th scope="col" style="width:70px;">IP</th>
+                                <th scope="col" style="width:90px;">Cód. Serv</th>
+                                <th scope="col">Serviço / Ativo</th>
+                                <th scope="col" style="width:130px;">Situação</th>
+                                <th scope="col" style="width:100px;">Emissão</th>
+                                <th scope="col" style="width:100px;">Dt. Prog.</th>
+                                <th scope="col" style="width:100px;">Dt. Exec.</th>
                             </tr>
                         </thead>
                         <tbody id="os-table-body">
@@ -157,24 +302,34 @@
                     </table>
             </div>
         </div>
+        </div>
+        <div id="os-kanban-view-wrapper" style="display:none;" role="region" aria-label="Quadro kanban de ordens de serviço">
+            <div id="kanban-board-container" class="kanban-board"></div>
+        </div>
+        </div><!-- /.dash-orders-column -->
+
+        </div><!-- /.dash-layout-grid -->
+    </div>
 
         <!-- OFFCANVAS OVERLAY -->
-        <div id="offcanvas-overlay" onclick="if(typeof closeOSForm === 'function') closeOSForm()"></div>
+        <div id="offcanvas-overlay" onclick="if(typeof closeOSForm === 'function') closeOSForm()" aria-hidden="true"></div>
 
         <!-- SECTION 2: OS DETAIL FORM (The Editor) — Offcanvas Panel -->
-        <div class="card" id="os-form-container"
+        <div class="card" id="os-form-container" aria-labelledby="form-title" aria-hidden="true"
             style="padding:0; flex-direction:column; background:#ffffff; box-shadow: -10px 0 30px rgba(0,0,0,0.1);">
             <div
                 style="background:var(--primary); color:white; padding:15px 20px; border-radius:20px 0 0 0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                 <span id="form-title" style="font-size:1.1rem; font-weight:800; text-transform:uppercase; letter-spacing: 0.5px;">Emissão / Retorno de O.S.</span>
                 <div style="display:flex; gap:10px;">
-                    <button onclick="printCurrentOS()"
-                        style="background:transparent; border:none; color:white; cursor:pointer;" title="Imprimir O.S.">
-                        <i data-lucide="printer" style="width:18px;"></i>
+                    <button type="button" onclick="printCurrentOS()"
+                        style="background:transparent; border:none; color:white; cursor:pointer;" title="Imprimir O.S."
+                        aria-label="Imprimir ordem de serviço">
+                        <i data-lucide="printer" style="width:18px;" aria-hidden="true"></i>
                     </button>
-                    <button onclick="closeOSForm()"
-                        style="background:transparent; border:none; color:white; cursor:pointer;">
-                        <i data-lucide="x" style="width:18px;"></i>
+                    <button type="button" onclick="closeOSForm()"
+                        style="background:transparent; border:none; color:white; cursor:pointer;"
+                        aria-label="Fechar formulário de ordem de serviço">
+                        <i data-lucide="x" style="width:18px;" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -352,34 +507,180 @@
                     onclick="deleteSelectedOS()">EXCLUIR O.S.</button>
             </div>
         </div>
-    </div>
 
 </div>
 
 <style>
-    /* DASH WORKSPACE — scroll interno, formulario sob demanda */
+    /* DASH WORKSPACE — scroll único, conteúdo termina no fim dos dados */
     .dash-workspace {
         flex-direction: column;
         gap: 10px;
-        padding: 10px;
+        padding: 10px 12px 16px;
         background: #f8fafc;
-        overflow: hidden;
         min-height: 0;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
     }
     #view-dash.dash-workspace.active {
         display: flex !important;
-        overflow: hidden !important;
-        padding: 10px;
-    }
-    .dash-toolbar { flex-shrink: 0; padding: 8px 14px !important; }
-    .dash-toolbar h1 { font-size: 1.15rem !important; margin: 0 !important; }
-    .dash-body {
-        flex: 1;
+        flex: 1 1 auto;
         min-height: 0;
+        padding: 10px 12px 16px;
+    }
+    .dash-toolbar {
+        flex-shrink: 0;
+        padding: 10px 16px !important;
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: white;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .dash-toolbar h1 { font-size: 1.15rem !important; margin: 0 !important; }
+    .dash-toolbar .mini-stat .val { font-size: 1.35rem !important; line-height: 1.1; }
+    .dash-toolbar .mini-stat .label { font-size: 0.65rem; letter-spacing: 0.06em; }
+    .dash-toolbar-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    @media (min-width: 1200px) {
+        .dash-toolbar {
+            flex-wrap: nowrap;
+        }
+        .dash-toolbar-actions input[type="text"] {
+            width: min(220px, 18vw) !important;
+        }
+    }
+    .dash-body {
+        flex: 1 1 auto;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        overflow: hidden;
+        gap: 10px;
+        overflow: visible;
+        min-height: 0;
+    }
+    .dash-layout-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+        width: 100%;
+    }
+    .dash-column-scroll {
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+    .dash-column-scroll::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    .dash-column-scroll::-webkit-scrollbar-thumb {
+        background: #94a3b8;
+        border-radius: 6px;
+        border: 2px solid #f8fafc;
+    }
+    @media (min-width: 1200px) {
+        #view-dash.dash-workspace.active {
+            overflow: hidden !important;
+            padding-bottom: 8px;
+        }
+        .dash-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .dash-layout-grid {
+            display: grid;
+            grid-template-columns: minmax(360px, 42fr) minmax(0, 58fr);
+            gap: 14px;
+            align-items: stretch;
+            flex: 1 1 auto;
+            height: auto;
+            min-height: 0;
+            max-height: 100%;
+        }
+        .dash-intel-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+            max-height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            padding-right: 6px;
+            padding-bottom: 16px;
+        }
+        .dash-orders-column {
+            min-width: 0;
+            min-height: 0;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .dash-orders-column .dash-table-panel {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .dash-orders-column .dash-table-scroll {
+            flex: 1 1 auto;
+            min-height: 160px;
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        .dash-intel-column .ai-ops-columns {
+            grid-template-columns: 1fr;
+        }
+        .dash-intel-column .ai-ops-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .os-agent-decisions-scroll {
+            flex: 1 1 auto;
+            min-height: 140px;
+            max-height: min(480px, 52vh);
+            overflow: auto;
+            overscroll-behavior: contain;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .dash-intel-column .os-agent-table th:nth-child(2),
+        .dash-intel-column .os-agent-table th:nth-child(3),
+        .dash-intel-column .os-agent-table td:nth-child(2),
+        .dash-intel-column .os-agent-table td:nth-child(3) {
+            display: none;
+        }
+    }
+    @media (min-width: 1400px) {
+        .dash-layout-grid {
+            grid-template-columns: minmax(400px, 40fr) minmax(0, 60fr);
+        }
+        .dash-intel-column .os-agent-table th:nth-child(2),
+        .dash-intel-column .os-agent-table td:nth-child(2) {
+            display: table-cell;
+        }
+    }
+    @media (min-width: 1600px) {
+        .dash-layout-grid {
+            grid-template-columns: minmax(420px, 38fr) minmax(0, 62fr);
+        }
+        .dash-intel-column .os-agent-table th:nth-child(3),
+        .dash-intel-column .os-agent-table td:nth-child(3) {
+            display: table-cell;
+        }
+    }
+    @media (max-width: 1199px) {
+        #view-dash.dash-workspace.active {
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+        }
     }
 
     .neural-dash-strip {
@@ -531,17 +832,213 @@
         font-size: 0.72rem !important;
     }
 
-    .dash-table-panel {
+    .admin-os-overview {
+        margin-bottom: 14px;
+        padding: 14px 18px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+    .admin-os-overview-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+    .admin-os-overview-head h2 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .admin-os-overview-hint {
+        margin: 0 0 10px;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        line-height: 1.45;
+    }
+    .admin-os-overview-scroll {
+        overflow-x: auto;
+    }
+    .admin-os-overview-table td,
+    .admin-os-overview-table th {
+        font-size: 0.78rem;
+        padding: 8px 10px;
+    }
+    .admin-os-overview-table tr.is-current {
+        background: #f0f9ff;
+    }
+    .admin-os-overview-table .tag-current {
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: #0369a1;
+        margin-left: 6px;
+    }
+
+    .os-agent-strip {
+        background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 55%);
+        border: 1px solid #99f6e4;
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .os-agent-strip.is-collapsed #os-agent-report-extra {
+        display: none !important;
+    }
+    .os-agent-table-wrap {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
         flex: 1 1 auto;
-        min-height: 280px;
+    }
+    .os-agent-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .os-agent-title {
+        margin: 0;
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #0f766e;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .os-agent-meta {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+    .os-agent-bar-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .os-agent-mini-btn {
+        padding: 4px 10px !important;
+        font-size: 0.72rem !important;
+        min-height: 28px !important;
+    }
+    .os-agent-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+    }
+    .os-agent-chip {
+        font-size: 0.72rem;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+    }
+    .os-agent-chip.warn { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+    .os-agent-chip.ok { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
+    .os-agent-chip.muted { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
+    .os-agent-briefing {
+        padding: 12px 14px !important;
+        margin-bottom: 10px;
+        border-left: 4px solid #14b8a6 !important;
+        background: #fff !important;
+        max-height: min(140px, 22vh);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+    .os-agent-briefing-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #0d9488;
+        margin-bottom: 8px;
+    }
+    .os-agent-src {
+        margin-left: auto;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: none;
+    }
+    .os-agent-briefing p {
+        margin: 0;
+        font-size: 0.85rem;
+        line-height: 1.55;
+        color: #334155;
+    }
+    .os-agent-loading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        padding: 8px 0;
+    }
+    .os-agent-empty {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        padding: 12px;
+        text-align: center;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+    }
+    .os-agent-decisions-scroll {
+        max-height: min(360px, 55vh);
+        overflow: auto;
+        overscroll-behavior: contain;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+    .os-agent-table {
+        font-size: 0.75rem;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .os-agent-table td,
+    .os-agent-table th {
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        vertical-align: top;
+        padding: 6px 8px !important;
+    }
+    .os-agent-table th { font-size: 0.68rem; text-transform: uppercase; color: var(--text-muted); }
+    .os-agent-action {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 0.65rem;
+    }
+    .os-agent-action-created, .os-agent-action-would_create { background: #d1fae5; color: #047857; }
+    .os-agent-action-skip { background: #f1f5f9; color: #64748b; }
+    .os-agent-table tr.row-highlight { background: #f0fdf4; }
+
+    .dash-table-panel {
+        flex: 0 1 auto;
+        min-height: auto;
         display: flex;
         flex-direction: column;
     }
     .dash-table-scroll {
-        flex: 1;
-        min-height: 0;
-        overflow: auto;
+        overflow-x: auto;
+        overflow-y: visible;
         scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
     }
     .dash-workspace .card:hover {
         transform: none;
@@ -724,6 +1221,27 @@
     /* STATUS COLORS — definidos globalmente em assets/css/responsive.css (.st-pill) */
 
     /* RESPONSIVE DASHBOARD */
+    @media (max-width: 1199px) {
+        .dash-intel-column,
+        .dash-orders-column {
+            max-height: none;
+            overflow: visible;
+            position: static;
+            display: block;
+        }
+        .dash-orders-column .dash-table-scroll {
+            max-height: min(70vh, 720px);
+            overflow: auto;
+        }
+        .os-agent-decisions-scroll {
+            max-height: min(420px, 60vh);
+        }
+        .dash-toolbar {
+            position: sticky;
+            top: 0;
+        }
+    }
+
     @media (max-width: 900px) {
         #view-dash {
             height: auto !important;

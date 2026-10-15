@@ -96,11 +96,20 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('api.php?action=upload_image', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
+                const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+                if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
+                let result;
+                if (typeof LubtekApi !== 'undefined' && LubtekApi.upload) {
+                    result = await LubtekApi.upload('upload_image', formData);
+                } else {
+                    const response = await fetch('api.php?action=upload_image', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: headers,
+                        body: formData
+                    });
+                    result = await response.json();
+                }
 
                 if (result.ok || result.success) {
                     const newPath = result.path;

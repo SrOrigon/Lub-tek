@@ -111,6 +111,15 @@ class AuthSystem
         // Preserva sessão ativa se as credenciais estiverem erradas (evita deslogar quem já está logado).
         $snapshot = $this->snapshotAuthSession();
 
+        // 0) Verifica se IP ou usuário está temporariamente bloqueado por força bruta
+        if (SecurityGuard::isLockedOut($username)) {
+            return [
+                'success' => false,
+                'message' => 'Muitas tentativas incorretas. Acesso temporariamente bloqueado por 15 minutos.',
+                'locked_out' => true
+            ];
+        }
+
         // 1) Separa Empresa.Usuario antes de qualquer conexão SQLite
         $parsed = TenantResolver::parseLoginUsername($username);
 
@@ -447,7 +456,14 @@ class AuthSystem
     private function loginEmailAcrossTenants(string $email, string $password, string $rawLogin): array
     {
         require_once __DIR__ . '/../db.php';
-        foreach (TenantResolver::listTenantSlugs() as $tenant) {
+        require_once __DIR__ . '/tenant_login_index.php';
+
+        $indexedTenant = TenantLoginIndex::lookupTenant($email);
+        $tenantsToTry = $indexedTenant !== null
+            ? [$indexedTenant]
+            : TenantResolver::listTenantSlugs();
+
+        foreach ($tenantsToTry as $tenant) {
             try {
                 $pdo = DB::getInstance($tenant);
             } catch (Exception $e) {

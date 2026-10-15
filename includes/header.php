@@ -66,22 +66,20 @@ if ($auth->isLoggedIn()) {
 
     <link rel="shortcut icon" href="assets/img/system/img_69581d7fcdbbf.jpeg" type="image/jpeg">
     <link rel="stylesheet" href="assets/css/responsive.css?v=3.2.6">
+    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=3.2.7">
+    <link rel="stylesheet" href="assets/css/touch-targets.css?v=3.4.0">
+    <link rel="stylesheet" href="assets/css/ai-ops-panel.css?v=3.4.0">
+    <link rel="stylesheet" href="assets/css/a11y-global.css?v=3.4.1">
     <!-- Modern Fonts & Icons -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
         rel="stylesheet">
 
+    <?php require_once __DIR__ . '/csrf_guard.php'; ?>
+    <script>window.csrfToken = <?php echo json_encode(CsrfGuard::getToken()); ?>;</script>
     <script src="assets/js/security_guard.js" defer></script>
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"
-        defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-    <!-- EXCELJS for Advanced Import (Images) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" defer></script>
+    <!-- Chart/jsPDF/XLSX/ExcelJS/html2canvas/QR: lazy via assets/js/lazy_vendors.js -->
     <style>
         /* --- PREMIUM LIGHT THEME (Clean & Professional) --- */
         :root {
@@ -432,11 +430,7 @@ if ($auth->isLoggedIn()) {
             min-height: 0;
         }
 
-        /* Workspaces com scroll interno — evita blocos brancos gigantes */
-        .dash-workspace.active,
-        .assets-workspace.active {
-            overflow: hidden !important;
-        }
+        /* Workspaces: scroll definido em desktop-layout.css (desktop) e responsive.css (mobile) */
 
         #view-home.view-flex.active {
             overflow-y: auto;
@@ -1117,6 +1111,7 @@ if ($auth->isLoggedIn()) {
 </head>
 
 <body>
+    <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
     <!-- PRELOADER (Instant Feedback) -->
     <div id="app-preloader"
         style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:#f8fafc; z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.4s ease-out;">
@@ -1181,7 +1176,7 @@ if ($auth->isLoggedIn()) {
                     <i data-lucide="folder-tree" style="width:14px; height:14px;"></i>
                     <span>Ativos</span>
                 </button>
-                <button type="button" onclick="nav('orders')" class="topbar-eco-btn" title="Ordens de Serviço">
+                <button type="button" onclick="nav('dash')" class="topbar-eco-btn" title="Ordens de Serviço">
                     <i data-lucide="check-square" style="width:14px; height:14px;"></i>
                     <span>Ordens</span>
                 </button>
@@ -1216,6 +1211,11 @@ if ($auth->isLoggedIn()) {
         <?php else: ?>
         <span id="topbar-user" class="topbar-user"></span>
         <?php endif; ?>
+        <button type="button" id="btn-high-contrast" class="topbar-a11y-btn" aria-pressed="false"
+            aria-label="Ativar alto contraste"
+            onclick="if(window.LubtekA11y){LubtekA11y.toggleHighContrast();}">
+            Contraste
+        </button>
         <a href="logout.php" class="topbar-logout" title="Encerrar sessão" onclick="return window.__lubtekLogout ? window.__lubtekLogout(event) : true;">
             <i data-lucide="log-out" style="width:16px;"></i>
             <span>Sair</span>
@@ -1325,4 +1325,4 @@ if ($auth->isLoggedIn()) {
     </style>
 
     <!-- CONTENT -->
-    <main>
+    <main id="main-content" tabindex="-1">

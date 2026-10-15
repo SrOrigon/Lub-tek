@@ -702,4 +702,121 @@ class EngineeringController {
         $key = strtolower(trim((string) $value));
         return $map[$key] ?? $default;
     }
+
+    /**
+     * Lista engraxadeiras calibradas
+     */
+    public function handleListGreaseGuns(): array
+    {
+        try {
+            $this->ensureGreaseCalibrationTable();
+            $stmt = $this->db->query("SELECT * FROM engraxadeiras_calibracao WHERE ativo = 1 ORDER BY identificacao ASC");
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return [
+                'success' => true,
+                'items' => $rows ?: []
+            ];
+        } catch (Exception $e) {
+            error_log('handleListGreaseGuns: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Não foi possível listar as engraxadeiras calibradas.'];
+        }
+    }
+
+    /**
+     * Salva ou atualiza aferição/calibração de engraxadeira
+     */
+    public function handleSaveGreaseGun(): array
+    {
+        $id = intval($this->input['id'] ?? 0);
+        $identificacao = trim((string)($this->input['identificacao'] ?? ''));
+        $tipo = trim((string)($this->input['tipo'] ?? 'manual'));
+        $gramasPorGolpe = floatval($this->input['gramas_por_golpe'] ?? 1.5);
+        $dataCalibracao = trim((string)($this->input['data_calibracao'] ?? date('Y-m-d')));
+        $proximaCalibracao = trim((string)($this->input['proxima_calibracao'] ?? date('Y-m-d', strtotime('+180 days'))));
+        $responsavel = trim((string)($this->input['responsavel'] ?? ''));
+
+        if ($identificacao === '' || $gramasPorGolpe <= 0) {
+            return ['success' => false, 'error' => 'Identificação e vazão por golpe válida (> 0) são obrigatórias.'];
+        }
+
+        try {
+            $this->ensureGreaseCalibrationTable();
+            if ($id > 0) {
+                $stmt = $this->db->prepare("UPDATE engraxadeiras_calibracao SET
+                    identificacao = ?, tipo = ?, gramas_por_golpe = ?, data_calibracao = ?,
+                    proxima_calibracao = ?, responsavel = ? WHERE id = ?");
+                $stmt->execute([$identificacao, $tipo, $gramasPorGolpe, $dataCalibracao, $proximaCalibracao, $responsavel, $id]);
+            } else {
+                $stmt = $this->db->prepare("INSERT INTO engraxadeiras_calibracao 
+                    (identificacao, tipo, gramas_por_golpe, data_calibracao, proxima_calibracao, responsavel)
+                    VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$identificacao, $tipo, $gramasPorGolpe, $dataCalibracao, $proximaCalibracao, $responsavel]);
+                $id = (int)$this->db->lastInsertId();
+            }
+
+            return [
+                'success' => true,
+                'id' => $id,
+                'message' => 'Calibração de engraxadeira salva com sucesso.'
+            ];
+        } catch (Exception $e) {
+            error_log('handleSaveGreaseGun: ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Não foi possível salvar a calibração da engraxadeira.'];
+        }
+    }
+
+    /**
+     * Calcula conversão entre gramas e golpes para dosagem em campo
+     */
+    public function handleCalcGreaseStrokes(): array
+    {
+        $gramas = floatval($this->input['gramas'] ?? $this->input['qtd'] ?? 0);
+        $golpes = intval($this->input['golpes'] ?? 0);
+        $toolId = intval($this->input['tool_id'] ?? $this->input['engraxadeira_id'] ?? 0);
+        $gPerStroke = floatval($this->input['gramas_por_golpe'] ?? 0);
+
+        if ($toolId > 0 && $gPerStroke <= 0) {
+            $this->ensureGreaseCalibrationTable();
+            $stmt = $this->db->prepare("SELECT gramas_por_golpe FROM engraxadeiras_calibracao WHERE id = ?");
+            $stmt->execute([$toolId]);
+            $gPerStroke = floatval($stmt->fetchColumn() ?: 1.5);
+        }
+
+        if ($gPerStroke <= 0) {
+            $gPerStroke = 1.5; // padrão 1.5g por golpe para engraxadeiras manuais típicas
+        }
+
+        if ($golpes > 0) {
+            $calcGrams = round($golpes * $gPerStroke, 2);
+            return [
+                'success' => true,
+                'golpes' => $golpes,
+                'gramas_calculadas' => $calcGrams,
+                'gramas_por_golpe' => $gPerStroke
+            ];
+        }
+
+        $calcStrokes = ceil($gramas / $gPerStroke);
+        return [
+            'success' => true,
+            'gramas' => $gramas,
+            'golpes_sugeridos' => (int)$calcStrokes,
+            'gramas_por_golpe' => $gPerStroke
+        ];
+    }
+
+    private function ensureGreaseCalibrationTable(): void
+    {
+        $this->db->exec("CREATE TABLE IF NOT EXISTS engraxadeiras_calibracao (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            identificacao TEXT NOT NULL,
+            tipo TEXT DEFAULT 'manual',
+            gramas_por_golpe REAL DEFAULT 1.500,
+            data_calibracao TEXT,
+            proxima_calibracao TEXT,
+            responsavel TEXT,
+            ativo INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+    }
 }

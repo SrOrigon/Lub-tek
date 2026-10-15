@@ -159,8 +159,15 @@ async function loadNeuralInsights() {
             container.querySelectorAll('.btn-neural-reject').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const assetId = parseInt(btn.dataset.assetId, 10);
-                    rejectNeuralSuggestion(assetId);
                     const card = btn.closest('.neural-suggestion-card');
+                    const suggestionEl = card ? card.querySelector('p') : null;
+                    const suggestionText = suggestionEl ? suggestionEl.textContent : '';
+                    const reasonRaw = window.prompt('Motivo da recusa (opcional — Enter para pular):', '');
+                    const reason = (reasonRaw && String(reasonRaw).trim())
+                        ? String(reasonRaw).trim().slice(0, 500)
+                        : 'operator_reject_dashboard';
+                    rejectNeuralSuggestion(assetId);
+                    persistAgentFeedbackReject(assetId, suggestionText, reason);
                     if (card) card.remove();
                     if (!container.querySelector('.neural-suggestion-card')) {
                         container.innerHTML = `<div class="neural-dash-placeholder">Nenhuma sugestão pendente de aprovação.</div>`;
@@ -256,6 +263,35 @@ async function sendDashNeuralQuery() {
     }
 }
 
+async function persistAgentFeedbackReject(assetId, suggestionText, reason) {
+    const payload = {
+        agent: 'neural_engine',
+        action: 'reject',
+        asset_id: assetId,
+        decision_id: 'asset:' + assetId,
+        reason: reason || 'operator_reject_dashboard',
+        suggestion: suggestionText || ''
+    };
+    try {
+        if (typeof api === 'function') {
+            await api('save_agent_feedback', payload);
+        } else if (typeof LubtekApi !== 'undefined' && LubtekApi.request) {
+            await LubtekApi.request('save_agent_feedback', { method: 'POST', body: payload });
+        } else {
+            const headers = { 'Content-Type': 'application/json' };
+            if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
+            await fetch('api.php?action=save_agent_feedback', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers,
+                body: JSON.stringify(payload)
+            });
+        }
+    } catch (e) {
+        console.warn('save_agent_feedback', e);
+    }
+}
+
 window.loadNeuralInsights = loadNeuralInsights;
 window.sendDashNeuralQuery = sendDashNeuralQuery;
 
@@ -307,25 +343,31 @@ function updateDashNeuralCount(n) {
 }
 
 function applyDashNeuralCollapsed(collapsed) {
+    if (window.LubtekA11y && typeof window.LubtekA11y.setSectionExpanded === 'function') {
+        window.LubtekA11y.setSectionExpanded('neural-insights-section', 'neural-dash-toggle', collapsed);
+        return;
+    }
     const section = document.getElementById('neural-insights-section');
     const btn = document.getElementById('neural-dash-toggle');
     if (!section) return;
     section.classList.toggle('is-collapsed', !!collapsed);
-    if (btn) btn.textContent = collapsed ? 'Mostrar' : 'Recolher';
+    if (btn) btn.textContent = collapsed ? 'Expandir' : 'Recolher';
 }
 
 function toggleDashNeuralStrip() {
     const section = document.getElementById('neural-insights-section');
     const next = !(section && section.classList.contains('is-collapsed'));
-    try { sessionStorage.setItem('dash_neural_collapsed', next ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (window.LubtekA11y && window.LubtekA11y.saveCollapsedPref) {
+        window.LubtekA11y.saveCollapsedPref('lubtek_dash_neural_collapsed', next);
+    }
     applyDashNeuralCollapsed(next);
 }
 window.toggleDashNeuralStrip = toggleDashNeuralStrip;
 
 function initNeuralDashboard() {
-    try {
-        applyDashNeuralCollapsed(sessionStorage.getItem('dash_neural_collapsed') === '1');
-    } catch (e) { /* ignore */ }
+    if (window.LubtekA11y && typeof window.LubtekA11y.initDashPanelDefaults === 'function') {
+        window.LubtekA11y.initDashPanelDefaults();
+    }
 
     if (window.AppEvents) {
         window.AppEvents.on('view:changed', function (viewId) {

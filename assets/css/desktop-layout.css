@@ -1,0 +1,97 @@
+/**
+ * LUB-TEK — Layout desktop profissional
+ * Scroll por área, conteúdo encerra no fim dos dados (sem “vácuo” infinito).
+ */
+
+@media (min-width: 1024px) {
+    main {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .view-container {
+        padding: 16px 20px 24px;
+    }
+
+    .view-container.active {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .view-container.view-flex.active {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    /* Workspaces: scroll no painel, não no body */
+    /* Dashboard: scroll interno por coluna (≥1200px em dashboard.php) */
+    #view-dash.dash-workspace.active {
+        overflow: hidden !important;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: 100%;
+    }
+
+    #view-dash.dash-workspace.active .dash-body {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .assets-workspace.active {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+    }
+
+    .routes-workspace.active,
+    .kpi-workspace.active {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        min-height: 0;
+    }
+
+    #view-home.view-flex.active {
+        overflow-y: auto;
+    }
+
+    /* Ativos: colunas com scroll interno quando necessário */
+    .assets-workspace.active {
+        padding: 12px 16px 20px;
+    }
+
+    .assets-workspace .assets-layout {
+        align-items: start;
+    }
+}
+
+/* Toolbar dashboard — quebra elegante em telas médias */
+@media (min-width: 1024px) and (max-width: 1399px) {
+    .dash-toolbar {
+        flex-wrap: wrap;
+        row-gap: 10px;
+    }
+
+    .dash-toolbar > div:last-child {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+}
+
+@media (min-width: 1600px) {
+    .view-container {
+        padding: 18px 28px 28px;
+    }
+
+    .dash-layout-grid {
+        gap: 18px;
+    }
+}

@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../includes/tenant.php';
 require_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/tenant_login_index.php';
 
 class UsersController
 {
@@ -266,6 +267,11 @@ class UsersController
 
         $this->syncUsersJson('save', $emailLogin, $nome, $senha, $nivel, $id, $loginCurto);
 
+        $tenantNow = TenantResolver::getCurrentTenant();
+        if ($tenantNow !== null && $tenantNow !== '') {
+            TenantLoginIndex::upsert($emailLogin, $tenantNow);
+        }
+
         return [
             'success' => true,
             'ok' => true,
@@ -306,6 +312,7 @@ class UsersController
 
         if (!empty($emailDeleted)) {
             $this->syncUsersJson('delete', $emailDeleted, '', '', 1, $id);
+            TenantLoginIndex::remove($emailDeleted);
         }
 
         return [
