@@ -18,6 +18,12 @@
     display: none !important;
 }
 
+.ai-ops-strip {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+}
+
 .ai-ops-bar {
     display: flex;
     justify-content: space-between;

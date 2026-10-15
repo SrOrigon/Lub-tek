@@ -369,15 +369,23 @@ main,
     -webkit-overflow-scrolling: touch;
 }
 
+#main-content {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding-bottom: 96px;
+    box-sizing: border-box;
+}
+
 #asset-tree-panel {
     position: sticky;
-    top: 12px;
+    top: 72px;
     align-self: flex-start;
-    max-height: calc(100vh - 24px);
+    max-height: calc(100vh - 140px);
 }
 
 #asset-tree-container {
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 220px);
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

@@ -871,7 +871,24 @@ tbody tr.os-row:hover {
     }
 }
 
-/* --- Landscape phone --- */
+@media (max-width: 1023px) {
+    .lubtek-topbar {
+        gap: 8px;
+        padding: 8px 10px;
+    }
+    .topbar-user span,
+    .topbar-eco-btn span {
+        max-width: 9rem;
+    }
+    .assets-main-layout {
+        grid-template-columns: 1fr !important;
+    }
+    #asset-tree-panel {
+        position: static !important;
+        width: 100% !important;
+        max-height: 320px !important;
+    }
+}
 @media (max-height: 500px) and (orientation: landscape) {
     #neural-chat-window.neural-open {
         height: calc(100vh - 90px) !important;

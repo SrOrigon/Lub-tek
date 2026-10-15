@@ -5,13 +5,13 @@
  */
 ?>
 <!-- Botão Flutuante -->
-<button id="neural-assistant-trigger" class="floating-btn" onclick="toggleNeuralChat()" style="position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; border: none; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); cursor: pointer; z-index: 99999; display: flex; align-items: center; justify-content: center; transition: transform 0.3s;">
+<button id="neural-assistant-trigger" class="floating-btn" onclick="toggleNeuralChat()" style="position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; border: none; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); cursor: pointer; z-index: 800; display: flex; align-items: center; justify-content: center; transition: transform 0.3s;">
     <i data-lucide="bot" style="width: 30px; height: 30px;"></i>
     <div style="position: absolute; top: -2px; right: -2px; width: 20px; height: 20px; background: #10b981; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; animation: neuralPulse 2s infinite;">AI</div>
 </button>
 
 <!-- Janela do Chat -->
-<div id="neural-chat-window" style="position: fixed; bottom: 100px; right: 30px; width: 380px; max-width: calc(100vw - 30px); height: 600px; max-height: calc(100vh - 130px); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 99999; display: none; flex-direction: column; overflow: hidden; transition: opacity 0.3s;">
+<div id="neural-chat-window" style="position: fixed; bottom: 88px; right: 20px; width: 380px; max-width: calc(100vw - 24px); height: 600px; max-height: calc(100vh - 130px); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 820; display: none; flex-direction: column; overflow: hidden; transition: opacity 0.3s;">
     
     <!-- Cabeçalho -->
     <div style="padding: 15px 20px; background: linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, transparent 100%); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">

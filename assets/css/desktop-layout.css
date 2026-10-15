@@ -181,3 +181,69 @@
         border-radius: 99px !important;
     }
 }
+
+/* Alinhamento geral — não trava a rolagem vertical da página */
+#main-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+.lub-table th,
+.lub-table td,
+.dash-table-scroll td,
+.dash-table-scroll th {
+    vertical-align: middle;
+}
+
+.lub-table td:last-child,
+.dash-table-scroll td:last-child {
+    white-space: nowrap;
+}
+
+.lub-table td:last-child .btn,
+.dash-table-scroll td:last-child .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.assets-page-toolbar,
+.dash-table-panel > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.assets-page-toolbar .btn,
+.dash-table-panel > div:first-child .filter-btn,
+.dash-table-panel > div:first-child input {
+    min-height: 40px;
+    box-sizing: border-box;
+}
+
+#kpi-charts-section .card > div,
+#monitor-chart,
+#market-price-trend,
+#pi-live-chart {
+    max-height: 320px;
+}
+
+#kpi-charts-section canvas,
+#monitor-chart,
+#market-price-trend {
+    width: 100% !important;
+    max-height: 320px;
+}
+
+#neural-assistant-trigger {
+    z-index: 800 !important;
+}
+
+#neural-chat-window {
+    z-index: 820 !important;
+}

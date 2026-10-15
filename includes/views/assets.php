@@ -20,20 +20,20 @@
             margin-bottom: 12px;
         }
         .assets-main-layout {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            gap: 16px;
-            align-items: stretch;
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            gap: 1.25rem;
+            align-items: start;
+            min-width: 0;
         }
-        /* Painel esquerdo — flutuante, expansivo, scroll proprio */
         #asset-tree-panel {
-            flex: 0 0 clamp(300px, 28vw, 380px);
-            min-width: 300px;
+            width: auto;
+            min-width: 0;
+            max-width: 100%;
             display: flex;
             flex-direction: column;
             min-height: 0;
-            max-height: 75vh;
+            max-height: calc(100vh - 140px);
             height: auto;
             padding: 0;
             overflow: hidden;
@@ -41,13 +41,14 @@
             border: 1px solid #e2e8f0;
             background: #fff;
             box-shadow: 0 10px 40px rgba(15, 23, 42, 0.09), 0 2px 10px rgba(15, 23, 42, 0.04);
-            position: relative;
+            position: sticky;
+            top: 72px;
             z-index: 2;
         }
         #asset-tree-container {
             flex: 1 1 auto;
             min-height: 120px;
-            max-height: 75vh;
+            max-height: calc(100vh - 220px);
             overflow-y: auto;
             overflow-x: hidden;
             padding: 10px 12px 16px;
@@ -102,20 +103,45 @@
             padding: 24px;
             overflow: visible;
         }
+        .asset-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-top: 10px;
+            align-items: stretch;
+        }
+        .asset-metric-grid > .card {
+            height: 100%;
+            min-width: 0;
+        }
+        .asset-tabbar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid #e2e8f0;
+            flex-wrap: nowrap;
+        }
+        .asset-tabbar .tab-btn,
+        .asset-tabbar .btn { flex: 0 0 auto; white-space: nowrap; }
+        #af-img-display { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; }
+        #ash-header-img { width: 100%; height: 100%; object-fit: cover; }
         .asset-sticky-header {
             position: sticky;
             top: 0;
             z-index: 10;
             backdrop-filter: blur(8px);
         }
-        @media (max-width: 960px) {
-            .assets-main-layout { flex-direction: column; }
+        @media (max-width: 1023px) {
+            .assets-main-layout { grid-template-columns: 1fr; }
             #asset-tree-panel {
-                flex: 0 0 auto;
-                max-height: min(42vh, 380px);
+                position: static;
+                max-height: 320px;
                 width: 100%;
             }
-            .asset-detail-panel { min-height: 50vh; }
+            #asset-tree-container { max-height: 240px; }
+            .asset-detail-panel { min-height: 0; }
         }
     </style>
     <!-- HEADER -->
@@ -378,7 +404,7 @@
 
                 <!-- RELIABILITY & AI MINI-DASHBOARD (Real-Time Data) -->
                 <!-- RELIABILITY & AI MINI-DASHBOARD (Compact) -->
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;">
+                <div class="asset-metric-grid">
                     <!-- Card 1: Saúde do Ativo -->
                     <div class="card" id="reliability-card"
                         style="padding:8px 12px; border-left:3px solid #10b981; display:flex; align-items:center; gap:10px;">
@@ -418,7 +444,7 @@
                 </div>
 
                 <!-- TABS -->
-                <div style="display:flex; gap:20px; margin-top:20px; border-bottom:1px solid transparent; flex-wrap:wrap;">
+                <div class="asset-tabbar">
                     <button class="tab-btn active asset-tab" onclick="setAssetTab('dados', this)">Dados do Ativo</button>
                     <button class="tab-btn asset-tab" onclick="setAssetTab('lub', this)">Lubrificação</button>
                     <button class="tab-btn asset-tab" onclick="setAssetTab('market_tab', this)">Mercado</button>

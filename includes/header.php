@@ -65,11 +65,11 @@ if ($auth->isLoggedIn()) {
     <meta property="og:image" content="assets/img/system/img_69581d7fcdbbf.jpeg">
 
     <link rel="shortcut icon" href="assets/img/system/img_69581d7fcdbbf.jpeg" type="image/jpeg">
-    <link rel="stylesheet" href="assets/css/responsive.css?v=3.4.3">
-    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=3.4.3">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=3.4.5">
+    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=3.4.5">
     <link rel="stylesheet" href="assets/css/touch-targets.css?v=3.4.0">
     <link rel="stylesheet" href="assets/css/ai-ops-panel.css?v=3.4.0">
-    <link rel="stylesheet" href="assets/css/a11y-global.css?v=3.4.3">
+    <link rel="stylesheet" href="assets/css/a11y-global.css?v=3.4.5">
     <!-- Modern Fonts & Icons -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
@@ -1247,8 +1247,10 @@ if ($auth->isLoggedIn()) {
         .lubtek-topbar {
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: space-between;
+            gap: 1rem;
             width: 100%;
+            max-width: 100%;
             flex-shrink: 0;
             padding: 12px 20px;
             background: #fff;
@@ -1257,7 +1259,9 @@ if ($auth->isLoggedIn()) {
             position: sticky;
             top: 0;
             z-index: 500;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            box-sizing: border-box;
         }
         .topbar-home {
             display: inline-flex;
@@ -1285,8 +1289,9 @@ if ($auth->isLoggedIn()) {
         .topbar-ecosystem {
             display: flex;
             gap: 6px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             align-items: center;
+            min-width: 0;
         }
         .topbar-eco-btn {
             display: inline-flex;
