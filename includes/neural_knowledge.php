@@ -197,12 +197,14 @@ class NeuralKnowledge
         $q = self::toLower(trim($prompt));
 
         // Somente perguntas claras de navegação/ajuda do sistema (não bloquear análise técnica com IA)
-        $localPatterns = [
+                $localPatterns = [
             '/\b(ajuda|help|tutorial|manual)\b/u',
             '/\bcomo\s+(usar|criar|cadastrar|exportar|importar|funciona|fazer)\b/u',
-            '/\bonde\s+(fica|encontr|acesso|clic)\b/u',
+            '/\bonde\s+(fica|encontr|acesso|clic|encontrar|clicar)\b/u',
             '/\bo\s+que\s+[eé]\s+(o|a)\s+(m[oó]dulo|tela|menu|kpi|oee|motor\s+neural)\b/u',
             '/\b(navegar|atalho|passo\s+a\s+passo)\b/u',
+            '/\b(quantos|o\s+que\s+é|onde\s+fica|qual\s+a\s+diferença)\b/u',
+            '/\bo\s+que\s+[eé]\s+(ia\s+neural)\b/u'
         ];
         foreach ($localPatterns as $pattern) {
             if (preg_match($pattern, $q)) {
@@ -215,7 +217,7 @@ class NeuralKnowledge
     /**
      * Resposta local quando Gemini não está disponível.
      */
-    public static function getLocalAnswer($prompt, $context)
+        public static function getLocalAnswer($prompt, $context)
     {
         $page = $context['page'] ?? 'home';
         $guide = self::getModuleGuide($page);
@@ -224,8 +226,36 @@ class NeuralKnowledge
         $moduleName = $guide['nome'];
         $steps = implode("\n• ", $guide['como_usar']);
 
+        // Perguntas sobre ordens
+        if (preg_match('/\b(ordem|os|serviço|servico|pendente|crítica|critica)\b/ui', $q)) {
+            $pend = $context['os_pendentes'] ?? 0;
+            $crit = $context['os_criticas'] ?? 0;
+            return "**Ordens de Serviço**\n\nNo sistema há {$pend} ordens pendentes e {$crit} críticas.\n\n• Para criar: vá em Ordens de Serviço → **Nova Ordem**\n• Para ver sugestões: seção **Motor Neural** no dashboard\n• A Lúbria só sugere: clique **Aceitar** ou **Recusar** em cada predição";
+        }
+
+        // Perguntas sobre ativos
+        if (preg_match('/\b(ativo|ativos|equipamento|árvore|arvore|ponto|lubrific|quantos)\b/ui', $q) && !preg_match('/(ajuda)/ui', $q)) {
+            $total = $context['total_ativos'] ?? 0;
+            return "**Meus Ativos** ({$total} cadastrados)\n\n• Árvore hierárquica à esquerda\n• Selecione um nó para ver/editar dados\n• Pontos de lubrificação ficam no nível mais baixo da árvore\n• Use atalhos no topo para criar O.S. ou abrir Engenharia";
+        }
+
+        // Perguntas sobre relatorios
+        if (preg_match('/(relatório|relatorio)/ui', $q)) {
+            return "**Exportar Documentos / Relatórios**\n\nGeração de relatórios gerenciais em Excel e PDF, incluindo consumo de lubrificantes por equipamento.\n\n**Como usar:**\n• Escolha o tipo: Catálogo, Ordens de Serviço, Estrutura da Planta, SAP ou Consumo por Equipamento.\n• No consumo, use Ver relatório para o demonstrativo em tela; Excel e PDF exportam o mesmo dado.\n• O consumo individual usa dose × frequência de cada ponto cadastrado em Meus Ativos.\n• Relatórios usam dados atuais do banco.";
+        }
+
+        // Perguntas sobre kpi
+        if (preg_match('/(kpi|indicador|oee)/ui', $q) || (preg_match('/ajuda/ui', $q) && isset($context['page']) && $context['page'] === 'kpi')) {
+            return "**Gestão de KPIs**\n\nDashboard de indicadores: OEE, aderência, saúde dos ativos, investimento.\n\n**Como usar:**\n• Visualize gráficos de OEE, aderência ao plano e saúde dos ativos.\n• Barra \"Motor Neural\" no topo traz insight e recomendação automática.\n• Use para apresentações gerenciais e tomada de decisão.";
+        }
+
+        // Perguntas sobre IA / neural
+        if (preg_match('/\b(ia|inteligência|neural|gemini|assistente)\b/ui', $q)) {
+            return "Sou o **Assistente Neural LUB-TEK**. Estou aqui para tirar dúvidas sobre o sistema e sobre manutenção industrial.\n\n**Neste momento você está em:** {$moduleName}\n\nPergunte coisas como:\n• \"Como criar uma ordem de serviço?\"\n• \"Como cadastrar um ativo?\"\n• \"O que é o Motor Neural?\"";
+        }
+
         // Perguntas sobre módulo atual / "como usar" / "o que é"
-        if (preg_match('/(como|onde|o que|qual|ajuda|usar|funciona|fazer|criar|cadastrar|exportar|importar)/u', $q)) {
+        if (preg_match('/\b(como|onde|o que|qual|ajuda|usar|funciona|fazer|criar|cadastrar|exportar|importar|encontrar|clicar)\b/ui', $q)) {
             foreach ($guide['como_usar'] as $hint) {
                 $hintLower = self::toLower($hint);
                 $words = preg_split('/\s+/', $q);
@@ -236,24 +266,6 @@ class NeuralKnowledge
                 }
             }
             return "**Você está em: {$moduleName}**\n\n{$guide['descricao']}\n\n**Como usar:**\n• {$steps}";
-        }
-
-        // Perguntas sobre ordens
-        if (preg_match('/(ordem|os|serviço|servico|pendente|crítica|critica)/u', $q)) {
-            $pend = $context['os_pendentes'] ?? 0;
-            $crit = $context['os_criticas'] ?? 0;
-            return "**Ordens de Serviço**\n\nNo sistema há {$pend} ordens pendentes e {$crit} críticas.\n\n• Para criar: vá em Ordens de Serviço → **Nova Ordem**\n• Para ver sugestões: seção **Motor Neural** no dashboard\n• A Lúbria só sugere: clique **Aceitar** ou **Recusar** em cada predição";
-        }
-
-        // Perguntas sobre ativos
-        if (preg_match('/(ativo|equipamento|árvore|arvore|ponto|lubrific)/u', $q)) {
-            $total = $context['total_ativos'] ?? 0;
-            return "**Meus Ativos** ({$total} cadastrados)\n\n• Árvore hierárquica à esquerda\n• Selecione um nó para ver/editar dados\n• Pontos de lubrificação ficam no nível mais baixo da árvore\n• Use atalhos no topo para criar O.S. ou abrir Engenharia";
-        }
-
-        // Perguntas sobre IA / neural
-        if (preg_match('/(ia|inteligência|neural|gemini|assistente)/u', $q)) {
-            return "Sou o **Assistente Neural LUB-TEK**. Estou aqui para tirar dúvidas sobre o sistema e sobre manutenção industrial.\n\n**Neste momento você está em:** {$moduleName}\n\nPergunte coisas como:\n• \"Como criar uma ordem de serviço?\"\n• \"Como cadastrar um ativo?\"\n• \"O que é o Motor Neural?\"";
         }
 
         // Resposta padrão contextualizada

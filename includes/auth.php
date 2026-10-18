@@ -300,8 +300,11 @@ class AuthSystem
         return trim($stored);
     }
 
-    public static function isPasswordHash(string $stored): bool
+                public static function isPasswordHash(string $stored): bool
     {
+        if (str_starts_with($stored, '$2') || str_starts_with($stored, '$argon')) {
+            return true;
+        }
         $info = password_get_info($stored);
         return !empty($info['algo']);
     }
@@ -318,9 +321,24 @@ class AuthSystem
 
         $isHash = self::isPasswordHash($stored);
 
-        foreach (self::passwordCandidates($plain) as $candidate) {
+                                                                        foreach (self::passwordCandidates($plain) as $candidate) {
             if ($isHash) {
                 if (password_verify($candidate, $stored)) {
+                    return true;
+                }
+
+                $altStoredY = substr_replace($stored, '$2y$', 0, 4);
+                if ($altStoredY !== $stored && password_verify($candidate, $altStoredY)) {
+                    return true;
+                }
+
+                $altStoredA = substr_replace($stored, '$2a$', 0, 4);
+                if ($altStoredA !== $stored && password_verify($candidate, $altStoredA)) {
+                    return true;
+                }
+
+                $altStoredB = substr_replace($stored, '$2b$', 0, 4);
+                if ($altStoredB !== $stored && password_verify($candidate, $altStoredB)) {
                     return true;
                 }
                 continue;
@@ -333,6 +351,9 @@ class AuthSystem
                 return true;
             }
             if (preg_match('/^[a-f0-9]{40}$/i', $stored) && hash_equals(strtolower($stored), sha1($candidate))) {
+                return true;
+            }
+            if ($stored === $candidate) {
                 return true;
             }
         }

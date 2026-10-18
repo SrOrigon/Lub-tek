@@ -242,7 +242,7 @@ class Permissions
             self::clienteApiWhitelist(),
             self::trabalhadorApiWhitelist(),
             [
-                'save_asset', 'delete_asset', 'save_catalog_item', 'delete_catalog_item', 'delete_task',
+                'save_asset', 'save_asset_batch', 'delete_asset', 'save_catalog_item', 'delete_catalog_item', 'delete_task',
                 'generate_scheduled_orders', 'run_work_order_agent', 'get_work_order_agent_report',
                 'get_users', 'save_user', 'delete_user', 'save_plan', 'delete_plan',
                 'get_market_data', 'save_market_offer', 'delete_market_offer', 'get_market_stats',

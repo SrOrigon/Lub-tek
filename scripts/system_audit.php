@@ -39,12 +39,23 @@ foreach ($testScripts as $script) {
 }
 
 $pdo = DB::getInstance();
+
+// Garante que o ativo 18 exista para os testes
+$stmt = $pdo->prepare("SELECT id FROM ativos WHERE id = 18 OR pai_id IS NULL LIMIT 1");
+$stmt->execute();
+$rootId = $stmt->fetchColumn();
+
+if (!$rootId) {
+    $pdo->exec("INSERT INTO ativos (id, nome, tipo) VALUES (18, 'Ativo 18', 'equipamento')");
+    $rootId = 18;
+}
+
 $builder = new LubricationPlanBuilder($pdo);
 $renderer = new LubricationPlanRenderer(['name' => 'LUB-TEK']);
 
 $scenarios = [
-    'completo' => fn() => $builder->build(18, []),
-    'mensal' => fn() => $builder->build(18, ['frequency' => 'Mensal']),
+    'completo' => fn() => $builder->build((int)$rootId, []),
+    'mensal' => fn() => $builder->build((int)$rootId, ['frequency' => 'Mensal']),
 ];
 
 foreach ($scenarios as $label => $factory) {

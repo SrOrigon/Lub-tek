@@ -23,7 +23,7 @@ function check(bool $ok, string $msg): void {
 $user = ['id' => 1, 'role' => 'developer', 'nome' => 'Test Admin'];
 
 // --- Rotas registradas ---
-$api = file_get_contents(dirname(__DIR__) . '/api.php') ?: '';
+$api = file_get_contents(dirname(__DIR__) . '/api/ApiRouteRegistry.php') ?: '';
 foreach (['sap_import_orders', 'sap_import_materials', 'sap_export_orders', 'sap_export_assets', 'sap_export_materials', 'save_asset_batch'] as $route) {
     check(strpos($api, "'$route'") !== false, "rota api.php: $route");
 }

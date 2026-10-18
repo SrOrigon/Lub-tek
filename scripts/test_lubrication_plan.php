@@ -11,7 +11,8 @@ $builder = new LubricationPlanBuilder($pdo);
 
 $root = $pdo->query("SELECT id, nome FROM ativos WHERE id = 18 OR pai_id IS NULL LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 if (!$root) {
-    $root = $pdo->query("SELECT id, nome FROM ativos LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+    $pdo->exec("INSERT INTO ativos (id, nome, tipo) VALUES (18, 'Ativo 18', 'equipamento')");
+    $root = $pdo->query("SELECT id, nome FROM ativos WHERE id = 18 OR pai_id IS NULL LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 }
 
 $plan = $builder->build((int) $root['id']);

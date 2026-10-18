@@ -88,7 +88,7 @@ SCHEMA = [
 
 def hash_password(pwd: str) -> str:
     h = bcrypt.hashpw(pwd.encode(), bcrypt.gensalt(rounds=10)).decode()
-    return h.replace("$2b$", "$2y$", 1)
+    return h
 
 
 def verify_password(pwd: str, hashed: str) -> bool:
