@@ -7,7 +7,9 @@ $ErrorActionPreference = 'Stop'
 if (-not (Test-Path $LocalPath)) { throw "Arquivo local ausente: $LocalPath" }
 $s = Get-Content -Raw -Path $SessionPath | ConvertFrom-Json
 $size = (Get-Item -LiteralPath $LocalPath).Length
-$uri = ($s.url.TrimEnd('/') + '/' + $RemoteName + '?override=true')
+$baseUrl = if ($s.tus_base_url) { $s.tus_base_url } else { $s.url }
+if (-not $baseUrl) { throw "Nenhum tus_base_url ou url encontrado em $SessionPath" }
+$uri = ($baseUrl.TrimEnd('/') + '/' + $RemoteName + '?override=true')
 $headers = @{
     'X-Auth' = $s.auth_key
     'X-Auth-Rest' = $s.rest_auth_key
