@@ -6,7 +6,6 @@ if (php_sapi_name() !== 'cli') {
     exit(1);
 }
 
-putenv('GEMINI_API_KEY=dummy_key');
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/neural_knowledge.php';
 require_once dirname(__DIR__) . '/includes/agent_weights.php';
@@ -155,11 +154,7 @@ foreach (loadFixture('agent_weights_defaults.json') as $case) {
 foreach (loadFixture('local_answer_smoke.json') as $case) {
     $ran++;
     $id = $case['id'] ?? 'local-?';
-    $context = $case['context'] ?? [];
-    if (isset($case['page'])) {
-        $context['page'] = $case['page'];
-    }
-    $answer = NeuralKnowledge::getLocalAnswer($case['prompt'] ?? '', $context);
+    $context = $case['context'] ?? []; if (isset($case['page'])) $context['page'] = $case['page']; $answer = NeuralKnowledge::getLocalAnswer($case['prompt'] ?? '', $context);
     $lower = function_exists('mb_strtolower') ? mb_strtolower($answer) : strtolower($answer);
     foreach ($case['expect_substrings'] ?? [] as $needle) {
         $n = function_exists('mb_strtolower') ? mb_strtolower($needle) : strtolower($needle);
