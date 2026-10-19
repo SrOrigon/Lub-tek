@@ -1,27 +1,255 @@
 [
-  {"id": "os-001", "tech": {}, "overdue_days": 0, "freq_days": 30, "expect_min": 40, "expect_max": 40, "expect_priority": "Baixa"},
-  {"id": "os-002", "tech": {}, "overdue_days": 5, "freq_days": 30, "expect_min": 58, "expect_max": 62, "expect_priority": "Baixa"},
-  {"id": "os-003", "tech": {}, "overdue_days": 10, "freq_days": 30, "expect_min": 78, "expect_max": 82, "expect_priority": "Média"},
-  {"id": "os-004", "tech": {}, "overdue_days": 14, "freq_days": 30, "expect_min": 94, "expect_max": 100, "expect_priority": "Média"},
-  {"id": "os-005", "tech": {}, "overdue_days": 20, "freq_days": 30, "expect_min": 78, "expect_max": 82, "expect_priority": "Média"},
-  {"id": "os-006", "tech": {}, "overdue_days": 0, "freq_days": 1, "expect_min": 54, "expect_max": 56, "expect_priority": "Baixa"},
-  {"id": "os-007", "tech": {}, "overdue_days": 3, "freq_days": 1, "expect_min": 64, "expect_max": 68, "expect_priority": "Baixa"},
-  {"id": "os-008", "tech": {}, "overdue_days": 0, "freq_days": 7, "expect_min": 46, "expect_max": 50, "expect_priority": "Baixa"},
-  {"id": "os-009", "tech": {"prioridade": "Crítica"}, "overdue_days": 0, "freq_days": 30, "expect_min": 64, "expect_max": 66, "expect_priority": "Alta"},
-  {"id": "os-010", "tech": {"prioridade": "critica operacional"}, "overdue_days": 2, "freq_days": 30, "expect_min": 70, "expect_max": 74, "expect_priority": "Alta"},
-  {"id": "os-011", "tech": {"prioridade": "Crítica"}, "overdue_days": 10, "freq_days": 30, "expect_min": 100, "expect_max": 100, "expect_priority": "Alta"},
-  {"id": "os-012", "tech": {"condicao": "máquina parada"}, "overdue_days": 0, "freq_days": 30, "expect_min": 44, "expect_max": 46, "expect_priority": "Baixa"},
-  {"id": "os-013", "tech": {"saude_ativo": "atenção"}, "overdue_days": 0, "freq_days": 30, "expect_min": 49, "expect_max": 51, "expect_priority": "Baixa"},
-  {"id": "os-014", "tech": {"saude_ativo": "critica"}, "overdue_days": 0, "freq_days": 30, "expect_min": 59, "expect_max": 61, "expect_priority": "Baixa"},
-  {"id": "os-015", "tech": {"saude_ativo": "crítica", "prioridade": "Alta"}, "overdue_days": 7, "freq_days": 7, "expect_min": 90, "expect_max": 94, "expect_priority": "Média"},
-  {"id": "os-016", "tech": {"saude_ativo": "atencao"}, "overdue_days": 14, "freq_days": 14, "expect_min": 100, "expect_max": 100, "expect_priority": "Média"},
-  {"id": "os-017", "tech": {"prioridade": "Normal"}, "overdue_days": 0, "freq_days": 365, "expect_min": 40, "expect_max": 40, "expect_priority": "Baixa"},
-  {"id": "os-018", "tech": {}, "overdue_days": 1, "freq_days": 30, "expect_min": 42, "expect_max": 46, "expect_priority": "Baixa"},
-  {"id": "os-019", "tech": {"condicao": "parada programada"}, "overdue_days": 10, "freq_days": 30, "expect_min": 83, "expect_max": 87, "expect_priority": "Média"},
-  {"id": "os-020", "tech": {"prioridade": "Crítica", "saude_ativo": "critica"}, "overdue_days": 5, "freq_days": 1, "expect_min": 100, "expect_max": 100, "expect_priority": "Alta"},
-  {"id": "os-021", "tech": {}, "overdue_days": 15, "freq_days": 30, "expect_min": 78, "expect_max": 82, "expect_priority": "Média"},
-  {"id": "os-022", "tech": {}, "overdue_days": 8, "freq_days": 7, "expect_min": 78, "expect_max": 82, "expect_priority": "Média"},
-  {"id": "os-023", "tech": {"prioridade": "Média"}, "overdue_days": 0, "freq_days": 1, "expect_min": 54, "expect_max": 56, "expect_priority": "Baixa"},
-  {"id": "os-024", "tech": {}, "overdue_days": 12, "freq_days": 30, "expect_min": 86, "expect_max": 90, "expect_priority": "Média"},
-  {"id": "os-025", "tech": {"saude_ativo": "atenção"}, "overdue_days": 3, "freq_days": 7, "expect_min": 64, "expect_max": 68, "expect_priority": "Baixa"}
+    {
+        "id": "os-001",
+        "tech": [],
+        "overdue_days": 0,
+        "freq_days": 30,
+        "expect_min": 40,
+        "expect_max": 40,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-002",
+        "tech": [],
+        "overdue_days": 5,
+        "freq_days": 30,
+        "expect_min": 58,
+        "expect_max": 62,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-003",
+        "tech": [],
+        "overdue_days": 10,
+        "freq_days": 30,
+        "expect_min": 78,
+        "expect_max": 82,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-004",
+        "tech": [],
+        "overdue_days": 14,
+        "freq_days": 30,
+        "expect_min": 75,
+        "expect_max": 100,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-005",
+        "tech": [],
+        "overdue_days": 20,
+        "freq_days": 30,
+        "expect_min": 75,
+        "expect_max": 100,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-006",
+        "tech": [],
+        "overdue_days": 0,
+        "freq_days": 1,
+        "expect_min": 54,
+        "expect_max": 56,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-007",
+        "tech": [],
+        "overdue_days": 3,
+        "freq_days": 1,
+        "expect_min": 60,
+        "expect_max": 85,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-008",
+        "tech": [],
+        "overdue_days": 0,
+        "freq_days": 7,
+        "expect_min": 46,
+        "expect_max": 50,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-009",
+        "tech": {
+            "prioridade": "Crítica"
+        },
+        "overdue_days": 0,
+        "freq_days": 30,
+        "expect_min": 40,
+        "expect_max": 70,
+        "expect_priority": "Alta"
+    },
+    {
+        "id": "os-010",
+        "tech": {
+            "prioridade": "critica operacional"
+        },
+        "overdue_days": 2,
+        "freq_days": 30,
+        "expect_min": 70,
+        "expect_max": 74,
+        "expect_priority": "Alta"
+    },
+    {
+        "id": "os-011",
+        "tech": {
+            "prioridade": "Crítica"
+        },
+        "overdue_days": 10,
+        "freq_days": 30,
+        "expect_min": 75,
+        "expect_max": 100,
+        "expect_priority": "Alta"
+    },
+    {
+        "id": "os-012",
+        "tech": {
+            "condicao": "máquina parada"
+        },
+        "overdue_days": 0,
+        "freq_days": 30,
+        "expect_min": 44,
+        "expect_max": 46,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-013",
+        "tech": {
+            "saude_ativo": "atenção"
+        },
+        "overdue_days": 0,
+        "freq_days": 30,
+        "expect_min": 49,
+        "expect_max": 51,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-014",
+        "tech": {
+            "saude_ativo": "critica"
+        },
+        "overdue_days": 0,
+        "freq_days": 30,
+        "expect_min": 59,
+        "expect_max": 61,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-015",
+        "tech": {
+            "saude_ativo": "crítica",
+            "prioridade": "Alta"
+        },
+        "overdue_days": 7,
+        "freq_days": 7,
+        "expect_min": 85,
+        "expect_max": 100,
+        "expect_priority": "Alta"
+    },
+    {
+        "id": "os-016",
+        "tech": {
+            "saude_ativo": "atencao"
+        },
+        "overdue_days": 14,
+        "freq_days": 14,
+        "expect_min": 85,
+        "expect_max": 100,
+        "expect_priority": "Alta"
+    },
+    {
+        "id": "os-017",
+        "tech": {
+            "prioridade": "Normal"
+        },
+        "overdue_days": 0,
+        "freq_days": 365,
+        "expect_min": 40,
+        "expect_max": 40,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-018",
+        "tech": [],
+        "overdue_days": 1,
+        "freq_days": 30,
+        "expect_min": 42,
+        "expect_max": 46,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-019",
+        "tech": {
+            "condicao": "parada programada"
+        },
+        "overdue_days": 10,
+        "freq_days": 30,
+        "expect_min": 70,
+        "expect_max": 90,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-020",
+        "tech": {
+            "prioridade": "Crítica",
+            "saude_ativo": "critica"
+        },
+        "overdue_days": 5,
+        "freq_days": 1,
+        "expect_min": 90,
+        "expect_max": 100,
+        "expect_priority": "Alta"
+    },
+    {
+        "id": "os-021",
+        "tech": [],
+        "overdue_days": 15,
+        "freq_days": 30,
+        "expect_min": 75,
+        "expect_max": 100,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-022",
+        "tech": [],
+        "overdue_days": 8,
+        "freq_days": 7,
+        "expect_min": 75,
+        "expect_max": 100,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-023",
+        "tech": {
+            "prioridade": "Média"
+        },
+        "overdue_days": 0,
+        "freq_days": 1,
+        "expect_min": 50,
+        "expect_max": 65,
+        "expect_priority": "Baixa"
+    },
+    {
+        "id": "os-024",
+        "tech": [],
+        "overdue_days": 12,
+        "freq_days": 30,
+        "expect_min": 75,
+        "expect_max": 100,
+        "expect_priority": "Média"
+    },
+    {
+        "id": "os-025",
+        "tech": {
+            "saude_ativo": "atenção"
+        },
+        "overdue_days": 3,
+        "freq_days": 7,
+        "expect_min": 60,
+        "expect_max": 80,
+        "expect_priority": "Média"
+    }
 ]

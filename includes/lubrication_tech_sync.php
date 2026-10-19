@@ -42,6 +42,25 @@ class LubricationTechSync
         if (!in_array('consumo_acumulado', $cols)) {
             $db->exec("ALTER TABLE ativos_lubrificacao ADD COLUMN consumo_acumulado REAL DEFAULT 0");
         }
+        $missingCols = [
+            'setor_id' => 'INTEGER',
+            'setor_nome' => 'TEXT',
+            'equipamento_id' => 'INTEGER',
+            'equipamento_nome' => 'TEXT',
+            'd_int' => 'REAL',
+            'd_ext' => 'REAL',
+            'largura_b' => 'REAL',
+            'rpm' => 'REAL',
+            'qtd_mensal' => 'REAL',
+            'familia' => 'TEXT',
+            'base_mensal' => 'REAL',
+            'sap' => 'TEXT'
+        ];
+        foreach ($missingCols as $col => $type) {
+            if (!in_array($col, $cols)) {
+                $db->exec("ALTER TABLE ativos_lubrificacao ADD COLUMN $col $type");
+            }
+        }
         $db->exec('CREATE INDEX IF NOT EXISTS idx_lub_material ON ativos_lubrificacao(lubrificante)');
         $db->exec('CREATE INDEX IF NOT EXISTS idx_lub_setor ON ativos_lubrificacao(setor_id)');
         $db->exec('CREATE INDEX IF NOT EXISTS idx_lub_freq ON ativos_lubrificacao(frequencia)');

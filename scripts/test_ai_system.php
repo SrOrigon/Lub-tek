@@ -39,7 +39,7 @@ foreach ($coreFiles as $f) {
 }
 
 // --- Rotas API ---
-$api = file_get_contents(dirname(__DIR__) . '/api.php') ?: '';
+$api = file_get_contents(dirname(__DIR__) . '/api/ApiRouteRegistry.php') ?: '';
 foreach (['ask_neural', 'get_neural_context', 'neural_predict', 'neural_generate_os', 'neural_diagnose', 'lubria_excel_mapper', 'get_asset_reliability', 'pi_ai_diagnose'] as $route) {
     check(strpos($api, "'$route'") !== false, "rota api: $route");
 }
@@ -88,9 +88,19 @@ $denyRes = $deny->generateOS();
 check(isset($denyRes['error']), 'trabalhador bloqueado em generateOS');
 
 // --- Plano lubrificação IA local fallback ---
+// Garante que o ativo 18 exista para os testes
+$stmt = $pdo->prepare("SELECT id FROM ativos WHERE id = 18 OR pai_id IS NULL LIMIT 1");
+$stmt->execute();
+$rootId = $stmt->fetchColumn();
+
+if (!$rootId) {
+    $pdo->exec("INSERT INTO ativos (id, nome, tipo) VALUES (18, 'Ativo 18', 'equipamento')");
+    $rootId = 18;
+}
+
 require __DIR__ . '/../includes/lubrication_plan_builder.php';
 $builder = new LubricationPlanBuilder($pdo);
-$plan = $builder->build(18, []);
+$plan = $builder->build((int)$rootId, []);
 $enricher = new LubricationPlanAiEnricher($pdo);
 $enriched = $enricher->enrich($plan, ['force_refresh' => true]);
 check(!empty($enriched['ai']['global']['executive_summary']), 'LubricationPlanAiEnricher fallback local');
@@ -106,7 +116,8 @@ check(strpos($header, 'neural_assistant') !== false || is_file(dirname(__DIR__) 
 
 $neuralUi = file_get_contents(dirname(__DIR__) . '/includes/neural_assistant.php') ?: '';
 check(strpos($neuralUi, 'neural-force-ai') !== false, 'chat Lúbria tem toggle IA avançada');
-check(strpos($api, 'force_ai') !== false, 'api.php suporta force_ai');
+$apiPhp = file_get_contents(dirname(__DIR__) . '/api.php') ?: '';
+check(strpos($apiPhp, 'force_ai') !== false || strpos(file_get_contents(dirname(__DIR__) . '/api/NeuralEngineController.php') ?: '', 'force_ai') !== false, 'api.php suporta force_ai');
 check(strpos($api, 'AI_GEMINI') !== false || strpos(file_get_contents(dirname(__DIR__) . '/config.php') ?: '', 'AI_GEMINI') !== false, 'config AI_GEMINI definido');
 
 @unlink(dirname(__DIR__) . '/data/ai_cache/default/' . preg_replace('/[^a-f0-9]/', '', strtolower($key)) . '.json');

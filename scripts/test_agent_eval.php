@@ -154,7 +154,7 @@ foreach (loadFixture('agent_weights_defaults.json') as $case) {
 foreach (loadFixture('local_answer_smoke.json') as $case) {
     $ran++;
     $id = $case['id'] ?? 'local-?';
-    $answer = NeuralKnowledge::getLocalAnswer($case['prompt'] ?? '', $case['context'] ?? []);
+    $context = $case['context'] ?? []; if (isset($case['page'])) $context['page'] = $case['page']; $answer = NeuralKnowledge::getLocalAnswer($case['prompt'] ?? '', $context);
     $lower = function_exists('mb_strtolower') ? mb_strtolower($answer) : strtolower($answer);
     foreach ($case['expect_substrings'] ?? [] as $needle) {
         $n = function_exists('mb_strtolower') ? mb_strtolower($needle) : strtolower($needle);
