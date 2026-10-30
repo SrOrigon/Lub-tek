@@ -1661,6 +1661,13 @@
     async function downloadTechnicalReport() {
         if (!window.lastSmartCalcResult) return showToast('Realize um cálculo primeiro.', 'warning');
 
+        if (typeof lubtekEnsureJsPdf === 'function') {
+            try { await lubtekEnsureJsPdf(); } catch (e) {
+                return showToast('Erro ao carregar biblioteca PDF.', 'error');
+            }
+        }
+        if (typeof window.jspdf === 'undefined') return showToast('Erro: Biblioteca jsPDF não carregada.', 'error');
+
         const res = window.lastSmartCalcResult;
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -2070,6 +2077,7 @@
 
     window.startVoiceInput = startVoiceInput;
     window.initVoiceInput = initVoiceInput;
+    window.downloadTechnicalReport = downloadTechnicalReport;
 
     function processScannedTag(tagVal) {
         if (!tagVal || !tagVal.trim()) {
