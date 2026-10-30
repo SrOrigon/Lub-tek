@@ -2069,6 +2069,7 @@
     window.runFloatingCalc = runFloatingCalc;
 
     window.startVoiceInput = startVoiceInput;
+    window.initVoiceInput = initVoiceInput;
 
     function processScannedTag(tagVal) {
         if (!tagVal || !tagVal.trim()) {
