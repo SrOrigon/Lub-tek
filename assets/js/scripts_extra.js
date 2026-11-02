@@ -2339,4 +2339,5 @@
     window.submitRouteAlert = submitRouteAlert;
     window.handleAnomalyPhoto = handleAnomalyPhoto;
     window.triggerExcelImport = triggerExcelImport;
+    window.exportFullAssetTreeExcel = exportFullAssetTreeExcel;
     // Calculadoras Synth (runSynthRolCalc/Visc/Buc/DN): expostas nativamente por scripts_main.js.

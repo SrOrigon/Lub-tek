@@ -6980,6 +6980,9 @@ function applyTableDataLabels() {
 }
 window.applyTableDataLabels = applyTableDataLabels;
 
+window.exportDetailedPlanExcel = exportDetailedPlanExcel;
+window.exportLabelSheet = exportLabelSheet;
+
 // Dispara na carga e com MutationObserver para renderizações dinâmicas
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyTableDataLabels);
