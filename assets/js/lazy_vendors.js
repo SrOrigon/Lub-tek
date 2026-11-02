@@ -41,6 +41,9 @@
         qrcode: function () {
             return loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
         },
+        jsqr: function () {
+            return loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+        },
         exportStack: function () {
             return Promise.all([
                 LubtekVendors.xlsx(),
@@ -75,5 +78,9 @@
 
     global.lubtekEnsureHtml2Canvas = function () {
         return typeof global.html2canvas !== 'undefined' ? Promise.resolve() : LubtekVendors.html2canvas();
+    };
+
+    global.lubtekEnsureJsQR = function () {
+        return typeof global.jsQR !== 'undefined' ? Promise.resolve() : LubtekVendors.jsqr();
     };
 })(typeof window !== 'undefined' ? window : globalThis);

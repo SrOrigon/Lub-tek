@@ -2242,13 +2242,35 @@
             }
         }
 
-        if (!('BarcodeDetector' in window)) {
-            if (placeholder) placeholder.innerHTML = 'Scanner nativo não suportado neste navegador. Digite a TAG abaixo.';
+        // Garante carregamento do jsQR para navegadores sem BarcodeDetector nativo (Chrome Desktop, Firefox, Safari)
+        if (!('BarcodeDetector' in window) && typeof lubtekEnsureJsQR === 'function') {
+            try {
+                await lubtekEnsureJsQR();
+            } catch (e) {
+                console.warn('[QR Scanner] jsQR loader notice:', e);
+            }
+        }
+
+        const hasBarcodeDetector = 'BarcodeDetector' in window;
+        const hasJsQR = typeof window.jsQR === 'function';
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (placeholder) {
+                placeholder.innerHTML = '<i data-lucide="camera-off" style="width:32px; height:32px; opacity:0.6; margin-bottom:8px;"></i><br>Câmera não suportada neste navegador.<br><span style="font-size:0.75rem; color:#94a3b8;">Digite a TAG ou ID do ponto abaixo:</span>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
             return;
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            let stream = null;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+            } catch (errConstraint) {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            }
             const video = document.getElementById('qr-video');
             if (video) {
                 video.srcObject = stream;
@@ -2256,21 +2278,53 @@
                 qrVideoTrack = stream.getVideoTracks()[0];
                 if (placeholder) placeholder.style.display = 'none';
 
-                const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
-                qrDetectionInterval = setInterval(async () => {
+                const scanCanvas = document.createElement('canvas');
+                const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+                if (hasBarcodeDetector) {
                     try {
-                        const barcodes = await detector.detect(video);
-                        if (barcodes.length > 0) {
-                            const rawValue = barcodes[0].rawValue;
-                            closeQrScannerModal();
-                            processScannedTag(rawValue);
+                        const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+                        qrDetectionInterval = setInterval(async () => {
+                            try {
+                                if (video.readyState >= 2) {
+                                    const barcodes = await detector.detect(video);
+                                    if (barcodes.length > 0) {
+                                        const rawValue = barcodes[0].rawValue;
+                                        closeQrScannerModal();
+                                        processScannedTag(rawValue);
+                                    }
+                                }
+                            } catch (err) {}
+                        }, 250);
+                        return;
+                    } catch (e) {}
+                }
+
+                // Motor Universal jsQR (compatível com Desktop, Mac, Windows, iOS e Android)
+                qrDetectionInterval = setInterval(() => {
+                    try {
+                        if (video.readyState >= 2 && video.videoWidth > 0 && typeof window.jsQR === 'function') {
+                            scanCanvas.width = video.videoWidth;
+                            scanCanvas.height = video.videoHeight;
+                            scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+                            const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                            const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+                                inversionAttempts: 'dontInvert'
+                            });
+                            if (code && code.data) {
+                                closeQrScannerModal();
+                                processScannedTag(code.data);
+                            }
                         }
                     } catch (err) {}
-                }, 400);
+                }, 250);
             }
         } catch (err) {
-            console.warn('Erro ao acessar a câmera:', err);
-            if (placeholder) placeholder.innerHTML = 'Câmera não disponível ou permissão negada. Digite a TAG abaixo.';
+            console.warn('[QR Scanner] Erro ao acessar a câmera:', err);
+            if (placeholder) {
+                placeholder.innerHTML = '<i data-lucide="camera-off" style="width:32px; height:32px; opacity:0.6; margin-bottom:8px;"></i><br>Câmera não disponível ou permissão não concedida.<br><span style="font-size:0.75rem; color:#94a3b8;">Digite a TAG ou ID abaixo, ou selecione uma foto:</span>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
         }
     }
 
@@ -2279,7 +2333,40 @@
         if (overlay) overlay.classList.remove('active');
         if (qrDetectionInterval) { clearInterval(qrDetectionInterval); qrDetectionInterval = null; }
         if (qrVideoTrack) { qrVideoTrack.stop(); qrVideoTrack = null; }
+        const video = document.getElementById('qr-video');
+        if (video) video.srcObject = null;
     }
+
+    function scanQrFromFile(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                if (typeof window.jsQR === 'function') {
+                    const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code && code.data) {
+                        closeQrScannerModal();
+                        processScannedTag(code.data);
+                        return;
+                    }
+                }
+                if (typeof showToast === 'function') showToast('Nenhum QR Code legível identificado na foto.', 'warning');
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        input.value = '';
+    }
+
+    window.scanQrFromFile = scanQrFromFile;
 
 
     // --- FLOATING DOSAGE & PUMP CONVERTER CALCULATOR ---

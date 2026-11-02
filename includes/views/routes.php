@@ -60,6 +60,12 @@
                     <input type="text" id="manual-qr-tag" placeholder="Ou digite a TAG/ID..." style="flex:1; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-weight:700;">
                     <button type="button" class="btn btn-primary" onclick="processScannedTag(document.getElementById('manual-qr-tag').value)">Buscar</button>
                 </div>
+                <div style="margin-top:10px; display:flex; justify-content:center;">
+                    <label for="qr-file-input" style="font-size:0.75rem; color:#0284c7; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-weight:700; padding:6px 14px; border-radius:8px; background:#f0f9ff; border:1px solid #bae6fd;">
+                        <i data-lucide="image" style="width:14px; height:14px;"></i> Ler QR Code de Foto / Arquivo
+                    </label>
+                    <input type="file" id="qr-file-input" accept="image/*" style="display:none;" onchange="scanQrFromFile(this)">
+                </div>
             </div>
         </div>
 
@@ -405,4 +411,5 @@
                 padding: 8px;
             }
         </style>
+        <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     </div>
