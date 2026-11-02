@@ -25,7 +25,7 @@ if (!$auth->canAccessPage($page)) {
 // ===========================================
 // SYSTEM INCLUDES
 // ===========================================
-$BUILD_VER = defined('LUBTEK_BUILD') ? LUBTEK_BUILD : '3.4.9';
+$BUILD_VER = defined('LUBTEK_BUILD') ? LUBTEK_BUILD : '3.5.0';
 
 // LUB-TEK System Entry Point
 ?>
