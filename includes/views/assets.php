@@ -262,17 +262,18 @@
             <div class="asset-sticky-header"
                 style="display:flex; align-items:center; gap:15px; padding:12px; background:rgba(255,255,255,0.95); border-bottom:1px solid var(--border);">
                 <!-- Thumbnail Container (Small & Clickable) -->
-                <div
+                <div class="ash-avatar-wrapper"
                     style="width:60px; height:60px; min-width:60px; border-radius:8px; overflow:hidden; border:1px solid var(--border); position:relative; background:var(--bg-dark);">
                     <img id="ash-header-img" src="<?php echo htmlspecialchars($companyLogo ?? 'assets/img/system/img_69581d7fcdbbf.jpeg'); ?>"
                         loading="lazy" decoding="async"
                         style="width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in;"
-                        onclick="openImageModal(this.src)"
-                        onerror="this.src=(typeof getCompanyLogoUrl === 'function' ? getCompanyLogoUrl() : 'assets/img/system/img_69581d7fcdbbf.jpeg');">
+                        onclick="if(this.src && !this.src.includes('img_69581d7fcdbbf.jpeg')) { openImageModal(this.src); } else { triggerUpload('af-img-input'); }"
+                        onerror="this.src=(typeof getCompanyLogoUrl === 'function' ? getCompanyLogoUrl() : 'assets/img/system/img_69581d7fcdbbf.jpeg');"
+                        title="Foto do Ativo — Clique para ampliar ou alterar">
 
                     <!-- Camera Overlay -->
                     <div style="position:absolute; bottom:0; left:0; right:0; height:20px; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                        onclick="triggerUpload('af-img-input')" title="Alterar Imagem">
+                        onclick="triggerUpload('af-img-input')" title="Alterar Foto">
                         <i data-lucide="camera" style="width:12px; height:12px; color:white;"></i>
                     </div>
                 </div>
@@ -329,7 +330,7 @@
                             <button id="btn-toggle-asset-full" class="btn btn-outline" onclick="toggleFullWidth()"
                                 title="Foco Total" style="border:none; padding:8px;"><i data-lucide="maximize-2"
                                     style="width:18px;"></i></button>
-                            <button class="btn btn-outline" onclick="if(typeof duplicateAssetPoint==='function'&&typeof selectedNodeId!=='undefined')duplicateAssetPoint(selectedNodeId)" title="Duplicar Ponto"
+                            <button class="btn btn-outline" onclick="const nid = (typeof editingNode !== 'undefined' && editingNode && editingNode.id) || (typeof selectedNodeId !== 'undefined' ? selectedNodeId : null); if(nid && typeof duplicateAssetPoint === 'function') { duplicateAssetPoint(nid); } else { showToast('Selecione um ativo para duplicar.', 'warning'); }" title="Duplicar Ponto"
                                 style="border:none; color:#10b981; padding:8px;"><i data-lucide="copy"
                                     style="width:18px;"></i></button>
                             <button class="btn btn-outline" onclick="open3DView()" title="Engenharia 3D"
@@ -343,7 +344,7 @@
                         <!-- GROUP: ADVANCED ACTIONS (Dropdown) -->
                         <div style="position:relative;">
                             <button class="btn btn-outline"
-                                onclick="document.getElementById('adv-actions-menu').style.display = document.getElementById('adv-actions-menu').style.display === 'flex' ? 'none' : 'flex'"
+                                onclick="const m = document.getElementById('adv-actions-menu'); if(m) m.style.display = m.style.display === 'flex' ? 'none' : 'flex';"
                                 title="Ações Avançadas" style="gap:8px;">
                                 <i data-lucide="more-horizontal"></i> <span>Ações Avançadas</span>
                             </button>
@@ -363,7 +364,7 @@
                                     style="justify-content:flex-start; width:100%; text-align:left; padding:8px; color:#0284c7; font-weight:700;">
                                     <i data-lucide="file-text" style="width:16px;"></i> Plano de Lubrificação PDF
                                 </button>
-                                <button class="btn btn-ghost" onclick="if(typeof printIndustrialQrLabels==='function')printIndustrialQrLabels([{id:typeof selectedNodeId!=='undefined'?selectedNodeId:1, tag:'TAG-01', nome:'Ponto de Lubrificação'}])"
+                                <button class="btn btn-ghost" onclick="if(typeof printIndustrialQrLabels==='function' && typeof editingNode !== 'undefined' && editingNode){ printIndustrialQrLabels([{id: editingNode.id, tag: editingNode.tag || 'TAG', nome: editingNode.nome}]); } else if (typeof generateAssetQRCode === 'function') { generateAssetQRCode(); }"
                                     style="justify-content:flex-start; width:100%; text-align:left; padding:8px; color:#10b981; font-weight:700;">
                                     <i data-lucide="qr-code" style="width:16px;"></i> Imprimir Etiquetas QR Code
                                 </button>
@@ -402,42 +403,55 @@
                     </div>
                 </div>
 
-                <!-- RELIABILITY & AI MINI-DASHBOARD (Real-Time Data) -->
-                <!-- RELIABILITY & AI MINI-DASHBOARD (Compact) -->
+                <!-- RELIABILITY & AI MINI-DASHBOARD (Interactive Real-Time Data) -->
                 <div class="asset-metric-grid">
                     <!-- Card 1: Saúde do Ativo -->
-                    <div class="card" id="reliability-card"
-                        style="padding:8px 12px; border-left:3px solid #10b981; display:flex; align-items:center; gap:10px;">
+                    <div class="card clickable-metric-card" id="reliability-card"
+                        onclick="openAssetHealthModal('health')"
+                        title="Clique para ver o diagnóstico completo de saúde e engenharia preditiva"
+                        style="padding:8px 12px; border-left:3px solid #10b981; display:flex; align-items:center; gap:10px; cursor:pointer; transition:transform 0.15s ease, box-shadow 0.15s ease;">
                         <div style="background:rgba(16,185,129,0.1); padding:6px; border-radius:8px;">
                             <i data-lucide="heart-pulse" style="color:#10b981; width:18px;"></i>
                         </div>
-                        <div>
-                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Saúde do Ativo</div>
+                        <div style="flex:1;">
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+                                <span>Saúde do Ativo</span>
+                                <i data-lucide="chevron-right" style="width:12px; height:12px; opacity:0.5;"></i>
+                            </div>
                             <div id="reliability-status" style="font-weight:700; font-size:0.8rem; line-height:1.2;">Carregando...</div>
                         </div>
                     </div>
 
                     <!-- Card 2: IA Predict -->
-                    <div class="card"
-                        style="padding:8px 12px; border-left:3px solid #8b5cf6; display:flex; align-items:center; gap:10px;">
+                    <div class="card clickable-metric-card" id="next-failure-card"
+                        onclick="openAssetHealthModal('predict')"
+                        title="Clique para ver a previsão de falhas e MTBF calculado por IA"
+                        style="padding:8px 12px; border-left:3px solid #8b5cf6; display:flex; align-items:center; gap:10px; cursor:pointer; transition:transform 0.15s ease, box-shadow 0.15s ease;">
                         <div style="background:rgba(139,92,246,0.1); padding:6px; border-radius:8px;">
                             <i data-lucide="brain-circuit" style="color:#8b5cf6; width:18px;"></i>
                         </div>
-                        <div>
-                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Previsão IA — Próxima Falha</div>
+                        <div style="flex:1;">
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+                                <span>Previsão IA — Próxima Falha</span>
+                                <i data-lucide="chevron-right" style="width:12px; height:12px; opacity:0.5;"></i>
+                            </div>
                             <div id="next-failure" style="font-weight:700; font-size:0.8rem; line-height:1.2;">Calculando...</div>
                         </div>
                     </div>
 
                     <!-- Card 3: Impacto Sustentável -->
-                    <div class="card"
-                        style="padding:8px 12px; border-left:3px solid #0ea5e9; display:flex; align-items:center; gap:10px;">
+                    <div class="card clickable-metric-card" id="co2-impact-card"
+                        onclick="openAssetHealthModal('esg')"
+                        title="Clique para ver o impacto sustentável (ESG) e redução de emissões"
+                        style="padding:8px 12px; border-left:3px solid #0ea5e9; display:flex; align-items:center; gap:10px; cursor:pointer; transition:transform 0.15s ease, box-shadow 0.15s ease;">
                         <div style="background:rgba(14,165,233,0.1); padding:6px; border-radius:8px;">
                             <i data-lucide="leaf" style="color:#0ea5e9; width:18px;"></i>
                         </div>
-                        <div>
-                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Impacto
-                                Sustentável</div>
+                        <div style="flex:1;">
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+                                <span>Impacto Sustentável</span>
+                                <i data-lucide="chevron-right" style="width:12px; height:12px; opacity:0.5;"></i>
+                            </div>
                             <div id="co2-impact" style="font-weight:700; font-size:0.8rem; line-height:1.2;">--.-- kg CO2 / Ano</div>
                         </div>
                     </div>
@@ -620,13 +634,13 @@
                                 <label
                                     style="display:block; color:var(--text-muted); font-size:0.8rem; margin-bottom:4px;">Imagem</label>
                                 <div id="af-img-preview"
-                                    style="width:120px; height:120px; min-width:120px; max-width:120px; background:rgba(0,0,0,0.3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; cursor:pointer;"
+                                    style="width:120px; height:120px; min-width:120px; max-width:120px; background:rgba(0,0,0,0.3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; cursor:pointer; transition:border-color 0.2s, background 0.2s;"
                                     onclick="if(!editingNode || !editingNode.imagem || document.getElementById('af-img-display').style.display==='none') triggerUpload('af-img-input')"
-                                    title="Clique para adicionar/alterar foto">
+                                    title="Clique ou arraste uma foto para este ponto">
                                     <span id="af-img-placeholder"
                                         style="color:var(--text-muted); font-size:0.68rem; text-align:center; padding:6px; display:flex; flex-direction:column; align-items:center; gap:4px; line-height:1.25;">
                                         <i data-lucide="camera" style="width:22px; height:22px; opacity:0.6;"></i>
-                                        <span>Sem foto anexada — Clique para adicionar foto do ponto</span>
+                                        <span>Adicionar Foto<br>(Clique ou Arraste)</span>
                                     </span>
                                     <!-- Image acts as trigger for Lightbox -->
                                     <img id="af-img-display"
@@ -644,7 +658,7 @@
                                         <i id="af-zoom-btn" data-lucide="maximize"
                                             style="width:16px; color:white; cursor:pointer; display:none;"
                                             onclick="openImageModal(document.getElementById('af-img-display').src)"
-                                            title="Expandir"></i>
+                                            title="Expandir Foto"></i>
                                         <i id="af-remove-btn" data-lucide="trash-2"
                                             style="width:16px; color:#ef4444; cursor:pointer; display:none;"
                                             onclick="removeAssetImage()"

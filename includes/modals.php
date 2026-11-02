@@ -1,4 +1,5 @@
-    <div id="img-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Visualização ampliada">
+    <div id="img-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Visualização ampliada"
+        onclick="if(event.target === this && window.lubtekCloseLightbox){ lubtekCloseLightbox('img-modal'); }">
         <div class="lubtek-modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
             <img id="img-modal-content" src="" alt="Imagem ampliada"
                 style="max-width:min(96vw,1200px); max-height:calc(85dvh - 100px); border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.5); object-fit:contain;">
@@ -8,16 +9,159 @@
     </div>
 
     <!-- LIGHTBOX MODAL (For Asset Images) -->
-    <div id="lightbox-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Zoom da foto do ponto">
+    <div id="lightbox-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Zoom da foto do ponto"
+        onclick="if(event.target === this && window.lubtekCloseLightbox){ lubtekCloseLightbox('lightbox-modal'); }">
         <div class="lubtek-modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
             <img id="lightbox-img" class="lub-point-photo-thumb" alt="Foto do ponto em alta definição"
-                style="max-width:min(96vw,1400px); max-height:calc(85dvh - 100px); width:auto; height:auto; border:2px solid #333; box-shadow:0 0 30px rgba(0,0,0,0.8);">
+                style="max-width:min(96vw,1400px); max-height:calc(85dvh - 100px); width:auto; height:auto; border:2px solid #333; box-shadow:0 0 30px rgba(0,0,0,0.8); border-radius:8px;">
             <div style="display:flex; gap:15px;">
                 <button type="button" class="btn" style="background:white; color:black; font-weight:800;"
                     onclick="if(window.lubtekCloseLightbox){lubtekCloseLightbox('lightbox-modal');}">
                     <i data-lucide="x"></i> FECHAR
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- ASSET HEALTH & RELIABILITY DETAIL MODAL -->
+    <div id="asset-health-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Diagnóstico de Saúde e Confiabilidade do Ativo"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:9999; align-items:center; justify-content:center; padding:16px;"
+        onclick="if(event.target === this && window.closeAssetHealthModal){ closeAssetHealthModal(); }">
+        <div class="card" style="width:100%; max-width:680px; max-height:90vh; overflow-y:auto; background:var(--bg-card, #ffffff); border:1px solid var(--border, #cbd5e1); border-radius:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); padding:0; display:flex; flex-direction:column;"
+            onclick="event.stopPropagation()">
+            
+            <!-- Modal Header -->
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border, #e2e8f0); display:flex; justify-content:space-between; align-items:flex-start; background:rgba(0,0,0,0.02);">
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <div id="ahm-icon-box" style="width:44px; height:44px; border-radius:12px; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center; color:#10b981;">
+                        <i data-lucide="heart-pulse" style="width:24px; height:24px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--text-main, #0f172a); display:flex; align-items:center; gap:8px;">
+                            Saúde & Confiabilidade do Ativo
+                        </h3>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+                            <span id="ahm-asset-name" style="font-size:0.85rem; color:var(--text-muted, #64748b); font-weight:600;">Carregando ativo...</span>
+                            <span id="ahm-asset-tag" style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:6px; font-size:0.75rem; font-weight:700; font-family:monospace;">TAG</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAssetHealthModal()" style="background:none; border:none; color:var(--text-muted, #94a3b8); cursor:pointer; padding:4px;" title="Fechar">
+                    <i data-lucide="x" style="width:22px; height:22px;"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding:24px; display:flex; flex-direction:column; gap:20px;">
+
+                <!-- 3 Top Metric Cards -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                    <!-- Health Score -->
+                    <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:6px;">
+                        <span style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#059669; letter-spacing:0.5px;">Score Geral de Saúde</span>
+                        <div style="display:flex; align-items:baseline; gap:8px;">
+                            <span id="ahm-score" style="font-size:2rem; font-weight:900; color:#10b981; line-height:1;">--%</span>
+                            <span id="ahm-status" style="font-size:0.95rem; font-weight:800; color:#10b981;">--</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                            <span id="ahm-risk-badge" style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:6px; font-size:0.72rem; font-weight:700;">Risco Baixo</span>
+                        </div>
+                    </div>
+
+                    <!-- AI Predict -->
+                    <div style="background:rgba(139,92,246,0.06); border:1px solid rgba(139,92,246,0.2); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:6px;">
+                        <span style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#7c3aed; letter-spacing:0.5px;">Previsão IA — Próxima Falha</span>
+                        <div id="ahm-next-failure" style="font-size:1.4rem; font-weight:900; color:#8b5cf6; line-height:1.2;">+-- Dias</div>
+                        <span style="font-size:0.75rem; color:var(--text-muted, #64748b);">Estimativa MTBF baseada no ciclo operacional</span>
+                    </div>
+
+                    <!-- Sustainable Impact (ESG) -->
+                    <div style="background:rgba(14,165,233,0.06); border:1px solid rgba(14,165,233,0.2); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:6px;">
+                        <span style="font-size:0.7rem; font-weight:800; text-transform:uppercase; color:#0284c7; letter-spacing:0.5px;">Impacto Sustentável (ESG)</span>
+                        <div id="ahm-co2" style="font-size:1.4rem; font-weight:900; color:#0ea5e9; line-height:1.2;">--.-- kg CO2/ano</div>
+                        <span style="font-size:0.75rem; color:var(--text-muted, #64748b);">Redução de atrito e ganho em eficiência</span>
+                    </div>
+                </div>
+
+                <!-- Engineering Diagnostics & Recommendations -->
+                <div style="background:rgba(248,250,252,0.8); border:1px solid var(--border, #e2e8f0); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="sparkles" style="width:18px; height:18px; color:#8b5cf6;"></i>
+                        <h4 style="margin:0; font-size:0.9rem; font-weight:800; color:var(--text-main, #0f172a); text-transform:uppercase; letter-spacing:0.5px;">
+                            Diagnóstico do Sistema & Recomendações
+                        </h4>
+                    </div>
+                    <div id="ahm-summary" style="font-size:0.9rem; color:var(--text-main, #1e293b); line-height:1.5; font-weight:500;">
+                        Carregando diagnóstico...
+                    </div>
+                    <div style="display:flex; align-items:flex-start; gap:10px; background:rgba(2,132,199,0.06); border-left:3px solid #0284c7; border-radius:8px; padding:12px 14px;">
+                        <i data-lucide="arrow-right-circle" style="width:18px; height:18px; color:#0284c7; min-width:18px; margin-top:1px;"></i>
+                        <div style="font-size:0.85rem; color:#0369a1; line-height:1.4;">
+                            <strong>Ação Recomendada:</strong> <span id="ahm-next-action">Carregando ação preventiva...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Engineering Breakdown (Progress Bars) -->
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                    <h4 style="margin:0; font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--text-muted, #64748b); letter-spacing:0.5px;">
+                        Detalhamento de Confiabilidade
+                    </h4>
+
+                    <!-- Status Score -->
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700;">
+                            <span style="color:var(--text-main, #334155);">Integridade Operacional (Status e O.S.)</span>
+                            <span id="ahm-val-status" style="color:#10b981;">--%</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:rgba(0,0,0,0.06); border-radius:999px; overflow:hidden;">
+                            <div id="ahm-bar-status" style="width:0%; height:100%; background:#10b981; border-radius:999px; transition:width 0.6s ease;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Maintenance Score -->
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700;">
+                            <span style="color:var(--text-main, #334155);">Aderência do Plano de Lubrificação</span>
+                            <span id="ahm-val-maint" style="color:#0ea5e9;">--%</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:rgba(0,0,0,0.06); border-radius:999px; overflow:hidden;">
+                            <div id="ahm-bar-maint" style="width:0%; height:100%; background:#0ea5e9; border-radius:999px; transition:width 0.6s ease;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Oil / Lubricant Score -->
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700;">
+                            <span style="color:var(--text-main, #334155);">Qualidade e Condição do Lubrificante</span>
+                            <span id="ahm-val-oil" style="color:#8b5cf6;">--%</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:rgba(0,0,0,0.06); border-radius:999px; overflow:hidden;">
+                            <div id="ahm-bar-oil" style="width:0%; height:100%; background:#8b5cf6; border-radius:999px; transition:width 0.6s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer (Actions) -->
+            <div style="padding:16px 24px; border-top:1px solid var(--border, #e2e8f0); display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.02);">
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-outline" onclick="closeAssetHealthModal(); if(typeof setAssetTab==='function')setAssetTab('hist');" style="font-size:0.8rem; padding:8px 12px; gap:6px;">
+                        <i data-lucide="history" style="width:14px; height:14px;"></i> Ver Histórico
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="closeAssetHealthModal(); if(typeof setAssetTab==='function')setAssetTab('monitor');" style="font-size:0.8rem; padding:8px 12px; gap:6px;">
+                        <i data-lucide="droplet" style="width:14px; height:14px;"></i> Análise de Óleo
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="closeAssetHealthModal(); if(typeof openQuickWorkOrder==='function')openQuickWorkOrder();" style="font-size:0.8rem; padding:8px 14px; gap:6px; background:#0284c7; border:none; color:white; font-weight:700;">
+                        <i data-lucide="wrench" style="width:14px; height:14px;"></i> Nova O.S. Preventiva
+                    </button>
+                </div>
+                <button type="button" class="btn btn-outline" onclick="closeAssetHealthModal()" style="font-size:0.8rem; padding:8px 16px;">
+                    Fechar
+                </button>
+            </div>
+
         </div>
     </div>
 

@@ -9,6 +9,11 @@
     }
 
     // --- IMAGE MODAL LOGIC ---
+    function lubtekLockBodyScroll() {
+        document.body.style.overflow = 'hidden';
+        document.body.classList.add('modal-open');
+    }
+
     function lubtekUnlockBodyScroll() {
         document.body.style.overflow = '';
         document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
@@ -33,9 +38,14 @@
             img.src = src;
             lb.classList.add('is-open');
             lb.style.display = 'flex';
+            lubtekLockBodyScroll();
         }
-        lubtekUnlockBodyScroll();
     }
+
+    window.lubtekLockBodyScroll = lubtekLockBodyScroll;
+    window.lubtekUnlockBodyScroll = lubtekUnlockBodyScroll;
+    window.lubtekCloseLightbox = lubtekCloseLightbox;
+    window.openImageModal = openImageModal;
 
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {

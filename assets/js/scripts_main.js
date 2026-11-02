@@ -164,12 +164,19 @@ function initApp() {
         window.AppEvents.emit('app:ready');
     }
 
-    // Fechar menu de ferramentas ao clicar fora
+    // Fechar menu de ferramentas e acoes avancadas ao clicar fora
     document.addEventListener('click', (e) => {
         const menu = document.getElementById('admin-tools-menu');
-        if (!menu || menu.style.display !== 'flex') return;
-        if (!e.target.closest('#admin-tools-menu') && !e.target.closest('[onclick*="toggleAdminToolsMenu"]')) {
-            menu.style.display = 'none';
+        if (menu && menu.style.display === 'flex') {
+            if (!e.target.closest('#admin-tools-menu') && !e.target.closest('[onclick*="toggleAdminToolsMenu"]')) {
+                menu.style.display = 'none';
+            }
+        }
+        const advMenu = document.getElementById('adv-actions-menu');
+        if (advMenu && advMenu.style.display === 'flex') {
+            if (!e.target.closest('#adv-actions-menu') && !e.target.closest('[onclick*="adv-actions-menu"]')) {
+                advMenu.style.display = 'none';
+            }
         }
     });
 }
@@ -2148,7 +2155,7 @@ async function exportDetailedPlanExcel() {
 }
 
 function printQuickReport() {
-    if (!editingNode) return;
+    if (!editingNode) return showToast('Selecione um ativo na árvore à esquerda para imprimir o laudo técnico.', 'warning');
 
     const dateStr = new Date().toLocaleDateString();
     const path = document.getElementById('ash-path-display')?.innerText || '';
@@ -2947,6 +2954,7 @@ function renderDetailForm(item) {
          </div>` : ''}
     </div>
     `;
+
     lucide.createIcons();
 }
 
@@ -2998,7 +3006,7 @@ async function lubtekFormUpload(action, formData) {
 }
 
 async function uploadImage(input, previewId, valueId) {
-    let file = input.files[0];
+    let file = (input instanceof File) ? input : (input && input.files ? input.files[0] : null);
     if (!file) return;
 
     if (window.LubtekImageCompressor && typeof window.LubtekImageCompressor.compress === 'function') {
@@ -3025,7 +3033,7 @@ async function uploadImage(input, previewId, valueId) {
         const json = await lubtekFormUpload('upload_image', fd);
 
         if (json.ok && json.path) {
-            const cacheBustedPath = json.path + '?t=' + Date.now();
+            const cacheBustedPath = lubtekMediaSrc(json.path) + '?t=' + Date.now();
 
             // Update Preview
             const prev = document.getElementById(previewId);
@@ -3106,7 +3114,9 @@ async function uploadImage(input, previewId, valueId) {
         console.error('Upload Error:', e);
         showToast('Erro de conexão no upload.', 'error');
     } finally {
-        input.value = '';
+        if (input && input.value !== undefined) {
+            input.value = '';
+        }
     }
 }
 
@@ -3156,6 +3166,42 @@ async function removeAssetImage() {
     }
 }
 window.removeAssetImage = removeAssetImage;
+
+function setupAssetImageDragAndDrop() {
+    const preview = document.getElementById('af-img-preview');
+    if (!preview || preview._hasDragDrop) return;
+    preview._hasDragDrop = true;
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        preview.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            preview.style.borderColor = 'var(--primary, #0ea5e9)';
+            preview.style.background = 'rgba(14, 165, 233, 0.15)';
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+        preview.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            preview.style.borderColor = 'var(--border, #cbd5e1)';
+            preview.style.background = 'rgba(0,0,0,0.3)';
+        }, false);
+    });
+
+    preview.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (!dt || !dt.files || dt.files.length === 0) return;
+        const droppedFile = dt.files[0];
+        if (!droppedFile.type.startsWith('image/')) {
+            showToast('Por favor, selecione ou arraste um arquivo de imagem.', 'warning');
+            return;
+        }
+        uploadImage(droppedFile, 'af-img-preview', 'af_img_val');
+    }, false);
+}
+window.setupAssetImageDragAndDrop = setupAssetImageDragAndDrop;
 
 async function saveCatalogChanges(id) {
     const specs = {};
@@ -3912,7 +3958,12 @@ function setAssetTab(tabId, btn) {
     if (target) target.style.display = 'block';
 
     document.querySelectorAll('.tab-btn, .asset-tab').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        const btnEl = document.querySelector(`.asset-tabbar button[onclick*="'${tabId}'"]`);
+        if (btnEl) btnEl.classList.add('active');
+    }
 
     if (!editingNode) return;
 
@@ -4183,8 +4234,7 @@ function lubtekMediaSrc(path) {
     const p = String(path || '').trim();
     if (!p) return '';
     if (/^(https?:|data:|blob:)/i.test(p)) return p;
-    if (p.charAt(0) === '/') return p;
-    return '/' + p.replace(/^\.\//, '');
+    return p.replace(/^\.\//, '');
 }
 
 function revealNodeInTree(node) {
@@ -4254,6 +4304,7 @@ async function selectNode(id, opts = {}) {
     // 2. UI Persistence & Highlight
     editingNode = node;
     window.editingNode = node;
+    window.selectedNodeId = node.id;
     document.querySelectorAll('.tree-node').forEach(el => el.classList.remove('active-item'));
     const treeEl = document.getElementById(`tn-${id}`);
     if (treeEl) treeEl.classList.add('active-item');
@@ -4385,6 +4436,10 @@ async function selectNode(id, opts = {}) {
     }
     if (window.Ecosystem) {
         Ecosystem.setCurrentAsset(node);
+    }
+
+    if (typeof setupAssetImageDragAndDrop === 'function') {
+        setupAssetImageDragAndDrop();
     }
 
     lucide.createIcons();
@@ -5837,6 +5892,7 @@ async function runSynthDNCalc() {
                         ${res.suggestion ? `<div style="background:rgba(239,68,68,0.1); color:#ef4444; padding:10px; border-radius:6px; font-size:0.9rem;">${escapeHtml(res.suggestion)}</div>` : ''}
                 </div>
              `;
+
     lucide.createIcons();
 }
 
