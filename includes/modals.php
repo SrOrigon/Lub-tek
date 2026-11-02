@@ -165,6 +165,65 @@
         </div>
     </div>
 
+    <!-- LUBRICATION PLAN EXPORT MODAL -->
+    <div id="lub-plan-export-modal" class="lubtek-overlay-modal" role="dialog" aria-modal="true" aria-label="Exportar Plano de Lubrificação"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:9999; align-items:center; justify-content:center; padding:16px;"
+        onclick="if(event.target === this){ this.style.display='none'; }">
+        <div class="card" style="width:100%; max-width:480px; background:var(--bg-card, #ffffff); border:1px solid var(--border, #cbd5e1); border-radius:18px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); padding:24px; display:flex; flex-direction:column; gap:16px;"
+            onclick="event.stopPropagation()">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:40px; height:40px; border-radius:10px; background:rgba(2,132,199,0.12); display:flex; align-items:center; justify-content:center; color:#0284c7;">
+                        <i data-lucide="file-text" style="width:20px; height:20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--text-main, #0f172a);">Plano de Lubrificação</h3>
+                        <span id="lp-modal-asset-name" style="font-size:0.75rem; color:var(--text-muted, #64748b); font-weight:600;">Selecione o escopo de frequência</span>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('lub-plan-export-modal').style.display='none'" style="background:none; border:none; color:#94a3b8; cursor:pointer;" title="Fechar">
+                    <i data-lucide="x" style="width:20px; height:20px;"></i>
+                </button>
+            </div>
+
+            <p style="margin:0; font-size:0.85rem; color:var(--text-muted, #64748b); line-height:1.4;">
+                Gera o caderno certificado industrial com capa executiva, layout pet160-v2, dosagem calculada e especificações técnicas completas para auditoria.
+            </p>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:#475569; letter-spacing:0.5px;">Selecione a Periodicidade:</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <button type="button" class="btn" onclick="executeLubPlanExport('')"
+                        style="grid-column:1 / -1; background:#0284c7; color:#fff; border:none; padding:12px; font-weight:800; border-radius:10px; justify-content:center; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                        <i data-lucide="layers" style="width:16px;"></i> Todos os Pontos (Completo)
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="executeLubPlanExport('Mensal')"
+                        style="padding:10px; font-weight:700; border-radius:10px; justify-content:center; cursor:pointer;">
+                        Mensal
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="executeLubPlanExport('Quinzenal')"
+                        style="padding:10px; font-weight:700; border-radius:10px; justify-content:center; cursor:pointer;">
+                        Quinzenal
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="executeLubPlanExport('Semanal')"
+                        style="padding:10px; font-weight:700; border-radius:10px; justify-content:center; cursor:pointer;">
+                        Semanal
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="executeLubPlanExport('Diário')"
+                        style="padding:10px; font-weight:700; border-radius:10px; justify-content:center; cursor:pointer;">
+                        Diário
+                    </button>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border, #e2e8f0); padding-top:14px; margin-top:4px;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('lub-plan-export-modal').style.display='none'" style="font-size:0.85rem; padding:8px 16px; cursor:pointer;">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- BRANDING CONFIGURATION MODAL (White-Label settings) -->
     <div id="branding-modal"
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.4); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); z-index:9999; align-items:center; justify-content:center;">

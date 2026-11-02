@@ -542,6 +542,7 @@
             const raw = await api('get_tree');
             const tree = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.data) ? raw.data : []);
             routePoints = flattenTreeForRoutes(tree, [], []);
+            window.routePointsCache = routePoints;
 
             const sectors = [...new Set(routePoints.map(p => p.sector))].sort();
             const filter = document.getElementById('route-sector-filter');
@@ -628,6 +629,7 @@
             const material = p.material && p.material !== '—' ? p.material : 'Ver ficha do ponto';
 
             const card = document.createElement('div');
+            card.id = 'route-card-' + p.id;
             card.className = `route-card ${statusClass}`;
             card.dataset.id = p.id;
             card.innerHTML = `
@@ -842,22 +844,21 @@
         if (!p) return;
 
         if (type === 'ok') {
-            const typed = window.prompt('TAG do ponto (opcional — deixe em branco para concluir sem QR):', p.tag || '');
             p.status = 'Concluido';
 
             const cardEl = document.getElementById('route-card-' + id) || document.querySelector(`[data-id="${id}"]`);
             if (cardEl) {
-                cardEl.style.transition = 'all 0.4s ease';
+                cardEl.style.transition = 'all 0.35s ease';
                 cardEl.style.opacity = '0';
-                cardEl.style.transform = 'translateY(-10px)';
+                cardEl.style.transform = 'translateY(-10px) scale(0.98)';
             }
 
-            notificarSucessoCampo(`✅ Tarefa do ${p.name} concluída com sucesso!`, 'success');
-            saveRouteStatus(id, 'Concluido', typed || '');
+            notificarSucessoCampo(`✅ ${p.name} concluído com sucesso!`, 'success');
+            saveRouteStatus(id, 'Concluido', p.tag || '');
 
             setTimeout(() => {
                 renderRoutes();
-            }, 400);
+            }, 350);
         } else {
             openRouteAlertModal(id);
         }
@@ -2000,6 +2001,21 @@
         const placeholder = document.getElementById('qr-video-placeholder');
         if (overlay) overlay.classList.add('active');
 
+        const manualInput = document.getElementById('manual-qr-tag');
+        if (manualInput) {
+            manualInput.value = '';
+            setTimeout(() => manualInput.focus(), 150);
+            if (!manualInput._enterKeyAdded) {
+                manualInput._enterKeyAdded = true;
+                manualInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        processScannedTag(manualInput.value);
+                    }
+                });
+            }
+        }
+
         if (!('BarcodeDetector' in window)) {
             if (placeholder) placeholder.innerHTML = 'Scanner nativo não suportado neste navegador. Digite a TAG abaixo.';
             return;
@@ -2208,24 +2224,49 @@
             return;
         }
         const cleanTag = tagVal.trim();
-        const routes = window.routePointsCache || [];
+
+        // Support URL QR codes (e.g. https://domain.com/?page=assets&qr=TAG-01&id=104)
+        let extractedTag = cleanTag;
+        let extractedId = null;
+        if (cleanTag.includes('?') || cleanTag.includes('=')) {
+            try {
+                const parsedUrl = new URL(cleanTag, window.location.origin);
+                extractedTag = parsedUrl.searchParams.get('qr') || parsedUrl.searchParams.get('tag') || cleanTag;
+                extractedId = parsedUrl.searchParams.get('id');
+            } catch (e) {
+                const matchQr = cleanTag.match(/[?&]qr=([^&]+)/i);
+                if (matchQr) extractedTag = decodeURIComponent(matchQr[1]);
+                const matchId = cleanTag.match(/[?&]id=([^&]+)/i);
+                if (matchId) extractedId = decodeURIComponent(matchId[1]);
+            }
+        }
+
+        const routes = window.routePointsCache || (typeof routePoints !== 'undefined' ? routePoints : []);
+        const targetTag = extractedTag.toLowerCase();
         const match = routes.find(r =>
-            (r.tag && r.tag.toLowerCase() === cleanTag.toLowerCase()) ||
-            String(r.id) === cleanTag
+            (r.tag && r.tag.toLowerCase() === targetTag) ||
+            (extractedId && String(r.id) === String(extractedId)) ||
+            String(r.id) === targetTag ||
+            (r.name && r.name.toLowerCase() === targetTag)
         );
 
         if (match) {
-            if (typeof showToast === 'function') showToast('TAG identificada: ' + match.point, 'success');
-            const card = document.getElementById('route-card-' + match.id);
+            closeQrScannerModal();
+            if (typeof showToast === 'function') showToast(`TAG identificada: ${match.name}`, 'success');
+            const card = document.getElementById('route-card-' + match.id) || document.querySelector(`.route-card[data-id="${match.id}"]`);
             if (card) {
                 card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 card.style.outline = '3px solid #10b981';
-                setTimeout(() => card.style.outline = '', 2000);
+                card.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.4)';
+                setTimeout(() => {
+                    card.style.outline = '';
+                    card.style.boxShadow = '';
+                }, 3000);
             } else {
-                openRouteAlertModal(match.id, match.point, match.equipment);
+                openRouteAlertModal(match.id);
             }
         } else {
-            if (typeof showToast === 'function') showToast('Ativo/TAG ' + cleanTag + ' não encontrado nas rotas.', 'warning');
+            if (typeof showToast === 'function') showToast(`Ativo/TAG "${extractedTag}" não encontrado nas rotas de hoje.`, 'warning');
         }
     }
 

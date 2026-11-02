@@ -13,15 +13,15 @@
             <div
                 style="display:flex; gap:25px; border-left:1px solid var(--border); padding-left:25px; margin-left:15px;"
                 aria-live="polite" aria-atomic="true" aria-label="Resumo de ordens de serviço">
-                <div class="mini-stat card-kpi">
+                <div class="mini-stat card-kpi" onclick="filterOS('Pendente')" style="cursor:pointer;" title="Clique para filtrar apenas Ordens Pendentes">
                     <span class="label">PENDENTES</span>
                     <span class="val" id="dash-pending-count" style="color:var(--warning); font-size: 1.5rem;">0</span>
                 </div>
-                <div class="mini-stat card-kpi">
+                <div class="mini-stat card-kpi" onclick="filterOS('Crítica')" style="cursor:pointer;" title="Clique para filtrar apenas Ordens Críticas">
                     <span class="label">CRÍTICAS</span>
                     <span class="val" id="dash-crit-count" style="color:var(--danger); font-size: 1.5rem;">0</span>
                 </div>
-                <div class="mini-stat card-kpi">
+                <div class="mini-stat card-kpi" onclick="filterOS('Concluído')" style="cursor:pointer;" title="Clique para filtrar apenas Ordens Concluídas">
                     <span class="label">CONCLUÍDAS</span>
                     <span class="val" id="dash-done-count" style="color:var(--success); font-size: 1.5rem;">0</span>
                 </div>

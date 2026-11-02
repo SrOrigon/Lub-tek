@@ -84,19 +84,40 @@
             return;
         }
 
-        const freq = prompt(
-            'Filtro de frequência (opcional):\nDeixe vazio para TODOS os pontos.\nEx.: Mensal, Quinzenal, Semanal',
-            ''
-        );
-        if (freq === null) return;
+        const modal = document.getElementById('lub-plan-export-modal');
+        if (modal) {
+            const assetLabel = document.getElementById('lp-modal-asset-name');
+            if (assetLabel) assetLabel.textContent = node.nome || 'Ativo Selecionado';
+            modal.style.display = 'flex';
+            if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+            return;
+        }
 
         exportLubricationPlan({
             asset: node,
-            frequency: String(freq).trim(),
+            frequency: '',
             title: 'PLANO DE LUBRIFICAÇÃO'
         });
     }
 
+    function executeLubPlanExport(frequency) {
+        const modal = document.getElementById('lub-plan-export-modal');
+        if (modal) modal.style.display = 'none';
+
+        const node = getEditingNode();
+        if (!node) {
+            toast('Selecione um ativo.', 'warning');
+            return;
+        }
+
+        exportLubricationPlan({
+            asset: node,
+            frequency: String(frequency || '').trim(),
+            title: 'PLANO DE LUBRIFICAÇÃO'
+        });
+    }
+
+    window.executeLubPlanExport = executeLubPlanExport;
     window.exportLubricationPlan = exportLubricationPlan;
     window.openLubricationPlanModal = openLubricationPlanModal;
 })();

@@ -302,18 +302,18 @@
                 </div>
                 </div>
 
-                <div id="asset-quick-actions" style="display:flex; gap:8px; flex-wrap:wrap; padding:10px 12px; border-bottom:1px solid var(--border); background:#f8fafc;">
+                <div id="asset-quick-actions" style="display:flex; gap:8px; flex-wrap:wrap; padding:10px 14px; border-bottom:1px solid var(--border); background:#f8fafc; align-items:center;">
                     <button type="button" class="btn btn-sm" onclick="openQuickWorkOrder()"
-                        style="background:#0284c7; color:#fff; border:none; border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">
-                        Nova O.S. Rápida
+                        style="background:#0284c7; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                        <i data-lucide="wrench" style="width:14px; height:14px;"></i> Nova O.S. Rápida
                     </button>
                     <button type="button" class="btn btn-sm btn-outline" onclick="showLubricationPoints()"
-                        style="border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">
-                        Ver Pontos de Lubrificação
+                        style="border-radius:8px; padding:8px 14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                        <i data-lucide="droplets" style="width:14px; height:14px; color:#0284c7;"></i> Ver Pontos de Lubrificação
                     </button>
                     <button type="button" class="btn btn-sm btn-outline" onclick="generateAssetQRCode()"
-                        style="border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">
-                        Exportar Ficha / Etiqueta QR
+                        style="border-radius:8px; padding:8px 14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                        <i data-lucide="qr-code" style="width:14px; height:14px; color:#10b981;"></i> Etiqueta QR Code
                     </button>
                 </div>
 

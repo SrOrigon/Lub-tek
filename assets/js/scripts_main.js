@@ -893,6 +893,9 @@ function renderOSTable() {
                 const planned = String(t.date || t.data_planejada || '').slice(0, 10);
                 const today = new Date().toISOString().slice(0, 10);
                 if (!open || !planned || planned >= today) return false;
+            } else if (taskFilter === 'Crítica' || taskFilter === 'Critica') {
+                const prio = String(t.prio || t.prioridade || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (prio !== 'critica') return false;
             } else if (taskFilter !== 'all') {
                 const want = String(taskFilter).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 if (sit !== want) return false;
@@ -1221,6 +1224,12 @@ function filterOS(status, btn) {
     if (btn) {
         btn.classList.add('active');
         btn.setAttribute('aria-pressed', 'true');
+    } else {
+        const matchingBtn = document.querySelector(`.os-status-filter[onclick*="'${status}'"]`);
+        if (matchingBtn) {
+            matchingBtn.classList.add('active');
+            matchingBtn.setAttribute('aria-pressed', 'true');
+        }
     }
     refreshOSView();
 }
@@ -4305,6 +4314,7 @@ async function selectNode(id, opts = {}) {
     editingNode = node;
     window.editingNode = node;
     window.selectedNodeId = node.id;
+    window.isAssetFormDirty = false;
     document.querySelectorAll('.tree-node').forEach(el => el.classList.remove('active-item'));
     const treeEl = document.getElementById(`tn-${id}`);
     if (treeEl) treeEl.classList.add('active-item');
@@ -4466,6 +4476,7 @@ async function cleanupUnnamed() {
 
 function updateLocalNode() {
     if (!editingNode) return;
+    window.isAssetFormDirty = true;
     // Basic Fields
     editingNode.nome = document.getElementById('af-name').value;
     editingNode.tag = document.getElementById('af-tag') ? document.getElementById('af-tag').value : '';
@@ -4561,7 +4572,7 @@ function extractTechnicalData() {
 }
 
 async function saveToCloudSingle() {
-    if (!editingNode) return;
+    if (!editingNode) return showToast('Selecione um ativo na árvore à esquerda para salvar.', 'warning');
 
     // 1. Layer Extraction
     const identity = extractAssetIdentity();
@@ -4597,6 +4608,7 @@ async function saveToCloudSingle() {
             return;
         }
         if (res.ok) {
+            window.isAssetFormDirty = false;
             showToast('Sincronizado com Sucesso!', 'success');
 
             // Update Local Object
@@ -5012,12 +5024,12 @@ document.addEventListener('keydown', function (e) {
 });
 
 // --- UNSAVED CHANGES WARNING ---
-// Simple check: if form is open, we assume it *might* be dirty (safe bet for now)
+// Only warns the user if there are actual unsaved modifications
 window.onbeforeunload = function (e) {
-    const form = document.getElementById('asset-form');
-    if (form && form.style.display !== 'none' && !isOfflineMode) {
+    if (window.isAssetFormDirty && !window.isOfflineMode) {
         e.preventDefault();
         e.returnValue = ''; // Modern browsers
+        return '';
     }
 };
 
@@ -6854,6 +6866,9 @@ function renderOSKanban() {
                 const planned = String(t.date || t.data_planejada || '').slice(0, 10);
                 const today = new Date().toISOString().slice(0, 10);
                 if (!open || !planned || planned >= today) return false;
+            } else if (taskFilter === 'Crítica' || taskFilter === 'Critica') {
+                const prio = String(t.prio || t.prioridade || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (prio !== 'critica') return false;
             } else if (taskFilter !== 'all') {
                 const sit = String(t.situacao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const want = String(taskFilter).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
