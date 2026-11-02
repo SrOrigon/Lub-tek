@@ -382,4 +382,117 @@ class GeminiService
         $decoded = json_decode($clean, true);
         return is_array($decoded) ? $decoded : null;
     }
+
+    /**
+     * Transcreve áudio industrial via Gemini Multimodal (WebM, OGG, WAV, MP3).
+     *
+     * @param string $base64Audio Dados de áudio em base64 puro (sem data:audio/...)
+     * @param string $mimeType Formato MIME do áudio (ex: audio/webm, audio/ogg, audio/wav, audio/mp3)
+     * @return array{success:bool, text:?string, error:?string, tokens_in?:int, tokens_out?:int}
+     */
+    public function transcribeAudio(string $base64Audio, string $mimeType = 'audio/webm'): array
+    {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'error' => 'Chave da API Gemini não configurada.', 'text' => null];
+        }
+
+        if (empty($base64Audio)) {
+            return ['success' => false, 'error' => 'Nenhum dado de áudio recebido.', 'text' => null];
+        }
+
+        // Remove header data URL se presente
+        if (preg_match('/^data:(audio\/[a-zA-Z0-9\-\.]+);base64,(.+)$/', $base64Audio, $m)) {
+            $mimeType = $m[1];
+            $base64Audio = $m[2];
+        }
+
+        $prompt = "Você é o módulo de transcrição e reconhecimento de voz do sistema industrial LUB-TEK.\n" .
+            "Transcreva com máxima precisão o áudio do operador industrial ou técnico de lubrificação.\n" .
+            "Contexto de vocabulário esperado: termos de manutenção, marcas de lubrificantes (LE, Kluber, Mobil, Shell, Petrobras, Ipiranga), " .
+            "tipos (graxa, óleo, sintético, mineral, ISO VG, NLGI 2, aerosol, desengraxante), " .
+            "componentes (mancal, rolamento, redutor, corrente, motor, esteira, bomba, bico graxeiro, pistola, copo), " .
+            "status e apontamentos de ordens de serviço (concluído, pendente, vazamento, ruído, aquecimento, vibração).\n" .
+            "Retorne APENAS o texto transcrito, sem aspas adicionais, sem preâmbulos e sem explicações.";
+
+        $started = microtime(true);
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent";
+
+        $payload = [
+            'contents' => [
+                [
+                    'role' => 'user',
+                    'parts' => [
+                        [
+                            'inlineData' => [
+                                'mimeType' => $mimeType,
+                                'data' => $base64Audio
+                            ]
+                        ],
+                        [
+                            'text' => $prompt
+                        ]
+                    ]
+                ]
+            ],
+            'generationConfig' => [
+                'temperature' => 0.1,
+                'topK' => 20,
+                'topP' => 0.9,
+                'maxOutputTokens' => 512,
+            ]
+        ];
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-goog-api-key: ' . $this->apiKey],
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_TIMEOUT => 45
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            Logger::error('gemini_transcribe_curl_error', ['error' => $curlError, 'feature' => 'gemini_transcription']);
+            return ['success' => false, 'error' => 'Falha de conexão com a IA: ' . $curlError, 'text' => null];
+        }
+
+        if ($httpCode !== 200) {
+            $body = json_decode($response, true);
+            $msg = $body['error']['message'] ?? "Erro API ($httpCode)";
+            Logger::error('gemini_transcribe_http_error', ['http' => $httpCode, 'message' => $msg]);
+            return ['success' => false, 'error' => $msg, 'text' => null];
+        }
+
+        $result = json_decode($response, true);
+        $candidate = $result['candidates'][0] ?? null;
+
+        if (!$candidate || empty($candidate['content']['parts'][0]['text'])) {
+            return ['success' => false, 'error' => 'Nenhuma fala reconhecida ou áudio inaudível.', 'text' => null];
+        }
+
+        $transcribed = trim($candidate['content']['parts'][0]['text']);
+        $usage = $result['usageMetadata'] ?? [];
+        $tokensIn = (int) ($usage['promptTokenCount'] ?? 0);
+        $tokensOut = (int) ($usage['candidatesTokenCount'] ?? 0);
+
+        $this->logUsage('transcribe_audio', [
+            'tokens_in' => $tokensIn,
+            'tokens_out' => $tokensOut,
+            'latency_ms' => (int) round((microtime(true) - $started) * 1000),
+            'cache_hit' => 0
+        ]);
+
+        return [
+            'success' => true,
+            'text' => $transcribed,
+            'tokens_in' => $tokensIn,
+            'tokens_out' => $tokensOut,
+        ];
+    }
 }

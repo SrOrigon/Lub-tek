@@ -74,6 +74,7 @@ class ApiRouteRegistry
             'neural_generate_os' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'generateOS'],
             'neural_diagnose' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'diagnoseSystem'],
             'save_agent_feedback' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'saveAgentFeedback'],
+            'transcribe_audio' => ['api/NeuralEngineController.php', 'NeuralEngineController', 'transcribeAudio'],
             'get_ai_usage_summary' => ['api/AgentAnalyticsController.php', 'AgentAnalyticsController', 'getAiUsageSummary'],
             'get_agent_feedback_stats' => ['api/AgentAnalyticsController.php', 'AgentAnalyticsController', 'getAgentFeedbackStats'],
             'get_asset_by_qr' => ['api/AssetsController.php', 'AssetsController', 'resolveByQrCode'],

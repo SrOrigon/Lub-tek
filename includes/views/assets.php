@@ -878,7 +878,7 @@
                         <div style="display:flex; flex-direction:column; gap:8px;">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <span class="lub-label">Instruções Passo-a-Passo</span>
-                                <div class="mic-btn" onclick="initVoiceInput('af-instrucao')" title="Ditar Instruções">
+                                <div class="mic-btn" onclick="initVoiceInput('af-instrucao', this)" title="Ditar Instruções">
                                     <i data-lucide="mic"></i>
                                 </div>
                             </div>

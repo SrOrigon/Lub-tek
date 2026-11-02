@@ -42,8 +42,11 @@
             IA avançada (Gemini) — sob demanda, consome quota
         </label>
         
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
             <input type="text" id="neural-input" class="lubria-chat-input chat-input-field" placeholder="Pergunte sobre um ativo ou falha..." style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #38bdf8 !important; background: #1e293b !important; color: #ffffff !important; caret-color: #38bdf8 !important; font-size: 0.9rem;" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();sendNeuralMessage();}">
+            <button type="button" onclick="startVoiceInput('neural-input', this)" id="neural-mic-btn" class="mic-btn" title="Ditar pergunta por voz" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #38bdf8; background: #1e293b; color: #38bdf8; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+            </button>
             <button type="button" onclick="sendNeuralMessage()" id="neural-send-btn" style="background: #8b5cf6; color: white; border: none; border-radius: 8px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s;">
                 <i data-lucide="send" style="width: 18px;"></i>
             </button>

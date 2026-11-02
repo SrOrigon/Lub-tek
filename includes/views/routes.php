@@ -74,7 +74,7 @@
                 <p id="route-alert-subtitle" class="route-alert-subtitle"></p>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                     <label for="route-alert-motivo" class="route-alert-label" style="margin:0;">O que você encontrou?</label>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="startVoiceInput('route-alert-motivo')" title="Ditar por voz" style="padding:2px 8px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
+                    <button type="button" class="btn btn-sm btn-outline btn-mic" onclick="startVoiceInput('route-alert-motivo', this)" title="Ditar por voz" style="padding:2px 8px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
                         <i data-lucide="mic" style="width:14px;height:14px;color:var(--primary);"></i> Ditar por Voz
                     </button>
                 </div>

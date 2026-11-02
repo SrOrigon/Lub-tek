@@ -227,12 +227,13 @@ class Permissions
             'login', 'logout', 'change_password',
             'get_tree', 'get_catalog', 'get_tasks', 'get_asset_timeline', 'get_thickener',
             'get_kpis', 'get_stats', 'get_dash_stats', 'get_sync_revision',
-            'get_plans', 'get_lubricant_consumption',
+            'get_plans', 'get_reference_plan', 'get_lubricant_consumption',
             'suggest_lubrication', 'calc_bearing', 'calc_dn', 'calc_viscosity', 'calc_kappa', 'calc_bushing',
             'calc_filtering', 'search_engineering_catalog', 'get_grease_guns', 'calc_grease_strokes',
             'get_analysis_history', 'generate_checklist_report',
             'get_lubrication_plan_meta', 'get_lubrication_plan_chunk', 'render_lubrication_plan_cover',
-            'ask_neural', 'get_neural_context',             'neural_predict', 'get_asset_reliability', 'save_agent_feedback',
+            'ask_neural', 'get_neural_context', 'neural_predict', 'get_asset_reliability', 'save_agent_feedback', 'transcribe_audio',
+            'get_asset_by_qr', 'get_line_lubrication_points',
         ];
     }
     /** Gestor — operação da planta (sem wipe/cleanup global de developer) */
@@ -242,16 +243,18 @@ class Permissions
             self::clienteApiWhitelist(),
             self::trabalhadorApiWhitelist(),
             [
-                'save_asset', 'save_asset_batch', 'delete_asset', 'save_catalog_item', 'delete_catalog_item', 'delete_task',
-                'generate_scheduled_orders', 'run_work_order_agent', 'get_work_order_agent_report',
-                'get_users', 'save_user', 'delete_user', 'save_plan', 'delete_plan',
+                'save_asset', 'save_asset_batch', 'move_asset', 'delete_asset', 'save_catalog_item', 'delete_catalog_item', 'delete_task',
+                'generate_scheduled_orders', 'run_work_order_agent', 'get_work_order_agent_report', 'get_tenant_os_overview',
+                'get_users', 'save_user', 'delete_user', 'save_plan', 'delete_plan', 'get_reference_plan',
                 'get_market_data', 'save_market_offer', 'delete_market_offer', 'get_market_stats',
                 'save_grease_gun', 'get_pi_tags', 'save_pi_tag', 'delete_pi_tag', 'get_pi_telemetry',
                 'sap_import_orders', 'sap_import_materials', 'sap_export_orders', 'sap_export_assets', 'sap_export_materials',
+                'get_integration_queue', 'retry_integration_item', 'process_integration_queue',
                 'save_branding', 'get_audit_logs', 'get_tenant_api_key', 'rotate_tenant_api_key',
                 'save_snapshot', 'save_3d_view', 'upload_model', 'apply_machine_template', 'migrate',
                 'neural_generate_os', 'neural_diagnose', 'lubria_excel_mapper', 'save_agent_feedback',
                 'get_ai_usage_summary', 'get_agent_feedback_stats',
+                'get_asset_by_qr', 'get_line_lubrication_points',
             ]
         )));
     }
@@ -261,14 +264,16 @@ class Permissions
         return [
             'login', 'logout',
             'get_tree', 'get_catalog', 'get_tasks', 'get_asset_timeline', 'get_thickener',
-            'save_task', 'suggest_lubrication', 'calc_bearing', 'calc_dn', 'calc_viscosity', 'calc_kappa', 'calc_bushing',
+            'save_task', 'save_order', 'update_order_status',
+            'suggest_lubrication', 'calc_bearing', 'calc_dn', 'calc_viscosity', 'calc_kappa', 'calc_bushing',
             'calc_filtering', 'search_engineering_catalog', 'get_grease_guns', 'calc_grease_strokes',
             'get_analysis_history', 'generate_checklist_report', 'ask_neural', 'get_neural_context',
             'get_lubrication_plan_meta', 'get_lubrication_plan_chunk', 'render_lubrication_plan_cover',
             'get_lubricant_consumption',
             'neural_predict', 'get_asset_reliability', 'get_sync_revision',
             'set_asset_status', 'report_route_alert', 'change_password', 'upload_image', 'update_asset_image', 'get_stats', 'get_dash_stats',
-            'import_analysis_csv', 'save_analysis', 'save_agent_feedback',
+            'import_analysis_csv', 'save_analysis', 'save_agent_feedback', 'transcribe_audio',
+            'get_asset_by_qr', 'get_line_lubrication_points',
         ];
     }
 

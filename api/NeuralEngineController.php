@@ -70,7 +70,7 @@ class NeuralEngineController {
 
         $systemInstruction = PromptRegistry::get('neural_diagnose_system');
 
-        $response = $this->gemini->isConfigured()
+        $response = $this->gemini->isGeminiEnabled()
             ? $this->gemini->ask($prompt, $systemInstruction, false, 768, false, 'neural_diagnose')
             : ['error' => 'offline'];
 
@@ -140,6 +140,54 @@ class NeuralEngineController {
         ]);
 
         return ['success' => true, 'feedback_id' => $id];
+    }
+
+    /**
+     * Transcrição de áudio industrial via IA multimodal (Gemini).
+     */
+    public function transcribeAudio(): array
+    {
+        $base64Audio = '';
+        $mimeType = 'audio/webm';
+
+        if (isset($_FILES['audio']) && is_uploaded_file($_FILES['audio']['tmp_name'])) {
+            $rawBytes = file_get_contents($_FILES['audio']['tmp_name']);
+            if ($rawBytes !== false && strlen($rawBytes) > 0) {
+                $base64Audio = base64_encode($rawBytes);
+                $mimeType = $_FILES['audio']['type'] ?: 'audio/webm';
+            }
+        } elseif (!empty($this->input['audio'])) {
+            $base64Audio = (string) $this->input['audio'];
+            if (!empty($this->input['mime_type'])) {
+                $mimeType = (string) $this->input['mime_type'];
+            }
+        } elseif (!empty($this->input['audio_base64'])) {
+            $base64Audio = (string) $this->input['audio_base64'];
+            if (!empty($this->input['mime_type'])) {
+                $mimeType = (string) $this->input['mime_type'];
+            }
+        }
+
+        if (empty($base64Audio)) {
+            return ['success' => false, 'error' => 'Nenhum arquivo ou dado de áudio foi enviado.'];
+        }
+
+        $res = $this->gemini->transcribeAudio($base64Audio, $mimeType);
+
+        if (!empty($res['success']) && !empty($res['text'])) {
+            return [
+                'success' => true,
+                'text' => $res['text'],
+                'tokens_in' => $res['tokens_in'] ?? 0,
+                'tokens_out' => $res['tokens_out'] ?? 0,
+                'source' => 'gemini_multimodal',
+            ];
+        }
+
+        return [
+            'success' => false,
+            'error' => $res['error'] ?? 'Falha ao transcrever o áudio.',
+        ];
     }
 
     /**

@@ -458,6 +458,22 @@ class OrdersController
                 }
                 $lastId = $isUpdate ? $input['id'] : $db->lastInsertId();
 
+                if (!$isUpdate && $status === 'Concluído' && $lastId) {
+                    AgentFeedback::setOutcomeForOrder($db, (int)$lastId, 'completed');
+                    try {
+                        $todayDate = date('Y-m-d');
+                        $db->prepare("UPDATE ordens SET data_execucao = ? WHERE id = ?")->execute([$todayDate, $lastId]);
+                        $stmtFull = $db->prepare("SELECT * FROM ordens WHERE id = ?");
+                        $stmtFull->execute([$lastId]);
+                        $fullOrder = $stmtFull->fetch(PDO::FETCH_ASSOC);
+                        if ($fullOrder && !empty($cleanAtivoId)) {
+                            $this->onOrderCompleted($db, (int)$cleanAtivoId, $fullOrder);
+                        }
+                    } catch (Exception $schedEx) {
+                        error_log('Schedule auto-regeneration exception: ' . $schedEx->getMessage());
+                    }
+                }
+
                 if ($status === 'Concluído') {
                     try {
                         IntegrationQueue::enqueue($db, 'SAP', 'order_completion', [
@@ -1058,9 +1074,13 @@ class OrdersController
             throw new Exception('Trabalhadores não podem executar o agente de geração de O.S.');
         }
 
-        // Operação real. A prévia não é exposta na interface nem na API.
         if ($dryRun === null) {
-            $dryRun = false;
+            $dryRun = !empty($this->input['dry_run']) || (isset($_GET['dry_run']) && $_GET['dry_run'] === '1');
+        }
+        if (isset($this->input['full_sync'])) {
+            $fullSync = (bool) $this->input['full_sync'];
+        } elseif (isset($_GET['full_sync'])) {
+            $fullSync = $_GET['full_sync'] !== '0';
         }
 
         $userLabel = $this->user['name'] ?? $this->user['nome'] ?? 'SYSTEM';

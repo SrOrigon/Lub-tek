@@ -103,3 +103,47 @@ input[type="checkbox"] {
 .actions-row {
     gap: 12px !important;
 }
+
+/* Botões de Ditado por Voz e Microfone Industrial */
+.mic-btn,
+.btn-mic {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    border-radius: 8px !important;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    touch-action: manipulation;
+}
+
+.mic-btn:hover,
+.btn-mic:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.mic-btn.pulse-mic,
+.btn-mic.pulse-mic,
+.voice-recording {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #dc2626 !important;
+    animation: pulse-red 1.2s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}

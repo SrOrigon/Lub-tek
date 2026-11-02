@@ -1774,58 +1774,203 @@
         doc.save(`Laudo_Lubrificacao_${res.model || 'Item'}.pdf`);
         showToast("Laudo Gerado com Sucesso!", "success");
     }
-    // --- VOICE DICTATION SYSTEM (Hands-Free Mode) ---
-    function initVoiceInput(targetId) {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            showToast('Seu navegador nao suporta reconhecimento de voz.', 'warning');
+    // --- UNIFIED INDUSTRIAL VOICE DICTATION ENGINE ---
+    let activeVoiceRecognition = null;
+    let activeVoiceRecorder = null;
+    let activeVoiceTarget = null;
+    let activeVoiceBtn = null;
+
+    function stopVoiceInput() {
+        if (activeVoiceRecognition) {
+            try { activeVoiceRecognition.stop(); } catch (e) {}
+            activeVoiceRecognition = null;
+        }
+        if (activeVoiceRecorder && activeVoiceRecorder.state !== 'inactive') {
+            try { activeVoiceRecorder.stop(); } catch (e) {}
+            activeVoiceRecorder = null;
+        }
+        if (activeVoiceBtn) {
+            activeVoiceBtn.classList.remove('pulse-mic', 'voice-recording');
+            activeVoiceBtn = null;
+        }
+        activeVoiceTarget = null;
+    }
+
+    function initVoiceInput(targetId, btnElement) {
+        return startVoiceInput(targetId, btnElement);
+    }
+
+    function startVoiceInput(targetId, btnElement) {
+        const input = typeof targetId === 'string' ? document.getElementById(targetId) : targetId;
+        if (!input) {
+            if (typeof showToast === 'function') showToast('Campo de texto não encontrado.', 'warning');
             return;
         }
 
-        const input = document.getElementById(targetId);
-        if (!input) return;
+        let btn = btnElement || null;
+        if (!btn && input.parentElement) {
+            btn = input.parentElement.querySelector('.mic-btn, .btn-mic, button[title*="voz" i], button[title*="ditar" i]');
+        }
+
+        // Toggle: se clicar novamente no mesmo campo enquanto grava, encerra
+        if (activeVoiceTarget === input) {
+            stopVoiceInput();
+            if (typeof showToast === 'function') showToast('Gravação finalizada.', 'info');
+            return;
+        }
+
+        stopVoiceInput();
+
+        activeVoiceTarget = input;
+        activeVoiceBtn = btn;
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
 
-        recognition.lang = 'pt-BR';
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        if (SpeechRecognition) {
+            try {
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'pt-BR';
+                recognition.continuous = false;
+                recognition.interimResults = false;
 
-        recognition.onstart = function () {
-            showToast('Ouvindo... Pode falar!', 'info');
-            const btn = input.parentElement.querySelector('.mic-btn');
-            if (btn) btn.classList.add('pulse-mic');
-        };
+                recognition.onstart = function () {
+                    if (activeVoiceBtn) activeVoiceBtn.classList.add('pulse-mic', 'voice-recording');
+                    if (typeof showToast === 'function') showToast('🎙️ Ouvindo... Fale com clareza.', 'info');
+                };
 
-        recognition.onend = function () {
-            const btn = input.parentElement.querySelector('.mic-btn');
-            if (btn) btn.classList.remove('pulse-mic');
-        };
+                recognition.onresult = function (event) {
+                    const transcript = event.results && event.results[0] && event.results[0][0] ? event.results[0][0].transcript : '';
+                    if (transcript) {
+                        applyDictationText(input, transcript);
+                        if (typeof showToast === 'function') showToast('Texto capturado com sucesso!', 'success');
+                    }
+                };
 
-        recognition.onresult = function (event) {
-            const transcript = event.results[0][0].transcript;
+                recognition.onerror = function (event) {
+                    const err = event.error || '';
+                    console.warn('SpeechRecognition warning:', err);
+                    if (err === 'no-speech' || err === 'aborted') {
+                        return;
+                    }
+                    if (err === 'not-allowed') {
+                        if (typeof showToast === 'function') showToast('Permissão de microfone negada no navegador.', 'warning');
+                    } else if (err === 'network') {
+                        fallbackToMediaRecorderGemini(input, btn);
+                    } else {
+                        fallbackToMediaRecorderGemini(input, btn);
+                    }
+                };
 
-            // Smart Append: If input has text, add space + text
-            if (input.value.trim() !== "") {
-                input.value += " " + transcript;
-            } else {
-                input.value = transcript;
+                recognition.onend = function () {
+                    if (activeVoiceTarget === input) {
+                        stopVoiceInput();
+                    }
+                };
+
+                activeVoiceRecognition = recognition;
+                recognition.start();
+                return;
+            } catch (recErr) {
+                console.warn('SpeechRecognition error, tentando fallback:', recErr);
             }
+        }
 
-            // Trigger events
-            input.dispatchEvent(new Event('input'));
-            input.dispatchEvent(new Event('change'));
-            showToast('Texto capturado!', 'success');
-        };
+        fallbackToMediaRecorderGemini(input, btn);
+    }
 
-        recognition.onerror = function (event) {
-            console.error(event.error);
-            showToast('Erro ao capturar áudio.', 'error');
-            const btn = input.parentElement.querySelector('.mic-btn');
-            if (btn) btn.classList.remove('pulse-mic');
-        };
+    function applyDictationText(input, text) {
+        if (!input || !text) return;
+        const clean = text.trim();
+        if (!clean) return;
+        const current = (input.value || '').trim();
+        if (current) {
+            input.value = current + ' ' + clean;
+        } else {
+            input.value = clean;
+        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 
-        recognition.start();
+    async function fallbackToMediaRecorderGemini(input, btn) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+            stopVoiceInput();
+            if (typeof showToast === 'function') {
+                showToast('Nenhum microfone ou API de áudio disponível neste navegador.', 'warning');
+            }
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const chunks = [];
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg');
+
+            const recorder = new MediaRecorder(stream, { mimeType: mimeType.split(';')[0] });
+            activeVoiceRecorder = recorder;
+
+            recorder.ondataavailable = function (e) {
+                if (e.data && e.data.size > 0) chunks.push(e.data);
+            };
+
+            recorder.onstart = function () {
+                if (btn) btn.classList.add('pulse-mic', 'voice-recording');
+                if (typeof showToast === 'function') {
+                    showToast('🎙️ Gravando áudio para Lúbria IA... Clique no microfone para concluir.', 'info');
+                }
+            };
+
+            recorder.onstop = async function () {
+                stream.getTracks().forEach(t => t.stop());
+                if (btn) btn.classList.remove('pulse-mic', 'voice-recording');
+
+                if (chunks.length === 0) {
+                    stopVoiceInput();
+                    return;
+                }
+
+                const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
+                if (typeof showToast === 'function') showToast('Transcrevendo com Lúbria IA...', 'info');
+
+                try {
+                    const reader = new FileReader();
+                    reader.onloadend = async function () {
+                        const base64Audio = reader.result;
+                        try {
+                            const res = await api('transcribe_audio', {
+                                audio: base64Audio,
+                                mime_type: blob.type || 'audio/webm'
+                            });
+                            if (res && res.success && res.text) {
+                                applyDictationText(input, res.text);
+                                if (typeof showToast === 'function') showToast('Transcrição concluída via IA!', 'success');
+                            } else {
+                                if (typeof showToast === 'function') showToast(res?.error || 'Não foi possível transcrever o áudio.', 'warning');
+                            }
+                        } catch (apiErr) {
+                            console.error('Erro na API de transcrição:', apiErr);
+                            if (typeof showToast === 'function') showToast('Erro na conexão com IA de transcrição.', 'error');
+                        } finally {
+                            stopVoiceInput();
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                } catch (readErr) {
+                    console.error('Erro ao processar áudio:', readErr);
+                    stopVoiceInput();
+                }
+            };
+
+            recorder.start();
+        } catch (mediaErr) {
+            console.warn('Erro ao obter microfone:', mediaErr);
+            stopVoiceInput();
+            if (typeof showToast === 'function') {
+                showToast('Permissão de microfone negada ou indisponível.', 'warning');
+            }
+        }
     }
     // --- SYNTH CALCULATOR LOGIC (Specific Tabs) ---
     // As implementações canônicas de runSynthRolCalc/runSynthViscCalc/runSynthBucCalc/runSynthDNCalc
@@ -1884,39 +2029,6 @@
         if (qrVideoTrack) { qrVideoTrack.stop(); qrVideoTrack = null; }
     }
 
-    // --- VOICE INPUT DICTATION (WEB SPEECH API) ---
-    function startVoiceInput(targetInputId) {
-        const input = typeof targetInputId === 'string' ? document.getElementById(targetInputId) : targetInputId;
-        if (!input) return;
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            if (typeof showToast === 'function') showToast('Reconhecimento de voz não suportado neste navegador.', 'warning');
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'pt-BR';
-        recognition.interimResults = false;
-
-        recognition.onstart = function () {
-            if (typeof showToast === 'function') showToast('Ouvindo ditado de voz...', 'info');
-        };
-
-        recognition.onresult = function (event) {
-            const transcript = event.results[0][0].transcript;
-            input.value = input.value ? input.value + ' ' + transcript : transcript;
-            input.dispatchEvent(new Event('input'));
-            if (typeof showToast === 'function') showToast('Texto capturado por voz!', 'success');
-        };
-
-        recognition.onerror = function (event) {
-            console.error('Speech recognition error:', event.error);
-            if (typeof showToast === 'function') showToast('Erro na captura de voz. Tente novamente.', 'error');
-        };
-
-        recognition.start();
-    }
 
     // --- FLOATING DOSAGE & PUMP CONVERTER CALCULATOR ---
     function calcFloatingGreaseDosage(d, D, B) {
@@ -2077,6 +2189,7 @@
 
     window.startVoiceInput = startVoiceInput;
     window.initVoiceInput = initVoiceInput;
+    window.stopVoiceInput = stopVoiceInput;
     window.downloadTechnicalReport = downloadTechnicalReport;
 
     function processScannedTag(tagVal) {

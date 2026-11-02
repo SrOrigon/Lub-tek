@@ -249,6 +249,26 @@ class NeuralKnowledge
             return "**Gestão de KPIs**\n\nDashboard de indicadores: OEE, aderência, saúde dos ativos, investimento.\n\n**Como usar:**\n• Visualize gráficos de OEE, aderência ao plano e saúde dos ativos.\n• Barra \"Motor Neural\" no topo traz insight e recomendação automática.\n• Use para apresentações gerenciais e tomada de decisão.";
         }
 
+        // Perguntas sobre calculadoras e engenharia
+        if (preg_match('/\b(cálculo|calculo|calculadora|fator dn|viscosidade|kappa|bucha|filtração|filtracao|espessante|engraxadeira)\b/ui', $q)) {
+            return "**Engenharia de Lubrificação & Cálculos Técnicos**\n\nO LUB-TEK possui módulos certificados para dimensionamento industrial:\n\n• **Fator DN**: Calcula velocidade periférica do rolamento (RPM × diâmetro médio em mm) indicando a faixa de velocidade.\n• **Viscosidade e Kappa (κ)**: Determina a viscosidade cinemática requerida (ISO VG) e o regime de lubrificação elastohidrodinâmica (EHL).\n• **Compatibilidade de Graxas**: Matriz cruzada de espessantes (Lítio, Poliureia, Complexo de Alumínio/Sulfonato) para evitar incompatibilidade química.\n• **Calibração de Engraxadeiras**: Conversão de golpes manuais em gramas nominais com rastreabilidade.\n• Acesse: Menu Superior → **Engenharia de Lubrificação**.";
+        }
+
+        // Perguntas sobre rotas, checklist e QR Code
+        if (preg_match('/\b(rota|rotas|checklist|qr|qrcode|etiqueta|leitor|camera|tablet|campo)\b/ui', $q)) {
+            return "**Rotas de Inspeção & Leitura QR Code**\n\nMódulo desenvolvido para operação em chão de fábrica (PWA offline):\n\n• **Scanner QR Code**: Aponte a câmera para a TAG do ativo. O sistema resolve o ponto instantaneamente via `qr_hash` ou TAG.\n• **Pre-fetching de Linha**: Ao ler o primeiro ponto de uma máquina/linha, todos os pontos da linha inteira são cacheados localmente.\n• **Fila Offline**: Apontamentos realizados sem sinal são salvos em `lub_api_queue` e sincronizados automaticamente ao reconectar com idempotência garantida.";
+        }
+
+        // Perguntas sobre telemetria, sensores e PI System
+        if (preg_match('/\b(pi|telemetria|sensor|sensores|cbm|vibração|vibracao|temperatura|preditiva)\b/ui', $q)) {
+            return "**Telemetria CBM & PI System**\n\nMonitoramento de condição em tempo real integrado aos ativos:\n\n• Coleta contínua de temperatura, vibração global (RMS) e pressão em mancais críticos.\n• Diagnóstico neural automatizado: cruzamento dos dados de telemetria com histórico de análises de óleo.\n• Alertas proativos com geração automatizada de O.S. Preditiva para a equipe de confiabilidade.";
+        }
+
+        // Perguntas sobre SAP e ERP
+        if (preg_match('/\b(sap|erp|bapi|ordens sap|exportação sap|exportacao sap)\b/ui', $q)) {
+            return "**Integração SAP PM / MM**\n\nComunicação desacoplada e assíncrona com ERP corporativo:\n\n• **Fila de Integração**: Toda conclusão de O.S. é enfileirada em `integration_queue` sem travar o operador de campo.\n• Suporte a TECO (Technical Completion), apontamento de horas e consumo de materiais.\n• Monitore o status da fila e reprocessamentos pelo menu SAP / ERP.";
+        }
+
         // Perguntas sobre IA / neural
         if (preg_match('/\b(ia|inteligência|neural|gemini|assistente)\b/ui', $q)) {
             return "Sou o **Assistente Neural LUB-TEK**. Estou aqui para tirar dúvidas sobre o sistema e sobre manutenção industrial.\n\n**Neste momento você está em:** {$moduleName}\n\nPergunte coisas como:\n• \"Como criar uma ordem de serviço?\"\n• \"Como cadastrar um ativo?\"\n• \"O que é o Motor Neural?\"";

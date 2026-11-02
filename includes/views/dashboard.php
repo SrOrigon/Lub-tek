@@ -451,11 +451,21 @@
                         <input type="number" step="0.1" id="f-os-agua" style="padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 1rem; width: 100%; text-align: center;">
                     </div>
                     <div class="field-item" style="grid-column: span 2;">
-                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: block; text-transform: uppercase;">Observações de Execução</label>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin:0;">Observações de Execução</label>
+                            <button type="button" class="btn btn-sm btn-outline btn-mic" onclick="startVoiceInput('f-os-obsexec', this)" title="Ditar Observações por Voz" style="padding:4px 10px; font-size:0.75rem; min-height:32px !important; min-width:32px !important; display:inline-flex; align-items:center; gap:6px;">
+                                <i data-lucide="mic" style="width:14px;height:14px;"></i> Ditar
+                            </button>
+                        </div>
                         <textarea id="f-os-obsexec" style="width:100%; height:80px; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.95rem; resize: none;"></textarea>
                     </div>
                     <div class="field-item" style="grid-column: span 2;">
-                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: block; text-transform: uppercase;">Motivos / Ocorrências</label>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <label style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin:0;">Motivos / Ocorrências</label>
+                            <button type="button" class="btn btn-sm btn-outline btn-mic" onclick="startVoiceInput('f-os-motivos', this)" title="Ditar Motivos por Voz" style="padding:4px 10px; font-size:0.75rem; min-height:32px !important; min-width:32px !important; display:inline-flex; align-items:center; gap:6px;">
+                                <i data-lucide="mic" style="width:14px;height:14px;"></i> Ditar
+                            </button>
+                        </div>
                         <textarea id="f-os-motivos" style="width:100%; height:80px; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.95rem; resize: none;"></textarea>
                     </div>
                 </div>

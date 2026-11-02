@@ -45,7 +45,7 @@ class PdfController
             'ok' => true,
             'meta' => $plan['meta'],
             'company' => $this->companyInfo(),
-            'ia_configured' => GeminiService::getInstance()->isConfigured(),
+            'ia_configured' => GeminiService::getInstance()->isGeminiEnabled(),
             'ai_enabled_default' => false,
             'export_url' => $this->buildExportUrl($assetId, $frequency, false),
         ];
