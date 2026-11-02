@@ -208,14 +208,26 @@ class SecurityGuard
 
         self::cleanExpiredAttempts($attempts);
         $ip = self::getClientIp();
-        $keys = ['ip:' . $ip];
-        if (!empty($username)) {
-            $keys[] = 'user:' . strtolower(trim($username));
+        $userClean = strtolower(trim($username));
+
+        // 1) Bloqueio por IP direto (5+ tentativas com qualquer usuário a partir desta máquina)
+        if (isset($attempts['ip:' . $ip]) && count($attempts['ip:' . $ip]) >= self::$maxAttempts) {
+            return true;
         }
 
-        foreach ($keys as $k) {
-            if (isset($attempts[$k]) && count($attempts[$k]) >= self::$maxAttempts) {
+        // 2) Bloqueio contextual por IP + Usuário (evita DoS global de um atacante contra o admin real)
+        if ($userClean !== '') {
+            $userIpKey = 'user_ip:' . $userClean . ':' . $ip;
+            if (isset($attempts[$userIpKey]) && count($attempts[$userIpKey]) >= self::$maxAttempts) {
                 return true;
+            }
+
+            // Compatibilidade com chaves legadas 'user:...' apenas se o IP atual também registrou falhas
+            $legacyKey = 'user:' . $userClean;
+            if (isset($attempts[$legacyKey]) && count($attempts[$legacyKey]) >= self::$maxAttempts) {
+                if (isset($attempts['ip:' . $ip]) && count($attempts['ip:' . $ip]) >= 2) {
+                    return true;
+                }
             }
         }
 
@@ -233,19 +245,27 @@ class SecurityGuard
 
         $ip = self::getClientIp();
         $now = time();
-        self::mutateAttempts(function ($attempts) use ($ip, $username, $now) {
+        $userClean = strtolower(trim($username));
+
+        self::mutateAttempts(function ($attempts) use ($ip, $userClean, $now) {
             $ipKey = 'ip:' . $ip;
             if (!isset($attempts[$ipKey])) {
                 $attempts[$ipKey] = [];
             }
             $attempts[$ipKey][] = $now;
 
-            if (!empty($username)) {
-                $userKey = 'user:' . strtolower(trim($username));
-                if (!isset($attempts[$userKey])) {
-                    $attempts[$userKey] = [];
+            if ($userClean !== '') {
+                $userIpKey = 'user_ip:' . $userClean . ':' . $ip;
+                if (!isset($attempts[$userIpKey])) {
+                    $attempts[$userIpKey] = [];
                 }
-                $attempts[$userKey][] = $now;
+                $attempts[$userIpKey][] = $now;
+
+                $legacyKey = 'user:' . $userClean;
+                if (!isset($attempts[$legacyKey])) {
+                    $attempts[$legacyKey] = [];
+                }
+                $attempts[$legacyKey][] = $now;
             }
             return $attempts;
         });
@@ -257,10 +277,13 @@ class SecurityGuard
     public static function resetFailedAttempts($username = '')
     {
         $ip = self::getClientIp();
-        self::mutateAttempts(function ($attempts) use ($ip, $username) {
+        $userClean = strtolower(trim($username));
+
+        self::mutateAttempts(function ($attempts) use ($ip, $userClean) {
             unset($attempts['ip:' . $ip]);
-            if (!empty($username)) {
-                unset($attempts['user:' . strtolower(trim($username))]);
+            if ($userClean !== '') {
+                unset($attempts['user_ip:' . $userClean . ':' . $ip]);
+                unset($attempts['user:' . $userClean]);
             }
             return $attempts;
         });
