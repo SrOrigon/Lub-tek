@@ -176,7 +176,8 @@ class PIController
             $targetId = $this->db->lastInsertId();
         }
         
-        DB::log($this->user['id'] ?? 1, $action, "pi_tags:" . $targetId, null, $in);
+        $userLabel = $this->user['nome'] ?? $this->user['name'] ?? ('Usuário #' . ($this->user['id'] ?? '1'));
+        DB::log($userLabel, $action, "pi_tags:" . $targetId, null, $in);
         return ['success' => true, 'id' => $targetId];
     }
 
@@ -191,7 +192,8 @@ class PIController
         }
         
         $this->db->prepare("DELETE FROM pi_tags WHERE id = ?")->execute([$id]);
-        DB::log($this->user['id'] ?? 1, 'DELETE', "pi_tags:" . $id);
+        $userLabel = $this->user['nome'] ?? $this->user['name'] ?? ('Usuário #' . ($this->user['id'] ?? '1'));
+        DB::log($userLabel, 'DELETE', "pi_tags:" . $id);
         return ['success' => true];
     }
 

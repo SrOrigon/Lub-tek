@@ -105,12 +105,14 @@ class WorkOrderGenerationAgent
             DB::log(
                 $this->context['user_label'] ?? 'OS_AGENT',
                 'OS_AGENT_RUN',
-                json_encode([
+                "Geração Automática de O.S. ({$created} novas ordens geradas)",
+                null,
+                [
                     'created' => $created,
                     'due' => $due,
                     'skipped' => $skipped,
                     'scanned' => $scanned,
-                ], JSON_UNESCAPED_UNICODE)
+                ]
             );
         }
 

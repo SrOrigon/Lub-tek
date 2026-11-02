@@ -496,7 +496,8 @@ class OrdersController
             throw $e;
         } finally {
             // Fix 1: Audit Log guaranteed even on error
-            DB::log($this->user['id'], $isUpdate ? 'UPDATE_OS_ATTEMPT' : 'CREATE_OS_ATTEMPT', "ordens", null, $input);
+            $userName = $this->user['nome'] ?? $this->user['name'] ?? ('Usuário #' . ($this->user['id'] ?? '1'));
+            DB::log($userName, $isUpdate ? 'UPDATE_OS_ATTEMPT' : 'CREATE_OS_ATTEMPT', "ordens", null, $input);
         }
     }
 
@@ -707,7 +708,8 @@ class OrdersController
                 }
             }
 
-            DB::log($this->user['id'], 'EXECUTE_OS', 'ordens:' . $input['id'], $existing, $input);
+            $userName = $this->user['nome'] ?? $this->user['name'] ?? ('Usuário #' . ($this->user['id'] ?? '1'));
+            DB::log($userName, 'EXECUTE_OS', 'ordens:' . $input['id'], $existing, $input);
             return ['id' => $input['id'], 'new_sync' => $now, 'success' => true, 'low_stock_alert' => !empty($lowStock)];
         });
     }

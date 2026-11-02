@@ -103,10 +103,35 @@ class RodrigoAPI
         // 1.5. GATEWAY IoT / Power BI — SOMENTE com X-API-KEY válida (sem bypass anônimo)
         // Query string aceita só para actions do gateway (compat Power BI Desktop).
         $iotActions = ['receive_pi_telemetry', 'pi_ai_diagnose', 'save_asset', 'save_order', 'update_order_status', 'save_task'];
-        $powerbiActions = ['powerbi_kpis', 'powerbi_orders', 'powerbi_telemetry', 'powerbi_assets', 'powerbi_audit', 'powerbi', 'powerbi_all'];
+        $powerbiActions = ['powerbi_kpis', 'powerbi_orders', 'powerbi_telemetry', 'powerbi_assets', 'powerbi_audit', 'powerbi_consumption', 'powerbi', 'powerbi_all'];
         $gatewayActions = array_merge($iotActions, $powerbiActions);
 
-        $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? $_SERVER['X_API_KEY'] ?? '';
+        $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? $_SERVER['X_API_KEY'] ?? $_SERVER['REDIRECT_HTTP_X_API_KEY'] ?? '';
+        if ($apiKey === '' && function_exists('getallheaders')) {
+            $allHeaders = getallheaders();
+            foreach ($allHeaders as $hKey => $hVal) {
+                if (strcasecmp($hKey, 'X-API-KEY') === 0 || strcasecmp($hKey, 'X_API_KEY') === 0) {
+                    $apiKey = trim((string) $hVal);
+                    break;
+                }
+            }
+        }
+        if ($apiKey === '') {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+            if ($authHeader === '' && function_exists('getallheaders')) {
+                $allHeaders = getallheaders();
+                foreach ($allHeaders as $hKey => $hVal) {
+                    if (strcasecmp($hKey, 'Authorization') === 0) {
+                        $authHeader = trim((string) $hVal);
+                        break;
+                    }
+                }
+            }
+            if (preg_match('/Bearer\s+(\S+)/i', $authHeader, $matches)) {
+                $apiKey = $matches[1];
+            }
+        }
+
         if ($apiKey === '' && !empty($_GET['api_key'])) {
             $this->error('API key via query string não é permitida. Envie o header X-API-KEY.', 401);
         }
@@ -914,16 +939,93 @@ class RodrigoAPI
                 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
 
+            // Mapeia IDs numéricos legados para nomes de funcionários
+            $userNamesMap = [];
+            try {
+                $uRows = $this->db->query("SELECT id, nome FROM usuarios")->fetchAll(PDO::FETCH_KEY_PAIR);
+                if (is_array($uRows)) {
+                    $userNamesMap = $uRows;
+                }
+            } catch (\Throwable $t) {}
+
             foreach ($logs as &$log) {
-                $log['usuario'] = htmlspecialchars($log['usuario'] ?? '');
-                $log['acao'] = htmlspecialchars($log['acao'] ?? '');
-                $log['alvo'] = htmlspecialchars($log['alvo'] ?? '');
+                $u = trim((string) ($log['usuario'] ?? ''));
+                if (is_numeric($u) && isset($userNamesMap[(int) $u])) {
+                    $log['usuario'] = $userNamesMap[(int) $u];
+                } elseif ($u === '1' || $u === '') {
+                    $log['usuario'] = 'Admin';
+                }
+
+                // Desfaz dupla codificação e decodifica JSON bruto no campo alvo
+                $alvo = trim((string) ($log['alvo'] ?? ''));
+                if (str_contains($alvo, '&quot;') || str_starts_with($alvo, '{')) {
+                    $cleanAlvo = html_entity_decode($alvo, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    $dec = json_decode($cleanAlvo, true);
+                    if (is_array($dec) && isset($dec['created'])) {
+                        $log['alvo'] = "Agente de O.S. ({$dec['created']} novas tarefas)";
+                    } else {
+                        $log['alvo'] = $cleanAlvo;
+                    }
+                }
             }
 
             $this->success($logs);
         } catch (Exception $e) {
             error_log('handle_get_audit_logs failed: ' . $e->getMessage());
             $this->error('Erro ao carregar logs.', 500, $e->getMessage());
+        }
+    }
+
+    private function handle_purge_audit_logs()
+    {
+        $role = (string) ($this->user['role'] ?? '');
+        if (!Permissions::isDeveloper($role) && !Permissions::isGestor($role)) {
+            $this->error('Acesso negado para esta operação.', 403);
+        }
+
+        // Política estrita de compliance industrial: mantém SEMPRE os últimos 30 dias (1 mês)
+        $threshold = date('Y-m-d H:i:s', strtotime('-30 days'));
+
+        try {
+            $stmtCountOld = $this->db->prepare("SELECT COUNT(*) FROM logs_auditoria WHERE data < ?");
+            $stmtCountOld->execute([$threshold]);
+            $countOld = (int) $stmtCountOld->fetchColumn();
+
+            $stmtCountRecent = $this->db->prepare("SELECT COUNT(*) FROM logs_auditoria WHERE data >= ?");
+            $stmtCountRecent->execute([$threshold]);
+            $countRecent = (int) $stmtCountRecent->fetchColumn();
+
+            if ($countOld === 0) {
+                $this->success([
+                    'ok' => false,
+                    'deleted' => 0,
+                    'preserved' => $countRecent,
+                    'message' => "Política de Conformidade Ativa: Todos os {$countRecent} registros atuais pertencem aos últimos 30 dias e estão estritamente preservados. O sistema só permite limpar históricos anteriores a 1 mês."
+                ]);
+                return;
+            }
+
+            $stmtDelete = $this->db->prepare("DELETE FROM logs_auditoria WHERE data < ?");
+            $stmtDelete->execute([$threshold]);
+
+            $userLabel = $this->user['nome'] ?? $this->user['name'] ?? 'Admin';
+            DB::log(
+                $userLabel,
+                'PURGE_AUDIT_LOGS',
+                "Expurgo de Histórico ({$countOld} registros > 30 dias limpos)",
+                null,
+                ['deleted' => $countOld, 'preserved' => $countRecent, 'retention' => 'last_30_days_protected']
+            );
+
+            $this->success([
+                'ok' => true,
+                'deleted' => $countOld,
+                'preserved' => $countRecent,
+                'message' => "Limpeza concluída com sucesso! {$countOld} registro(s) com mais de 30 dias foram expurgados. Os {$countRecent} registros do último mês permanecem 100% protegidos e preservados."
+            ]);
+        } catch (Exception $e) {
+            error_log('handle_purge_audit_logs failed: ' . $e->getMessage());
+            $this->error('Erro ao expurgar logs antigos: ' . $e->getMessage(), 500);
         }
     }
 

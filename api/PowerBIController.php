@@ -309,4 +309,97 @@ class PowerBIController
             'data' => $logs
         ];
     }
+
+    /**
+     * Endpoint Power BI: Consumo Tabular de Lubrificantes e Dosagens
+     */
+    public function getConsumption()
+    {
+        $rows = $this->safeFetchAll("
+            SELECT 
+                o.id as ordem_id,
+                o.descricao as ordem_descricao,
+                o.responsavel as tecnico,
+                o.data_planejada,
+                o.data_execucao,
+                o.situacao,
+                o.materiais,
+                o.materiais_sap,
+                o.qtd_real,
+                a.id as ativo_id,
+                a.nome as ativo_nome,
+                a.tag as ativo_tag,
+                a.tipo as ativo_tipo
+            FROM ordens o
+            LEFT JOIN ativos a ON o.ativo_id = a.id
+            WHERE o.materiais IS NOT NULL OR o.materiais_sap IS NOT NULL OR o.qtd_real > 0
+            ORDER BY o.id DESC
+        ");
+
+        $consumption = [];
+        foreach ($rows as $r) {
+            $mats = json_decode($r['materiais'] ?? '[]', true);
+            if (!is_array($mats) || empty($mats)) {
+                $lubName = trim((string) ($r['materiais_sap'] ?? 'Lubrificante Padrão'));
+                $consumption[] = [
+                    'ordem_id' => $r['ordem_id'],
+                    'ordem_descricao' => $r['ordem_descricao'],
+                    'tecnico' => $r['tecnico'],
+                    'data_planejada' => $r['data_planejada'],
+                    'data_execucao' => $r['data_execucao'] ?: $r['data_planejada'],
+                    'situacao' => $r['situacao'],
+                    'ativo_id' => $r['ativo_id'],
+                    'ativo_tag' => $r['ativo_tag'] ?: '',
+                    'ativo_nome' => $r['ativo_nome'] ?: '',
+                    'ativo_tipo' => $r['ativo_tipo'] ?: '',
+                    'lubrificante' => $lubName,
+                    'qtd_planejada' => floatval($r['qtd_real'] ?? 0),
+                    'qtd_real' => floatval($r['qtd_real'] ?? 0),
+                    'unidade' => 'g'
+                ];
+            } else {
+                foreach ($mats as $m) {
+                    $lubName = $m['nome'] ?? $m['codigo'] ?? $r['materiais_sap'] ?? 'Lubrificante';
+                    $planned = floatval($m['quantidade'] ?? $m['qtd'] ?? 0);
+                    $actual = floatval($r['qtd_real'] ?? $planned);
+                    $unit = $m['unidade'] ?? 'g';
+
+                    $consumption[] = [
+                        'ordem_id' => $r['ordem_id'],
+                        'ordem_descricao' => $r['ordem_descricao'],
+                        'tecnico' => $r['tecnico'],
+                        'data_planejada' => $r['data_planejada'],
+                        'data_execucao' => $r['data_execucao'] ?: $r['data_planejada'],
+                        'situacao' => $r['situacao'],
+                        'ativo_id' => $r['ativo_id'],
+                        'ativo_tag' => $r['ativo_tag'] ?: '',
+                        'ativo_nome' => $r['ativo_nome'] ?: '',
+                        'ativo_tipo' => $r['ativo_tipo'] ?: '',
+                        'lubrificante' => $lubName,
+                        'qtd_planejada' => $planned,
+                        'qtd_real' => $actual,
+                        'unidade' => $unit
+                    ];
+                }
+            }
+        }
+
+        if (empty($consumption) && $this->isSystemEmptyForDemo()) {
+            $consumption = [
+                ['ordem_id' => 101, 'ordem_descricao' => 'Relubrificação Mancal Sopradora', 'tecnico' => 'Carlos Silva', 'data_planejada' => date('Y-m-d'), 'data_execucao' => date('Y-m-d'), 'situacao' => 'Concluído', 'ativo_id' => 3, 'ativo_tag' => 'SOP-301', 'ativo_nome' => 'Sopradora Blomax', 'ativo_tipo' => 'Sopradora', 'lubrificante' => 'Klübersynth GH 6-220', 'qtd_planejada' => 45.0, 'qtd_real' => 45.0, 'unidade' => 'g'],
+                ['ordem_id' => 102, 'ordem_descricao' => 'Troca de Óleo Redutor', 'tecnico' => 'Marcos Souza', 'data_planejada' => date('Y-m-d', strtotime('-5 days')), 'data_execucao' => date('Y-m-d', strtotime('-5 days')), 'situacao' => 'Concluído', 'ativo_id' => 2, 'ativo_tag' => 'RED-202', 'ativo_nome' => 'Redutor Planetário', 'ativo_tipo' => 'Redutor', 'lubrificante' => 'Mobil SHC 630', 'qtd_planejada' => 15.0, 'qtd_real' => 15.0, 'unidade' => 'l']
+            ];
+        }
+
+        if ($this->isFlatFormat()) {
+            return $consumption;
+        }
+
+        return [
+            'ok' => true,
+            'count' => count($consumption),
+            'timestamp' => date('Y-m-d H:i:s'),
+            'data' => $consumption
+        ];
+    }
 }

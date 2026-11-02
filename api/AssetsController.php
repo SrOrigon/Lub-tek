@@ -406,7 +406,9 @@ class AssetsController
 
         // Audit check outside transaction to avoid lock
         $action = isset($input['id']) ? 'UPDATE' : 'INSERT';
-        DB::log($currentUser['id'], $action, "ativos:" . ($newId ?? 'new'), null, $input);
+        $userLabel = $currentUser['nome'] ?? $currentUser['name'] ?? ('Usuário #' . ($currentUser['id'] ?? '1'));
+        $targetLabel = !empty($input['nome']) ? ("Ativo: " . $input['nome']) : ("ativos:" . ($newId ?? 'new'));
+        DB::log($userLabel, $action, $targetLabel, null, $input);
 
         if (!empty($previousMediaPaths)) {
             // 'imagem_3d' (coluna) e 'dados_tecnicos.model_3d' não são editáveis por este

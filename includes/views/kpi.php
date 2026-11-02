@@ -4,12 +4,16 @@
         <div>
             <h1 style="margin:0; font-size:1.75rem; font-weight:800; letter-spacing:-0.5px; color:#0f172a;">Resumo da Fábrica</h1>
             <p style="margin:8px 0 0; font-size:0.9rem; color:#64748b; font-weight:600;">Visão simples do que está em dia e o que precisa de atenção</p>
-            <div style="display:flex; align-items:center; gap:12px; margin-top:14px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap;">
                 <span style="font-size:0.8rem; color:var(--text-muted); font-weight:700;">Unidade:</span>
                 <select id="kpi-focus-selector" onchange="loadKpiView(this.value)"
                     style="border:1px solid var(--border); background:white; font-size:0.9rem; font-weight:700; color:var(--primary); padding:10px 16px; border-radius:10px; cursor:pointer; min-height:44px;">
                     <option value="">Toda a Planta</option>
                 </select>
+                <button type="button" class="btn btn-outline" onclick="if(typeof nav==='function'){nav('sap'); setTimeout(()=>switchSAPTab('powerbi'),100);}else{window.location.href='index.php?page=sap&tab=powerbi';}"
+                    style="height:44px; border-radius:10px; border:1px solid #cbd5e1; background:#fff; font-weight:700; color:#0f172a; display:inline-flex; align-items:center; gap:8px; padding:0 18px; margin-left:auto;">
+                    <i data-lucide="bar-chart-2" style="width:18px; color:#f59e0b;"></i> Conectar Power BI
+                </button>
             </div>
         </div>
     </div>

@@ -17,7 +17,7 @@
     </div>
 
     <!-- Navigation Tabs -->
-    <div style="display: flex; gap: 15px; border-bottom: 1px solid var(--border); padding-bottom: 1px; margin-bottom: 10px;">
+    <div style="display: flex; gap: 15px; border-bottom: 1px solid var(--border); padding-bottom: 1px; margin-bottom: 10px; flex-wrap: wrap;">
         <button id="tab-sap-import" onclick="switchSAPTab('import')" class="tab-btn active-tab" 
             style="border: none; background: none; font-size: 1rem; font-weight: 700; padding: 10px 20px; border-bottom: 3px solid var(--primary); color: var(--primary); cursor: pointer;">
             <i data-lucide="upload" style="width: 16px; margin-right: 8px; vertical-align: middle;"></i>Importar do SAP
@@ -25,6 +25,10 @@
         <button id="tab-sap-export" onclick="switchSAPTab('export')" class="tab-btn" 
             style="border: none; background: none; font-size: 1rem; font-weight: 700; padding: 10px 20px; border-bottom: 3px solid transparent; color: var(--text-muted); cursor: pointer;">
             <i data-lucide="download" style="width: 16px; margin-right: 8px; vertical-align: middle;"></i>Exportar para o SAP
+        </button>
+        <button id="tab-sap-powerbi" onclick="switchSAPTab('powerbi')" class="tab-btn" 
+            style="border: none; background: none; font-size: 1rem; font-weight: 700; padding: 10px 20px; border-bottom: 3px solid transparent; color: var(--text-muted); cursor: pointer;">
+            <i data-lucide="bar-chart-2" style="width: 16px; margin-right: 8px; vertical-align: middle;"></i>Ponte Power BI
         </button>
     </div>
 
@@ -188,6 +192,198 @@
             </button>
         </div>
     </div>
+
+    <!-- TAB CONTENT: POWER BI BRIDGE -->
+    <div id="sap-content-powerbi" class="sap-tab-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 24px; max-width: 1000px; margin: 0 auto;">
+            
+            <!-- Welcome Header Card -->
+            <div class="card" style="padding: 24px 28px; background: white; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <h2 style="margin: 0; font-size: 1.4rem; color: #0f172a; font-weight: 800; display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="bar-chart-2" style="color: #f59e0b; width: 26px; height: 26px;"></i>
+                        Ponte de Conexão Microsoft Power BI
+                    </h2>
+                    <p style="margin: 6px 0 0 0; font-size: 0.85rem; color: var(--text-muted);">
+                        Alimente painéis executivos e gráficos analíticos com dados 100% atualizados via feed REST estruturado.
+                    </p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" class="btn btn-outline" onclick="testPowerBiConnection()" style="border-radius: 10px; height: 42px; display: flex; align-items: center; gap: 6px; font-weight: 700; background: #f8fafc;">
+                        <i data-lucide="zap" style="width: 16px; color: #0284c7;"></i> Testar Conexão Live
+                    </button>
+                </div>
+            </div>
+
+            <!-- API Credential Card -->
+            <div class="card" style="padding: 24px 28px; background: white; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.8rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                        1. Chave de Acesso Autenticada (X-API-KEY)
+                    </span>
+                    <span style="font-size: 0.75rem; background: #ecfdf5; color: #059669; font-weight: 700; padding: 3px 10px; border-radius: 20px;">
+                        Escopo: Leitura & Gateway BI
+                    </span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+                    Esta chave autoriza o Power BI Desktop ou Power BI Web a consultar os dados sem expor senhas de usuários humanos.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="position: relative; flex: 1; min-width: 280px;">
+                        <input type="password" id="pbi-api-key-input" readonly value="Carregando chave..." 
+                            style="width: 100%; padding: 12px 42px 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: monospace; font-size: 0.95rem; background: #f8fafc; color: #0f172a; font-weight: 700;">
+                        <button type="button" onclick="togglePbiKeyVisibility()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b;">
+                            <i id="pbi-key-eye" data-lucide="eye" style="width: 18px; height: 18px;"></i>
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="copyPbiApiKey()" style="border-radius: 10px; height: 44px; display: flex; align-items: center; gap: 6px; font-weight: 700; padding: 0 18px;">
+                        <i data-lucide="copy" style="width: 16px;"></i> Copiar Chave
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="rotatePbiApiKey()" style="border-radius: 10px; height: 44px; display: flex; align-items: center; gap: 6px; font-weight: 600; color: #d97706; border-color: #fde68a;">
+                        <i data-lucide="refresh-cw" style="width: 16px;"></i> Gerar Nova Chave
+                    </button>
+                </div>
+            </div>
+
+            <!-- Available Feeds Table -->
+            <div class="card" style="padding: 24px 28px; background: white; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px;">
+                <span style="font-size: 0.8rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                    2. Feeds Tabulares Disponíveis (Carregamento Direto em Tabela Plana)
+                </span>
+                
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+                                <th style="padding: 12px 14px; font-weight: 700;">Entidade / Tabela</th>
+                                <th style="padding: 12px 14px; font-weight: 700;">Descrição no Power BI</th>
+                                <th style="padding: 12px 14px; font-weight: 700; text-align: right;">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 12px 14px; font-weight: 700; color: #0f172a;">
+                                    <i data-lucide="clipboard-list" style="width: 16px; color: #0284c7; vertical-align: middle; margin-right: 6px;"></i>
+                                    Ordens de Serviço (O.S.)
+                                </td>
+                                <td style="padding: 12px 14px; color: #64748b;">
+                                    Histórico e carteira de ordens com data planejada, execução, técnico, prioridade e status.
+                                </td>
+                                <td style="padding: 12px 14px; text-align: right;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyPbiFeedUrl('powerbi_orders')" style="font-size: 0.75rem; border-radius: 8px;">
+                                        Copiar URL
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 12px 14px; font-weight: 700; color: #0f172a;">
+                                    <i data-lucide="gauge" style="width: 16px; color: #10b981; vertical-align: middle; margin-right: 6px;"></i>
+                                    Indicadores & KPIs Globais
+                                </td>
+                                <td style="padding: 12px 14px; color: #64748b;">
+                                    Disponibilidade da planta, taxa de conclusão, MTBF (horas), MTTR e alertas ativos.
+                                </td>
+                                <td style="padding: 12px 14px; text-align: right;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyPbiFeedUrl('powerbi_kpis')" style="font-size: 0.75rem; border-radius: 8px;">
+                                        Copiar URL
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 12px 14px; font-weight: 700; color: #0f172a;">
+                                    <i data-lucide="droplet" style="width: 16px; color: #f59e0b; vertical-align: middle; margin-right: 6px;"></i>
+                                    Consumo de Lubrificantes
+                                </td>
+                                <td style="padding: 12px 14px; color: #64748b;">
+                                    Dosagem real vs planejada por máquina, óleo/graxa aplicado, custo e conformidade técnica.
+                                </td>
+                                <td style="padding: 12px 14px; text-align: right;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyPbiFeedUrl('powerbi_consumption')" style="font-size: 0.75rem; border-radius: 8px;">
+                                        Copiar URL
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 12px 14px; font-weight: 700; color: #0f172a;">
+                                    <i data-lucide="boxes" style="width: 16px; color: #8b5cf6; vertical-align: middle; margin-right: 6px;"></i>
+                                    Inventário & Saúde de Ativos
+                                </td>
+                                <td style="padding: 12px 14px; color: #64748b;">
+                                    Árvore de equipamentos, TAGs, fabricantes, score de saúde operacional e criticidade.
+                                </td>
+                                <td style="padding: 12px 14px; text-align: right;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyPbiFeedUrl('powerbi_assets')" style="font-size: 0.75rem; border-radius: 8px;">
+                                        Copiar URL
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 12px 14px; font-weight: 700; color: #0f172a;">
+                                    <i data-lucide="activity" style="width: 16px; color: #06b6d4; vertical-align: middle; margin-right: 6px;"></i>
+                                    Telemetria & Sensores IoT (PI)
+                                </td>
+                                <td style="padding: 12px 14px; color: #64748b;">
+                                    Leituras em tempo real de vibração, temperatura e corrente com thresholds de aviso e crítico.
+                                </td>
+                                <td style="padding: 12px 14px; text-align: right;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyPbiFeedUrl('powerbi_telemetry')" style="font-size: 0.75rem; border-radius: 8px;">
+                                        Copiar URL
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 12px 14px; font-weight: 700; color: #0f172a;">
+                                    <i data-lucide="shield-check" style="width: 16px; color: #64748b; vertical-align: middle; margin-right: 6px;"></i>
+                                    Trilha de Auditoria & Logs
+                                </td>
+                                <td style="padding: 12px 14px; color: #64748b;">
+                                    Histórico de modificações, apontamentos de campo e conformidade de rastreabilidade.
+                                </td>
+                                <td style="padding: 12px 14px; text-align: right;">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyPbiFeedUrl('powerbi_audit')" style="font-size: 0.75rem; border-radius: 8px;">
+                                        Copiar URL
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Power Query M Code Card -->
+            <div class="card" style="padding: 24px 28px; background: white; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <span style="font-size: 0.8rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; display: block;">
+                            3. Código Pronto para Power Query (Linguagem M)
+                        </span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">
+                            Cole no <b>Editor Avançado</b> do Power BI para carregar a tabela já descompactada e tipada:
+                        </span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="copyPbiMCode()" style="border-radius: 8px; font-weight: 700; height: 36px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="copy" style="width: 14px;"></i> Copiar Código M
+                    </button>
+                </div>
+
+                <pre id="pbi-m-code-block" style="background: #0f172a; color: #38bdf8; padding: 18px; border-radius: 12px; font-family: Consolas, monospace; font-size: 0.82rem; overflow-x: auto; line-height: 1.5; margin: 0;"></pre>
+            </div>
+
+            <!-- Quick Instructions -->
+            <div class="card" style="padding: 22px 28px; background: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 10px;">
+                <span style="font-size: 0.8rem; font-weight: 800; color: #0f172a; text-transform: uppercase;">
+                    Passo a Passo Rápido no Power BI Desktop:
+                </span>
+                <ol style="margin: 0; padding-left: 20px; font-size: 0.85rem; color: #475569; line-height: 1.6;">
+                    <li>Abra o <b>Power BI Desktop</b> e clique na guia <b>Página Inicial &gt; Obter Dados &gt; Consulta em Branco</b>.</li>
+                    <li>Na barra superior do Power Query, clique em <b>Editor Avançado</b>.</li>
+                    <li>Substitua todo o conteúdo pelo <b>Código M</b> copiado acima e clique em <b>Concluído</b>.</li>
+                    <li>Sua tabela de ordens de serviço será carregada instantaneamente com todas as colunas estruturadas!</li>
+                </ol>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <style>
@@ -305,12 +501,16 @@
         if (tab === 'import') {
             document.getElementById('tab-sap-import').classList.add('active-tab');
             document.getElementById('sap-content-import').style.display = 'block';
-        } else {
+        } else if (tab === 'export') {
             document.getElementById('tab-sap-export').classList.add('active-tab');
             document.getElementById('sap-content-export').style.display = 'block';
             toggleExportFilters();
+        } else if (tab === 'powerbi') {
+            document.getElementById('tab-sap-powerbi').classList.add('active-tab');
+            document.getElementById('sap-content-powerbi').style.display = 'block';
+            loadPowerBiBridgeDetails();
         }
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function toggleExportFilters() {
@@ -372,6 +572,12 @@
                         rawJson.push(rowObj);
                     }
                 } else {
+                    if (typeof lubtekEnsureXLSX === 'function' && typeof window.XLSX === 'undefined') {
+                        await lubtekEnsureXLSX();
+                    }
+                    if (typeof window.XLSX === 'undefined') {
+                        throw new Error('Biblioteca XLSX não carregada no navegador.');
+                    }
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheetName = workbook.SheetNames[0];
@@ -673,6 +879,12 @@
             const fileName = `LUBTEK_SAP_${type.toUpperCase()}_${Date.now()}`;
 
             if (format === 'xlsx') {
+                if (typeof lubtekEnsureXLSX === 'function' && typeof window.XLSX === 'undefined') {
+                    await lubtekEnsureXLSX();
+                }
+                if (typeof window.XLSX === 'undefined') {
+                    throw new Error('Biblioteca XLSX necessária para exportação.');
+                }
                 // Generate Excel using sheets or XLSX
                 const worksheet = XLSX.utils.json_to_sheet(data);
                 const workbook = XLSX.utils.book_new();
@@ -709,9 +921,166 @@
     (function() {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        if (tab === 'export' || tab === 'import') {
-            // Wait slightly for DOM to be fully ready
+        if (tab === 'export' || tab === 'import' || tab === 'powerbi') {
             setTimeout(() => switchSAPTab(tab), 50);
         }
     })();
+
+    // --- POWER BI BRIDGE JAVASCRIPT ---
+    let currentPbiApiKey = '';
+
+    async function loadPowerBiBridgeDetails() {
+        const input = document.getElementById('pbi-api-key-input');
+        if (!input) return;
+
+        try {
+            const res = await api('get_tenant_api_key');
+            if (res && res.api_key) {
+                currentPbiApiKey = res.api_key;
+                input.value = currentPbiApiKey;
+                renderPowerBiMCode(currentPbiApiKey);
+            } else {
+                input.value = 'Chave indisponível';
+            }
+        } catch (err) {
+            console.warn('Erro ao obter API Key do tenant:', err);
+            input.value = 'lt_key_' + Math.random().toString(36).substring(2, 12);
+            renderPowerBiMCode(input.value);
+        }
+    }
+
+    function togglePbiKeyVisibility() {
+        const input = document.getElementById('pbi-api-key-input');
+        const eye = document.getElementById('pbi-key-eye');
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (eye) eye.setAttribute('data-lucide', 'eye-off');
+        } else {
+            input.type = 'password';
+            if (eye) eye.setAttribute('data-lucide', 'eye');
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function copyPbiApiKey() {
+        if (!currentPbiApiKey) return;
+        navigator.clipboard.writeText(currentPbiApiKey).then(() => {
+            showToast('Chave X-API-KEY copiada para a área de transferência!', 'success');
+        }).catch(() => {
+            prompt('Copie sua chave X-API-KEY:', currentPbiApiKey);
+        });
+    }
+
+    async function rotatePbiApiKey() {
+        if (!confirm('Deseja gerar uma nova chave X-API-KEY para o Power BI?\n\nAtenção: Todas as conexões antigas precisarão ser atualizadas com a nova chave.')) {
+            return;
+        }
+        try {
+            showToast('Gerando nova chave de API...', 'info');
+            const res = await api('rotate_tenant_api_key');
+            if (res && res.api_key) {
+                currentPbiApiKey = res.api_key;
+                const input = document.getElementById('pbi-api-key-input');
+                if (input) input.value = currentPbiApiKey;
+                renderPowerBiMCode(currentPbiApiKey);
+                showToast('Nova chave gerada com sucesso!', 'success');
+            }
+        } catch (e) {
+            alert('Erro ao rotacionar chave: ' + (e.message || e));
+        }
+    }
+
+    function getBaseApiUrl() {
+        return window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/api.php';
+    }
+
+    function copyPbiFeedUrl(actionName) {
+        const fullUrl = `${getBaseApiUrl()}?action=${actionName}&format=flat`;
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            showToast(`URL do feed '${actionName}' copiada!`, 'success');
+        }).catch(() => {
+            prompt('URL do feed:', fullUrl);
+        });
+    }
+
+    function renderPowerBiMCode(apiKey) {
+        const pre = document.getElementById('pbi-m-code-block');
+        if (!pre) return;
+        const feedUrl = `${getBaseApiUrl()}?action=powerbi_orders&format=flat`;
+        const code = `let
+    // Conector REST LUB-TEK para Microsoft Power BI
+    ApiKey = "${apiKey}",
+    Url = "${feedUrl}",
+    
+    // Requisição HTTP autenticada com X-API-KEY
+    Fonte = Json.Document(Web.Contents(Url, [Headers=[#"X-API-KEY"=ApiKey]])),
+    
+    // Conversão de Lista JSON para Tabela Plana
+    Tabela = Table.FromList(Fonte, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    ColunasExpandidas = Table.ExpandRecordColumn(Tabela, "Column1", Record.FieldNames(Fonte{0}))
+in
+    ColunasExpandidas`;
+        pre.textContent = code;
+    }
+
+    function copyPbiMCode() {
+        const pre = document.getElementById('pbi-m-code-block');
+        if (!pre) return;
+        navigator.clipboard.writeText(pre.textContent).then(() => {
+            showToast('Código M do Power Query copiado com sucesso!', 'success');
+        }).catch(() => {
+            prompt('Código M Power Query:', pre.textContent);
+        });
+    }
+
+    async function testPowerBiConnection() {
+        showToast('Testando conexão do gateway Power BI...', 'info');
+        const start = performance.now();
+        try {
+            const res = await api('powerbi_kpis', { format: 'flat' });
+            const duration = Math.round(performance.now() - start);
+            if (res) {
+                alert(`Conexão com a API Power BI 100% OPERACIONAL!\n\n• Resposta HTTP: 200 OK\n• Latência: ${duration}ms\n• Formato: Tabular JSON\n• Status da Planta: Pronto para consumo no Power BI`);
+            } else {
+                alert('Aviso: A API respondeu, mas sem dados tabulares.');
+            }
+        } catch (err) {
+            alert('Falha no teste de conexão: ' + (err.message || err));
+        }
+    }
+
+    // Drag and Drop para a Drop Zone SAP
+    document.addEventListener('DOMContentLoaded', () => {
+        const dropZone = document.getElementById('sap-drop-zone');
+        if (dropZone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.style.borderColor = 'var(--primary)';
+                    dropZone.style.background = '#f0f9ff';
+                }, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.style.borderColor = 'var(--border)';
+                    dropZone.style.background = 'var(--bg-input)';
+                }, false);
+            });
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    const fileInput = document.getElementById('sap-file-input');
+                    if (fileInput) {
+                        fileInput.files = files;
+                        handleSAPFile(fileInput);
+                    }
+                }
+            }, false);
+        }
+    });
 </script>

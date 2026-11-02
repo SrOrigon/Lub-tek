@@ -846,14 +846,36 @@ class DB
     }
 
     // --- AUDIT LOGGING ---
-    // --- AUDIT LOGGING ---
     public static function log($user, $action, $target, $old = null, $new = null)
     {
         try {
-            // Use a separate quick connection or just exec if not in transaction conflict?
-            // In SQLite, if we are in a transaction, this becomes part of it.
-            // That's desired for successful audits.
             $pdo = self::getInstance();
+
+            // Resolve nome legível do funcionário se ID numérico ou array for informado
+            if (is_array($user)) {
+                $user = $user['nome'] ?? $user['name'] ?? 'Admin';
+            } elseif (is_numeric($user)) {
+                try {
+                    $uStmt = $pdo->prepare("SELECT nome FROM usuarios WHERE id = ? LIMIT 1");
+                    $uStmt->execute([(int) $user]);
+                    $resolvedName = $uStmt->fetchColumn();
+                    $user = $resolvedName ?: ('Funcionário #' . $user);
+                } catch (\Throwable $t) {
+                    $user = 'Funcionário #' . $user;
+                }
+            }
+            if (empty($user)) {
+                $user = 'Admin';
+            }
+
+            // Sanitiza alvo se for JSON bruto (ex: resumo do agente de OS)
+            if (is_string($target) && str_starts_with(trim($target), '{')) {
+                $decodedTarget = json_decode($target, true);
+                if (is_array($decodedTarget) && isset($decodedTarget['created'])) {
+                    $target = "Agente de O.S. ({$decodedTarget['created']} ordens geradas, {$decodedTarget['scanned']} analisadas)";
+                }
+            }
+
             $stmt = $pdo->prepare("INSERT INTO logs_auditoria (usuario, acao, alvo, dados_antigos, dados_novos) VALUES (?,?,?,?,?)");
 
             // Safe JSON Encode (Handle binary/invalid UTF8)

@@ -250,7 +250,8 @@ class Permissions
                 'save_grease_gun', 'get_pi_tags', 'save_pi_tag', 'delete_pi_tag', 'get_pi_telemetry',
                 'sap_import_orders', 'sap_import_materials', 'sap_export_orders', 'sap_export_assets', 'sap_export_materials',
                 'get_integration_queue', 'retry_integration_item', 'process_integration_queue',
-                'save_branding', 'get_audit_logs', 'get_tenant_api_key', 'rotate_tenant_api_key',
+                'save_branding', 'get_audit_logs', 'purge_audit_logs', 'get_tenant_api_key', 'rotate_tenant_api_key',
+                'powerbi', 'powerbi_all', 'powerbi_kpis', 'powerbi_orders', 'powerbi_telemetry', 'powerbi_assets', 'powerbi_audit', 'powerbi_consumption',
                 'save_snapshot', 'save_3d_view', 'upload_model', 'apply_machine_template', 'migrate',
                 'neural_generate_os', 'neural_diagnose', 'lubria_excel_mapper', 'save_agent_feedback',
                 'get_ai_usage_summary', 'get_agent_feedback_stats',
@@ -290,7 +291,7 @@ class Permissions
     {
         return [
             'powerbi_kpis', 'powerbi_orders', 'powerbi_telemetry', 'powerbi_assets', 'powerbi_audit',
-            'powerbi', 'powerbi_all',
+            'powerbi', 'powerbi_all', 'powerbi_consumption',
         ];
     }
 
