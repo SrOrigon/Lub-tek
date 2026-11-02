@@ -883,11 +883,24 @@ class RodrigoAPI
         $sql .= " ORDER BY data DESC LIMIT 500";
 
         try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS logs_auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario TEXT,
+                acao TEXT,
+                alvo TEXT,
+                dados_antigos TEXT,
+                dados_novos TEXT,
+                detalhes_erro TEXT,
+                data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+        } catch (\Throwable $ignored) {}
+
+        try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
             $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            if (empty($logs) && $userFilter === '' && $startDate === '' && $endDate === '' && TenantResolver::getCurrentTenant() === null) {
+            if (empty($logs) && $userFilter === '' && $startDate === '' && $endDate === '') {
                 if (class_exists('Seeder')) {
                     Seeder::seedAuditLogs($this->db);
                 } else {

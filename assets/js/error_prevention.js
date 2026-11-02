@@ -14,6 +14,7 @@ if (typeof lucide === 'undefined') {
 // 2. CHART.JS POLYFILL (Dashboard Safety)
 if (typeof Chart === 'undefined') {
     window.Chart = class {
+        static isPolyfill = true;
         constructor() { console.warn('[SafeMode] Chart creation skipped (CDN Offline)'); }
         update() {}
         destroy() {}

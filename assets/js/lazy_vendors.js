@@ -67,7 +67,10 @@
     };
 
     global.lubtekEnsureChart = function () {
-        return typeof global.Chart !== 'undefined' ? Promise.resolve() : LubtekVendors.chart();
+        const isRealChart = typeof global.Chart !== 'undefined'
+            && !global.Chart.isPolyfill
+            && (typeof global.Chart.register === 'function' || typeof global.Chart.getChart === 'function' || global.Chart.version);
+        return isRealChart ? Promise.resolve() : LubtekVendors.chart();
     };
 
     global.lubtekEnsureHtml2Canvas = function () {

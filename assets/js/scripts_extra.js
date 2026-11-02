@@ -1188,6 +1188,14 @@
 
             if (noChartData && Number(kpis.financial_total || 0) <= 0) return;
 
+            if (typeof lubtekEnsureChart === 'function') {
+                try {
+                    await lubtekEnsureChart();
+                } catch (e) {
+                    console.warn('[KPI] Could not load Chart.js library via CDN, fallback will be used.', e);
+                }
+            }
+
             const healthData = dist.health || {};
             const healthEntries = Object.entries(healthData).filter(([, v]) => v > 0);
             renderChart('health', 'doughnut', {
@@ -1199,20 +1207,27 @@
                     cutout: '60%'
                 }]
             }, {
-                plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 11 } } } }
+                cutout: '60%',
+                plugins: { legend: { display: true, position: 'bottom', labels: { color: '#64748b', font: { size: 11, weight: '600' } } } }
             });
 
             const adherence = kpis.adherence !== undefined ? kpis.adherence : (kpis.preventiva_compliance || 0);
+            const adherenceColor = adherence >= 80 ? '#10b981' : (adherence >= 50 ? '#f59e0b' : '#ef4444');
             renderChart('adherence', 'doughnut', {
                 labels: ['No prazo', 'Fora do prazo'],
                 datasets: [{
                     data: [adherence, Math.max(0, 100 - adherence)],
-                    backgroundColor: ['#10b981', '#e2e8f0'],
+                    backgroundColor: [adherenceColor, '#e2e8f0'],
                     borderWidth: 0,
                     circumference: 180,
                     rotation: 270,
-                    cutout: '85%'
+                    cutout: '80%'
                 }]
+            }, {
+                circumference: 180,
+                rotation: 270,
+                cutout: '80%',
+                plugins: { legend: { display: false } }
             });
             const lblAd = document.getElementById('label-adherence');
             if (lblAd) {
@@ -1451,13 +1466,25 @@
     function renderChart(id, type, data, extraOptions = {}) {
         const el = document.getElementById('chart-' + id);
         if (!el) return;
-        const ctx = el.getContext('2d');
 
         if (window.kpiChartsExtra && window.kpiChartsExtra[id]) {
-            window.kpiChartsExtra[id].destroy();
+            if (typeof window.kpiChartsExtra[id].destroy === 'function') {
+                try { window.kpiChartsExtra[id].destroy(); } catch (e) {}
+            }
+            window.kpiChartsExtra[id] = null;
         }
         if (!window.kpiChartsExtra) window.kpiChartsExtra = {};
 
+        const isRealChart = typeof window.Chart !== 'undefined'
+            && !window.Chart.isPolyfill
+            && (typeof window.Chart.register === 'function' || typeof window.Chart.getChart === 'function' || window.Chart.version);
+
+        if (!isRealChart) {
+            renderFallbackCanvasChart(el, id, type, data, extraOptions);
+            return;
+        }
+
+        const ctx = el.getContext('2d');
         const CommonOptions = {
             responsive: true,
             maintainAspectRatio: false,
@@ -1489,11 +1516,207 @@
             } : {}
         };
 
-        window.kpiChartsExtra[id] = new Chart(ctx, {
-            type: type,
-            data: data,
-            options: { ...CommonOptions, ...extraOptions }
-        });
+        try {
+            window.kpiChartsExtra[id] = new Chart(ctx, {
+                type: type,
+                data: data,
+                options: { ...CommonOptions, ...extraOptions }
+            });
+        } catch (e) {
+            console.warn('[KPI] Error in Chart.js instance, drawing Canvas 2D fallback:', e);
+            renderFallbackCanvasChart(el, id, type, data, extraOptions);
+        }
+    }
+
+    function renderFallbackCanvasChart(el, id, type, data, extraOptions = {}) {
+        if (!el || !el.getContext) return;
+        const parent = el.parentElement;
+        const w = (parent && parent.clientWidth) ? parent.clientWidth : 300;
+        const h = (parent && parent.clientHeight) ? parent.clientHeight : 200;
+        const dpr = window.devicePixelRatio || 1;
+        el.width = w * dpr;
+        el.height = h * dpr;
+        el.style.width = w + 'px';
+        el.style.height = h + 'px';
+        const ctx = el.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        const dataset = (data && data.datasets && data.datasets[0]) ? data.datasets[0] : null;
+        const values = dataset ? (dataset.data || []) : [];
+        const labels = (data && data.labels) ? data.labels : [];
+        const colors = dataset ? (dataset.backgroundColor || ['#0ea5e9']) : ['#0ea5e9'];
+
+        if (id === 'adherence') {
+            const cx = w / 2;
+            const cy = h - 25;
+            const r = Math.max(20, Math.min(cx - 30, cy - 20));
+            const lineWidth = Math.max(12, Math.min(22, r * 0.28));
+            const pct = Math.max(0, Math.min(100, Number(values[0] || 0)));
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI, false);
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.stroke();
+
+            if (pct > 0) {
+                const endAngle = Math.PI + (pct / 100) * Math.PI;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, Math.PI, endAngle, false);
+                ctx.lineWidth = lineWidth;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = pct >= 80 ? '#10b981' : (pct >= 50 ? '#f59e0b' : '#ef4444');
+                ctx.stroke();
+            }
+            return;
+        }
+
+        if (id === 'health') {
+            const sum = values.reduce((a, b) => a + Number(b || 0), 0);
+            const cx = w / 2;
+            const cy = (h - 32) / 2;
+            const outerR = Math.max(25, Math.min(cx - 20, cy - 10));
+            const innerR = outerR * 0.62;
+
+            if (sum === 0 || labels[0] === 'Sem cadastro') {
+                ctx.beginPath();
+                ctx.arc(cx, cy, outerR, 0, 2 * Math.PI);
+                ctx.fillStyle = '#f1f5f9';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(cx, cy, innerR, 0, 2 * Math.PI);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+            } else {
+                let startAngle = -Math.PI / 2;
+                values.forEach((v, idx) => {
+                    const val = Number(v || 0);
+                    if (val <= 0) return;
+                    const sliceAngle = (val / sum) * 2 * Math.PI;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, outerR, startAngle, startAngle + sliceAngle);
+                    ctx.arc(cx, cy, innerR, startAngle + sliceAngle, startAngle, true);
+                    ctx.closePath();
+                    ctx.fillStyle = Array.isArray(colors) ? (colors[idx] || '#0ea5e9') : colors;
+                    ctx.fill();
+                    startAngle += sliceAngle;
+                });
+            }
+
+            const activeEntries = labels.map((l, i) => ({ label: l, val: values[i], color: Array.isArray(colors) ? colors[i] : colors })).filter(x => Number(x.val) > 0);
+            if (activeEntries.length > 0) {
+                ctx.font = '600 11px Inter, sans-serif';
+                ctx.textBaseline = 'middle';
+                const totalTextW = activeEntries.reduce((acc, item) => acc + ctx.measureText(`${item.label} (${item.val})`).width + 24, 0);
+                let curX = Math.max(10, (w - totalTextW) / 2);
+                const legendY = h - 14;
+                activeEntries.forEach(item => {
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.arc(curX + 5, legendY, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.fillStyle = '#64748b';
+                    const txt = `${item.label} (${item.val})`;
+                    ctx.fillText(txt, curX + 14, legendY);
+                    curX += ctx.measureText(txt).width + 24;
+                });
+            }
+            return;
+        }
+
+        if (type === 'bar') {
+            const isHorizontal = extraOptions && extraOptions.indexAxis === 'y';
+            const sum = values.reduce((a, b) => a + Number(b || 0), 0);
+
+            if (sum === 0 || values.every(v => Number(v) === 0)) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#10b981';
+                ctx.font = 'bold 24px Inter, sans-serif';
+                ctx.fillText('✓', w / 2, h / 2 - 14);
+                ctx.font = '600 13px Inter, sans-serif';
+                ctx.fillStyle = '#1e293b';
+                ctx.fillText(id === 'backlog' ? 'Tudo em dia!' : (id === 'causes' ? 'Operação 100% normal' : 'Sem consumo no período'), w / 2, h / 2 + 10);
+                ctx.font = '500 11px Inter, sans-serif';
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText(id === 'backlog' ? 'Nenhuma ordem pendente' : (id === 'causes' ? 'Nenhuma anomalia reportada' : 'Nenhum lubrificante utilizado'), w / 2, h / 2 + 28);
+                return;
+            }
+
+            if (isHorizontal) {
+                const rowH = Math.min(32, Math.max(22, (h - 20) / Math.max(1, labels.length)));
+                const maxVal = Math.max(...values.map(Number));
+                const labelW = Math.min(100, w * 0.35);
+                const barAreaW = w - labelW - 40;
+
+                labels.forEach((lbl, i) => {
+                    const v = Number(values[i] || 0);
+                    const y = 10 + i * rowH;
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = '600 11px Inter, sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillText(lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl, labelW - 8, y + rowH / 2);
+
+                    const barW = maxVal > 0 ? (v / maxVal) * barAreaW : 0;
+                    ctx.fillStyle = Array.isArray(colors) ? (colors[i] || '#ef4444') : colors;
+                    const r = 4;
+                    ctx.beginPath();
+                    if (typeof ctx.roundRect === 'function') {
+                        ctx.roundRect(labelW, y + 4, Math.max(4, barW), rowH - 8, [0, r, r, 0]);
+                    } else {
+                        ctx.rect(labelW, y + 4, Math.max(4, barW), rowH - 8);
+                    }
+                    ctx.fill();
+
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.fillText(String(v), labelW + Math.max(4, barW) + 6, y + rowH / 2);
+                });
+            } else {
+                const maxVal = Math.max(...values.map(Number));
+                const bottomH = 30;
+                const plotH = h - bottomH - 20;
+                const n = labels.length;
+                const colW = (w - 30) / Math.max(1, n);
+                const barW = Math.min(36, colW * 0.55);
+
+                labels.forEach((lbl, i) => {
+                    const v = Number(values[i] || 0);
+                    const barH = maxVal > 0 ? (v / maxVal) * plotH : 0;
+                    const x = 15 + i * colW + (colW - barW) / 2;
+                    const y = h - bottomH - barH;
+
+                    ctx.fillStyle = Array.isArray(colors) ? (colors[i % colors.length] || '#0ea5e9') : colors;
+                    ctx.beginPath();
+                    const r = 4;
+                    if (typeof ctx.roundRect === 'function') {
+                        ctx.roundRect(x, y, barW, barH, [r, r, 0, 0]);
+                    } else {
+                        ctx.rect(x, y, barW, barH);
+                    }
+                    ctx.fill();
+
+                    if (v > 0) {
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = 'bold 10px Inter, sans-serif';
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillText(String(v), x + barW / 2, y - 2);
+                    }
+
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.font = '600 10px Inter, sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    const displayLbl = lbl.length > 9 ? lbl.slice(0, 8) + '…' : lbl;
+                    ctx.fillText(displayLbl, x + barW / 2, h - bottomH + 6);
+                });
+            }
+        }
     }
 
     // --- UNIFIED CALCULATOR LOGIC (API) ---

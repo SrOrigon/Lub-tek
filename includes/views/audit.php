@@ -181,7 +181,10 @@ $auth->requirePermission('audit_logs');
                 end_date: end
             });
 
-            if (!res || !res.ok) {
+            const isArr = Array.isArray(res);
+            const isSuccessObj = res && typeof res === 'object' && (res.ok === true || Array.isArray(res.data) || Array.isArray(res.logs));
+
+            if (!isArr && !isSuccessObj) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="5" style="padding:30px; text-align:center; color:#ef4444; font-weight:600;">
@@ -193,7 +196,7 @@ $auth->requirePermission('audit_logs');
                 return;
             }
 
-            const data = res.data || res.logs || [];
+            const data = isArr ? res : (res.data || res.logs || []);
             badge.textContent = `${data.length} itens`;
 
             if (data.length === 0) {

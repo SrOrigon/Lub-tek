@@ -4,3 +4,9 @@
 </FilesMatch>
 
 Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule \.(jpg|jpeg|png|webp|gif)$ ../assets/img/system/img_69581d7fcdbbf.jpeg [L]
+</IfModule>
