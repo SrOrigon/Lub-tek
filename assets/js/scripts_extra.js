@@ -2177,11 +2177,14 @@
                                 audio: base64Audio,
                                 mime_type: blob.type || 'audio/webm'
                             });
-                            if (res && res.success && res.text) {
-                                applyDictationText(input, res.text);
+                            const text = res?.text || res?.data?.text || (typeof res === 'string' ? res : null);
+                            const ok = res?.success || res?.data?.success || (res?.ok && text);
+                            if (ok && text) {
+                                applyDictationText(input, text);
                                 if (typeof showToast === 'function') showToast('Transcrição concluída via IA!', 'success');
                             } else {
-                                if (typeof showToast === 'function') showToast(res?.error || 'Não foi possível transcrever o áudio.', 'warning');
+                                const err = res?.error || res?.data?.error || 'Não foi possível transcrever o áudio.';
+                                if (typeof showToast === 'function') showToast(err, 'warning');
                             }
                         } catch (apiErr) {
                             console.error('Erro na API de transcrição:', apiErr);

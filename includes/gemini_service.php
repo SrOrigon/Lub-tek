@@ -400,10 +400,21 @@ class GeminiService
             return ['success' => false, 'error' => 'Nenhum dado de áudio recebido.', 'text' => null];
         }
 
-        // Remove header data URL se presente
-        if (preg_match('/^data:(audio\/[a-zA-Z0-9\-\.]+);base64,(.+)$/', $base64Audio, $m)) {
+        // Remove header data URL se presente (com suporte a parâmetros como ;codecs=opus)
+        if (strpos($base64Audio, ';base64,') !== false) {
+            $parts = explode(';base64,', $base64Audio, 2);
+            $base64Audio = $parts[1];
+            if (preg_match('/^data:([^;]+)/', $parts[0], $m)) {
+                $mimeType = $m[1];
+            }
+        } elseif (preg_match('/^data:(audio\/[a-zA-Z0-9\-\.]+);base64,(.+)$/', $base64Audio, $m)) {
             $mimeType = $m[1];
             $base64Audio = $m[2];
+        }
+
+        // Sanitiza mimeType para formato puro (ex: audio/webm) exigido pelo Gemini inlineData
+        if (strpos($mimeType, ';') !== false) {
+            $mimeType = trim(explode(';', $mimeType)[0]);
         }
 
         $prompt = "Você é o módulo de transcrição e reconhecimento de voz do sistema industrial LUB-TEK.\n" .

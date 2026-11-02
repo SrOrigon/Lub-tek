@@ -627,7 +627,12 @@
                         <!-- IMAGE UPLOAD BOX -->
                         <div class="lub-row" style="grid-template-columns: 3fr 1fr;">
                             <div>
-                                <span class="lub-label">Descrição Completa / Observações</span>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <span class="lub-label" style="margin-bottom:0;">Descrição Completa / Observações</span>
+                                    <button type="button" class="btn btn-sm btn-outline btn-mic" onclick="startVoiceInput('af-obs', this)" title="Ditar observações por voz" style="padding:2px 8px; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px; border:1px solid var(--border); border-radius:6px; background:white; color:var(--text-muted); cursor:pointer;">
+                                        <i data-lucide="mic" style="width:12px; height:12px;"></i> Ditar
+                                    </button>
+                                </div>
                                 <input id="af-obs" oninput="updateLocalNode()">
                             </div>
                             <div style="text-align:center; display:flex; flex-direction:column; align-items:center;">

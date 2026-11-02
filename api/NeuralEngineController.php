@@ -172,6 +172,20 @@ class NeuralEngineController {
             return ['success' => false, 'error' => 'Nenhum arquivo ou dado de áudio foi enviado.'];
         }
 
+        // Se veio como Data URL: data:audio/webm;codecs=opus;base64,...
+        if (strpos($base64Audio, ';base64,') !== false) {
+            $parts = explode(';base64,', $base64Audio, 2);
+            $base64Audio = $parts[1];
+            if (empty($this->input['mime_type']) && preg_match('/^data:([^;]+)/', $parts[0], $m)) {
+                $mimeType = $m[1];
+            }
+        }
+
+        // Remove parâmetros extras do MIME (ex: ;codecs=opus) para conformidade com a API Gemini
+        if (strpos($mimeType, ';') !== false) {
+            $mimeType = trim(explode(';', $mimeType)[0]);
+        }
+
         $res = $this->gemini->transcribeAudio($base64Audio, $mimeType);
 
         if (!empty($res['success']) && !empty($res['text'])) {
