@@ -51,6 +51,11 @@ class IdempotencyGuard
      * @param int $ttlSeconds Tempo de validade do replay (padrão: 600 segundos / 10 minutos)
      * @return array Resposta resultante
      */
+    public static function checkAndLock(PDO $pdo, ?string $key, string $scope, callable $callback, int $ttlSeconds = 600): array
+    {
+        return self::run($pdo, $key, $scope, $callback, $ttlSeconds);
+    }
+
     public static function run(PDO $pdo, ?string $key, string $scope, callable $callback, int $ttlSeconds = 600): array
     {
         $key = trim((string) $key);

@@ -6,14 +6,16 @@
 class GreaseCompatibility
 {
     /** Pares compatíveis (além do mesmo código). */
+    public const COMPATIBILITY_MATRIX = [
+        'LI|LIC' => true,
+        'LIC|LI' => true,
+        'CS|CSX' => true,
+        'CSX|CS' => true,
+    ];
+
     private static function compatiblePairs(): array
     {
-        return [
-            'LI|LIC' => true,
-            'LIC|LI' => true,
-            'CS|CSX' => true,
-            'CSX|CS' => true,
-        ];
+        return self::COMPATIBILITY_MATRIX;
     }
 
     public static function detectFromText(string $text): ?string

@@ -876,6 +876,20 @@ class DB
                 }
             }
 
+            // Auto-provisiona tabela de auditoria se ainda não existir no tenant
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS logs_auditoria (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    usuario TEXT,
+                    acao TEXT,
+                    alvo TEXT,
+                    dados_antigos TEXT,
+                    dados_novos TEXT,
+                    detalhes_erro TEXT,
+                    data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )");
+            } catch (\Throwable $t) {}
+
             $stmt = $pdo->prepare("INSERT INTO logs_auditoria (usuario, acao, alvo, dados_antigos, dados_novos) VALUES (?,?,?,?,?)");
 
             // Safe JSON Encode (Handle binary/invalid UTF8)

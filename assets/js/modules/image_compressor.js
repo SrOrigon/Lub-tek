@@ -111,4 +111,5 @@
     };
 
     window.LubtekImageCompressor = LubtekImageCompressor;
+    window.ImageCompressor = LubtekImageCompressor;
 })(window);
