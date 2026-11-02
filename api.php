@@ -1889,7 +1889,7 @@ Amostra da Planilha (JSON):
             $this->error('Informe o ponto e descreva o problema encontrado.');
         }
 
-        $stmt = $this->db->prepare("SELECT id, nome, tag FROM ativos WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT id, nome, tag, pai_id FROM ativos WHERE id = ?");
         $stmt->execute([$id]);
         $ativo = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$ativo) {
@@ -1905,6 +1905,11 @@ Amostra da Planilha (JSON):
 
         $this->db->prepare("UPDATE ativos SET status = ? WHERE id = ?")
             ->execute(['Alerta', $id]);
+
+        if (!empty($ativo['pai_id'])) {
+            $this->db->prepare("UPDATE ativos SET status = ? WHERE id = ?")
+                ->execute(['Alerta', (int) $ativo['pai_id']]);
+        }
 
         $descricao = '[ALERTA DE CAMPO] ' . $motivo;
         $obsExec = 'Alerta gerado pela Rota de Lubrificação. Ponto: ' . $nomePonto

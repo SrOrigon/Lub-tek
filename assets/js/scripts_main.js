@@ -1317,13 +1317,14 @@ async function loadKPIs() {
 }
 
 
-// --- REATIVIDADE GLOBAL (sem recarregar arvore automaticamente) ---
+// --- REATIVIDADE GLOBAL EM TEMPO REAL ---
 Events.on('data_changed', (info) => {
     const view = Session.getLastView();
-    if (view === 'dash') loadDash();
-    if (view === 'catalog') loadCatalog();
-    // Ativos: atualiza so apos save/delete explicito, com debounce
-    if (view === 'assets' && info && info.action && /save|delete|update|set|apply|migrate|import/i.test(info.action)) {
+    if (view === 'dash' && typeof loadDash === 'function') loadDash();
+    if (view === 'catalog' && typeof loadCatalog === 'function') loadCatalog();
+    if (view === 'kpi' && typeof loadKpiView === 'function') loadKpiView();
+    if (view === 'routes' && typeof loadRoutes === 'function') loadRoutes();
+    if (view === 'assets' && typeof loadTree === 'function') {
         loadTree(true);
     }
 });

@@ -781,17 +781,31 @@ class OrdersController
         $stmtOverdue->execute([$ativoId, $today]);
         $overdueCount = (int)$stmtOverdue->fetchColumn();
 
+        $newStatus = 'OK';
         if ($overdueCount == 0) {
             $tech['saude_ativo'] = 'Excelente';
+            $newStatus = 'OK';
         } elseif ($overdueCount <= 2) {
             $tech['saude_ativo'] = 'Atenção';
+            $newStatus = 'Alerta';
         } else {
             $tech['saude_ativo'] = 'Crítica';
+            $newStatus = 'Crítico';
         }
 
-        // Atualiza 'dados_tecnicos' no banco de dados
-        $updatedTechJson = json_encode($tech);
-        $db->prepare("UPDATE ativos SET dados_tecnicos = ? WHERE id = ?")->execute([$updatedTechJson, $ativoId]);
+        // Atualiza 'dados_tecnicos' e 'status' no banco de dados para sincronia imediata com o Digital Twin
+        $updatedTechJson = json_encode($tech, JSON_UNESCAPED_UNICODE);
+        $db->prepare("UPDATE ativos SET dados_tecnicos = ?, status = ? WHERE id = ?")->execute([$updatedTechJson, $newStatus, $ativoId]);
+
+        // Propaga atualização de saúde para o equipamento pai na árvore da planta
+        if (!empty($asset['pai_id'])) {
+            $parentId = (int) $asset['pai_id'];
+            $stmtParentOverdue = $db->prepare("SELECT COUNT(*) FROM ordens o JOIN ativos a ON o.ativo_id = a.id WHERE (a.id = ? OR a.pai_id = ?) AND o.situacao != 'Concluído' AND o.data_planejada < ?");
+            $stmtParentOverdue->execute([$parentId, $parentId, $today]);
+            $parentOverdueCount = (int)$stmtParentOverdue->fetchColumn();
+            $parentStatus = ($parentOverdueCount == 0) ? 'OK' : (($parentOverdueCount <= 2) ? 'Alerta' : 'Crítico');
+            $db->prepare("UPDATE ativos SET status = ? WHERE id = ?")->execute([$parentStatus, $parentId]);
+        }
 
         // Sincroniza tabela 'ativos_lubrificacao'
         if (class_exists('LubricationTechSync')) {
