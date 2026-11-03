@@ -56,6 +56,12 @@ class DB
                     scope TEXT NOT NULL DEFAULT 'full',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )");
+                try {
+                    $keysCols = $this->pdo->query("PRAGMA table_info(tenant_api_keys)")->fetchAll(PDO::FETCH_COLUMN, 1);
+                    if (!empty($keysCols) && !in_array('scope', $keysCols, true)) {
+                        $this->pdo->exec("ALTER TABLE tenant_api_keys ADD COLUMN scope TEXT NOT NULL DEFAULT 'full'");
+                    }
+                } catch (Exception $e) {}
             }
 
             // Garante tabela de auditoria em todos os bancos (master e tenants)

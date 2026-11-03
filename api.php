@@ -145,11 +145,18 @@ class RodrigoAPI
         if ($this->iotApiKeyProvided && in_array($this->action, $gatewayActions, true)) {
             try {
                 $masterPdo = DB::getMaster();
-                $stmt = $masterPdo->prepare("SELECT tenant_slug, scope FROM tenant_api_keys WHERE api_key = ?");
-                $stmt->execute([$apiKey]);
-                $keyRow = $stmt->fetch(PDO::FETCH_ASSOC);
+                try {
+                    $stmt = $masterPdo->prepare("SELECT tenant_slug, scope FROM tenant_api_keys WHERE api_key = ?");
+                    $stmt->execute([$apiKey]);
+                    $keyRow = $stmt->fetch(PDO::FETCH_ASSOC);
+                } catch (Exception $colErr) {
+                    $stmt = $masterPdo->prepare("SELECT tenant_slug FROM tenant_api_keys WHERE api_key = ?");
+                    $stmt->execute([$apiKey]);
+                    $keyRow = $stmt->fetch(PDO::FETCH_ASSOC);
+                }
                 $tenantSlug = $keyRow['tenant_slug'] ?? false;
-                $keyScope = strtolower(trim((string) ($keyRow['scope'] ?? 'full')));
+                $rawScope = trim((string) ($keyRow['scope'] ?? 'full'));
+                $keyScope = strtolower($rawScope !== '' ? $rawScope : 'full');
 
                 if ($tenantSlug) {
                     $needsIot = in_array($this->action, $iotActions, true);
@@ -1071,8 +1078,13 @@ class RodrigoAPI
             if (!$key) {
                 // Gera a primeira chave de API se ainda não existir
                 $key = 'lt_key_' . bin2hex(random_bytes(16));
-                $ins = $masterPdo->prepare("INSERT INTO tenant_api_keys (api_key, tenant_slug) VALUES (?, ?)");
-                $ins->execute([$key, $slug]);
+                try {
+                    $ins = $masterPdo->prepare("INSERT OR REPLACE INTO tenant_api_keys (api_key, tenant_slug, scope) VALUES (?, ?, 'full')");
+                    $ins->execute([$key, $slug]);
+                } catch (Exception $insErr) {
+                    $ins = $masterPdo->prepare("INSERT OR REPLACE INTO tenant_api_keys (api_key, tenant_slug) VALUES (?, ?)");
+                    $ins->execute([$key, $slug]);
+                }
             }
 
             $this->success(['api_key' => $key]);
