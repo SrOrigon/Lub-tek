@@ -1320,7 +1320,7 @@ async function loadKPIs() {
 // --- REATIVIDADE GLOBAL EM TEMPO REAL ---
 Events.on('data_changed', (info) => {
     const view = Session.getLastView();
-    if (view === 'dash' && typeof loadDash === 'function') loadDash();
+    if ((view === 'dash' || view === 'home') && typeof loadDash === 'function') loadDash();
     if (view === 'catalog' && typeof loadCatalog === 'function') loadCatalog();
     if (view === 'kpi' && typeof loadKpiView === 'function') loadKpiView();
     if (view === 'routes' && typeof loadRoutes === 'function') loadRoutes();
@@ -3276,7 +3276,7 @@ const RealTimeSync = {
     async backgroundRefresh() {
         if (document.hidden) return;
         const view = Session.getLastView();
-        if (view === 'dash') loadDash();
+        if (view === 'dash' || view === 'home') loadDash();
         if (view === 'kpi') loadKPIs();
     }
 };
@@ -3604,7 +3604,7 @@ async function api(action, payload = null, options = null) {
             if (window.PlantSync) window.PlantSync.invalidate();
             Events.emit('data_changed', { action, payload });
             // Immediately refresh dashboard stats if visible
-            if (Session.getLastView() === 'dash') loadDash();
+            if (Session.getLastView() === 'dash' || Session.getLastView() === 'home') loadDash();
         }
 
         const unwrapped = unwrapApiJson(action, json);
