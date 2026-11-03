@@ -196,6 +196,10 @@
                         style="justify-content:flex-start; width:100%; text-align:left; padding:10px 12px; font-size:0.85rem;">
                         <i data-lucide="eraser" style="width:16px;"></i> Limpar itens vazios
                     </button>
+                    <button class="btn btn-ghost" onclick="openMediaStorageModal(); toggleAdminToolsMenu();"
+                        style="justify-content:flex-start; width:100%; text-align:left; padding:10px 12px; font-size:0.85rem; color:var(--primary);">
+                        <i data-lucide="hard-drive" style="width:16px;"></i> Otimizar & Limpar Fotos
+                    </button>
                 </div>
             </div>
         </div>
@@ -1311,4 +1315,37 @@
         </div><!-- /#asset-form -->
         </div><!-- /.asset-detail-panel -->
     </div><!-- /.assets-main-layout -->
+
+    <!-- MODAL DE GERENCIAMENTO DE FOTOS E ARMAZENAMENTO -->
+    <div id="media-storage-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; padding:15px; backdrop-filter:blur(3px);">
+        <div class="card" style="width:100%; max-width:540px; background:white; border-radius:14px; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,0.2); animation:slideUp 0.25s ease-out;">
+            <div class="flex-between" style="margin-bottom:18px; border-bottom:1px solid var(--border); padding-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:38px; height:38px; border-radius:10px; background:rgba(2,132,199,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center;">
+                        <i data-lucide="hard-drive" style="width:20px; height:20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--text-main);">Gestão de Fotos & Disco</h3>
+                        <p style="margin:2px 0 0 0; font-size:0.75rem; color:var(--text-muted);">Monitoramento de espaço e limpeza manual de mídias órfãs</p>
+                    </div>
+                </div>
+                <button class="btn-icon" onclick="closeMediaStorageModal()" style="border:none; background:transparent; cursor:pointer;" aria-label="Fechar">
+                    <i data-lucide="x" style="width:20px; color:var(--text-muted);"></i>
+                </button>
+            </div>
+
+            <div id="media-storage-stats-content">
+                <!-- Estatísticas dinâmicas renderizadas por refreshMediaStorageStats() -->
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
+                <button class="btn btn-outline" onclick="closeMediaStorageModal()" style="padding:10px 16px; border-radius:8px;">
+                    Fechar
+                </button>
+                <button id="btn-run-media-cleanup" class="btn" onclick="executeManualMediaCleanup()" style="padding:10px 18px; border-radius:8px; background:#dc2626; color:white; font-weight:700;">
+                    <i data-lucide="trash-2" style="width:16px; margin-right:6px;"></i> Limpar Fotos Órfãs Agora
+                </button>
+            </div>
+        </div>
+    </div>
 </div><!-- /#view-assets -->

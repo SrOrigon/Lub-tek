@@ -110,6 +110,8 @@ class ApiRouteRegistry
             'upload_model' => 'handle_upload_model',
             'upload_image' => 'handle_upload_image',
             'update_asset_image' => 'handle_update_asset_image',
+            'get_media_storage_stats' => 'handle_get_media_storage_stats',
+            'cleanup_orphan_media' => 'handle_cleanup_orphan_media',
             'set_asset_status' => 'handle_set_asset_status',
             'report_route_alert' => 'handle_report_route_alert',
             'get_thickener' => 'handle_get_thickener',

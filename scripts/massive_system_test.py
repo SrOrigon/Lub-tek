@@ -203,6 +203,36 @@ check('exportOrders' in sap_src, "SAPController::exportOrders (IW41) presente")
 check('exportAssets' in sap_src, "SAPController::exportAssets (IH01) presente")
 check('exportMaterials' in sap_src, "SAPController::exportMaterials presente")
 
+# J. Ciclo de Vida de Imagens, Cascade Delete e Thumbnails
+upload_helper_path = os.path.join(ROOT, 'includes', 'upload_helper.php')
+with open(upload_helper_path, 'r', encoding='utf-8') as f:
+    uh_src = f.read()
+check('class UploadHelper' in uh_src, "Classe UploadHelper presente")
+check('isPathReferencedElsewhere' in uh_src, "Protecao contra perda de imagens (isPathReferencedElsewhere) presente")
+check('getThumbnailPath' in uh_src, "Gestao de thumbnails correspondentes presente")
+check('deleteIfUploaded' in uh_src, "Exclusao segura de imagens em uploads/ presente")
+
+assets_ctrl_path = os.path.join(ROOT, 'api', 'AssetsController.php')
+with open(assets_ctrl_path, 'r', encoding='utf-8') as f:
+    ac_src = f.read()
+check('UploadHelper::deleteMany' in ac_src, "Cascade delete de imagens na exclusao de ativos implementado")
+
+inv_ctrl_path = os.path.join(ROOT, 'api', 'InventoryController.php')
+with open(inv_ctrl_path, 'r', encoding='utf-8') as f:
+    ic_src = f.read()
+check('UploadHelper::deleteIfUploaded' in ic_src, "Cascade delete de imagens no catalogo/estoque implementado")
+
+with open(os.path.join(ROOT, 'api.php'), 'r', encoding='utf-8') as f:
+    api_code = f.read()
+check('handle_get_media_storage_stats' in api_code, "Endpoint de monitoramento de armazenamento de midia presente")
+check('handle_cleanup_orphan_media' in api_code, "Endpoint de limpeza manual de fotos orfas presente")
+check('thumb_' in api_code, "Geracao automatica de miniaturas (thumbnails WebP) no upload presente")
+
+with open(os.path.join(ROOT, 'assets', 'js', 'scripts_main.js'), 'r', encoding='utf-8') as f:
+    sm_src = f.read()
+check('lubtekGetThumbUrl' in sm_src, "Helper de thumbnail frontend (lubtekGetThumbUrl) presente")
+check('openMediaStorageModal' in sm_src, "Modal de gestao e limpeza de midias presente no frontend")
+
 # 5. VERIFICACAO DE VIEWS E TEMPLATES DO SISTEMA
 print("\n--- 5. Integridade das Views e Componentes de Interface ---")
 views = glob.glob('includes/views/*.php')

@@ -1453,7 +1453,7 @@ class RodrigoAPI
         $this->db->prepare("UPDATE ativos SET imagem_3d = ? WHERE id = ?")->execute([$newPath, $id]);
 
         if ($oldPath && $oldPath !== $newPath && $this->isUploadPathOwnedByCurrentUser($oldPath)) {
-            UploadHelper::deleteIfUploaded($oldPath);
+            UploadHelper::deleteIfUploaded($oldPath, $this->db, $id);
         }
 
         $this->success();
@@ -1477,7 +1477,7 @@ class RodrigoAPI
         $this->db->prepare('UPDATE ativos SET imagem = ? WHERE id = ?')->execute([$imagem, $id]);
 
         if ($oldPath && $oldPath !== $imagem && $this->isUploadPathOwnedByCurrentUser($oldPath)) {
-            UploadHelper::deleteIfUploaded($oldPath);
+            UploadHelper::deleteIfUploaded($oldPath, $this->db, $id);
         }
 
         $this->success(['id' => $id, 'imagem' => $imagem]);
@@ -1829,8 +1829,9 @@ Amostra da Planilha (JSON):
         $target = $dir . '/' . $name;
         $publicPath = 'uploads/' . ($tenant ? $tenant . '/' : '') . $name;
 
-        // Tenta comprimir e converter a imagem
+        // Tenta comprimir, redimensionar e converter a imagem
         $imageProcessed = false;
+        $publicThumbPath = null;
         if (extension_loaded('gd') && function_exists('imagewebp')) {
             $img = null;
             if ($mime === 'image/jpeg') {
@@ -1847,6 +1848,29 @@ Amostra da Planilha (JSON):
             }
 
             if ($img !== false && $img !== null) {
+                $origW = imagesx($img);
+                $origH = imagesy($img);
+
+                // Auto-Resize: Limita a 1280px proporcionalmente para economizar banda e armazenamento
+                $maxDim = 1280;
+                if ($origW > $maxDim || $origH > $maxDim) {
+                    if ($origW >= $origH) {
+                        $newW = $maxDim;
+                        $newH = max(1, (int) round(($origH * $maxDim) / $origW));
+                    } else {
+                        $newH = $maxDim;
+                        $newW = max(1, (int) round(($origW * $maxDim) / $origH));
+                    }
+                    $resized = imagecreatetruecolor($newW, $newH);
+                    imagealphablending($resized, false);
+                    imagesavealpha($resized, true);
+                    imagecopyresampled($resized, $img, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+                    imagedestroy($img);
+                    $img = $resized;
+                    $origW = $newW;
+                    $origH = $newH;
+                }
+
                 $wantMark = !empty($this->input['watermark']) || !empty($_POST['watermark'])
                     || intval($this->input['os_id'] ?? $_POST['os_id'] ?? 0) > 0;
                 if ($wantMark) {
@@ -1856,6 +1880,31 @@ Amostra da Planilha (JSON):
                     ImageWatermark::apply($img, ['tag' => $tagMark, 'user' => $userMark]);
                 }
                 $imageProcessed = imagewebp($img, $target, 75);
+
+                // Gera thumbnail ultraleve (~10KB) para aceleração das listas e catálogo
+                $thumbName = 'thumb_' . $name;
+                $thumbTarget = $dir . '/' . $thumbName;
+                $publicThumbPath = 'uploads/' . ($tenant ? $tenant . '/' : '') . $thumbName;
+
+                $thumbMax = 240;
+                if ($origW > $thumbMax || $origH > $thumbMax) {
+                    if ($origW >= $origH) {
+                        $tW = $thumbMax;
+                        $tH = max(1, (int) round(($origH * $thumbMax) / $origW));
+                    } else {
+                        $tH = $thumbMax;
+                        $tW = max(1, (int) round(($origW * $thumbMax) / $origH));
+                    }
+                    $thumbImg = imagecreatetruecolor($tW, $tH);
+                    imagealphablending($thumbImg, false);
+                    imagesavealpha($thumbImg, true);
+                    imagecopyresampled($thumbImg, $img, 0, 0, 0, 0, $tW, $tH, $origW, $origH);
+                    imagewebp($thumbImg, $thumbTarget, 75);
+                    imagedestroy($thumbImg);
+                } else {
+                    @copy($target, $thumbTarget);
+                }
+
                 imagedestroy($img);
             }
         }
@@ -1872,7 +1921,7 @@ Amostra da Planilha (JSON):
 
         $oldPath = $this->input['old_path'] ?? $_POST['old_path'] ?? null;
         if ($oldPath && $this->isUploadPathOwnedByCurrentUser($oldPath)) {
-            UploadHelper::deleteIfUploaded($oldPath);
+            UploadHelper::deleteIfUploaded($oldPath, $this->db, $assetId > 0 ? $assetId : null);
         }
 
         // Foto opcional do alerta de rota: vincula path à O.S. criada
@@ -1901,7 +1950,244 @@ Amostra da Planilha (JSON):
             }
         }
 
-        $this->success(['path' => $publicPath, 'os_id' => $osId > 0 ? $osId : null, 'asset_id' => $assetId > 0 ? $assetId : null]);
+        $this->success([
+            'path' => $publicPath,
+            'thumb_path' => $publicThumbPath,
+            'size' => is_file($target) ? filesize($target) : null,
+            'os_id' => $osId > 0 ? $osId : null,
+            'asset_id' => $assetId > 0 ? $assetId : null
+        ]);
+    }
+
+    /**
+     * Retorna estatísticas de armazenamento de fotos em disco vs referências no banco de dados.
+     */
+    private function handle_get_media_storage_stats()
+    {
+        if (!Permissions::isGestorOrHigher($this->user['role'] ?? '')) {
+            $this->error('Permissão negada.', 403);
+        }
+
+        $tenant = $this->user['tenant'] ?? null;
+        $uploadsDir = realpath(__DIR__ . '/uploads');
+        if (!$uploadsDir || !is_dir($uploadsDir)) {
+            $this->success([
+                'total_files' => 0,
+                'total_bytes' => 0,
+                'total_size_formatted' => '0 MB',
+                'referenced_files' => 0,
+                'orphan_files' => 0,
+                'orphan_bytes' => 0,
+                'orphan_size_formatted' => '0 MB',
+                'tenant' => $tenant
+            ]);
+        }
+
+        // Coleta referências no banco
+        $dbPaths = [];
+        $queries = [
+            "SELECT imagem FROM ativos WHERE imagem IS NOT NULL AND imagem != ''",
+            "SELECT imagem_3d FROM ativos WHERE imagem_3d IS NOT NULL AND imagem_3d != ''",
+            "SELECT dados_tecnicos FROM ativos WHERE dados_tecnicos IS NOT NULL",
+            "SELECT imagem FROM catalogo WHERE imagem IS NOT NULL AND imagem != ''",
+            "SELECT obs_exec FROM ordens WHERE obs_exec LIKE '%uploads/%'"
+        ];
+
+        foreach ($queries as $sql) {
+            try {
+                $rows = $this->db->query($sql)->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($rows as $val) {
+                    if (!is_string($val) || $val === '') continue;
+                    $norm = UploadHelper::normalizePath($val);
+                    $dbPaths[strtolower($norm)] = true;
+                    $dbPaths[strtolower(basename($norm))] = true;
+                    $thumbNorm = UploadHelper::getThumbnailPath($norm);
+                    $dbPaths[strtolower($thumbNorm)] = true;
+                    $dbPaths[strtolower(basename($thumbNorm))] = true;
+
+                    if (preg_match_all('#uploads/[^\s"\'<>]+#i', $val, $m)) {
+                        foreach ($m[0] as $found) {
+                            $fNorm = UploadHelper::normalizePath($found);
+                            $dbPaths[strtolower($fNorm)] = true;
+                            $dbPaths[strtolower(basename($fNorm))] = true;
+                            $fThumb = UploadHelper::getThumbnailPath($fNorm);
+                            $dbPaths[strtolower($fThumb)] = true;
+                            $dbPaths[strtolower(basename($fThumb))] = true;
+                        }
+                    }
+                }
+            } catch (\Throwable $t) {}
+        }
+
+        $scanDirs = [];
+        if ($tenant) {
+            $tenantDir = $uploadsDir . DIRECTORY_SEPARATOR . $tenant;
+            if (is_dir($tenantDir)) {
+                $scanDirs[] = $tenantDir;
+            }
+        } else {
+            $scanDirs[] = $uploadsDir;
+            foreach (glob($uploadsDir . '/*', GLOB_ONLYDIR) ?: [] as $sub) {
+                $scanDirs[] = $sub;
+            }
+        }
+
+        $totalFiles = 0;
+        $totalBytes = 0;
+        $referencedFiles = 0;
+        $orphanFiles = 0;
+        $orphanBytes = 0;
+
+        $scannedPaths = [];
+        foreach ($scanDirs as $dir) {
+            foreach (glob($dir . '/*.*') ?: [] as $filePath) {
+                if (!is_file($filePath)) continue;
+                $real = realpath($filePath);
+                if (isset($scannedPaths[$real])) continue;
+                $scannedPaths[$real] = true;
+
+                $size = filesize($filePath) ?: 0;
+                $totalFiles++;
+                $totalBytes += $size;
+
+                $rel = UploadHelper::normalizePath(str_replace($uploadsDir, 'uploads', $filePath));
+                $base = basename($filePath);
+
+                $isRef = isset($dbPaths[strtolower($rel)]) || isset($dbPaths[strtolower($base)]);
+                if ($isRef) {
+                    $referencedFiles++;
+                } else {
+                    $orphanFiles++;
+                    $orphanBytes += $size;
+                }
+            }
+        }
+
+        $this->success([
+            'total_files' => $totalFiles,
+            'total_bytes' => $totalBytes,
+            'total_size_formatted' => round($totalBytes / (1024 * 1024), 2) . ' MB',
+            'referenced_files' => $referencedFiles,
+            'orphan_files' => $orphanFiles,
+            'orphan_bytes' => $orphanBytes,
+            'orphan_size_formatted' => round($orphanBytes / (1024 * 1024), 2) . ' MB',
+            'tenant' => $tenant
+        ]);
+    }
+
+    /**
+     * Limpa fotos órfãs com segurança garantindo que mídias em uso nunca sejam perdidas.
+     */
+    private function handle_cleanup_orphan_media()
+    {
+        if (!Permissions::isGestorOrHigher($this->user['role'] ?? '')) {
+            $this->error('Permissão negada. Apenas gestores e administradores podem limpar fotos órfãs.', 403);
+        }
+
+        $tenant = $this->user['tenant'] ?? null;
+        $uploadsDir = realpath(__DIR__ . '/uploads');
+        if (!$uploadsDir || !is_dir($uploadsDir)) {
+            $this->success([
+                'removed_count' => 0,
+                'bytes_freed' => 0,
+                'freed_formatted' => '0 MB',
+                'message' => 'Nenhuma pasta de upload encontrada.'
+            ]);
+        }
+
+        // Coleta referências ativas no banco de dados
+        $dbPaths = [];
+        $queries = [
+            "SELECT imagem FROM ativos WHERE imagem IS NOT NULL AND imagem != ''",
+            "SELECT imagem_3d FROM ativos WHERE imagem_3d IS NOT NULL AND imagem_3d != ''",
+            "SELECT dados_tecnicos FROM ativos WHERE dados_tecnicos IS NOT NULL",
+            "SELECT imagem FROM catalogo WHERE imagem IS NOT NULL AND imagem != ''",
+            "SELECT obs_exec FROM ordens WHERE obs_exec LIKE '%uploads/%'"
+        ];
+
+        foreach ($queries as $sql) {
+            try {
+                $rows = $this->db->query($sql)->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($rows as $val) {
+                    if (!is_string($val) || $val === '') continue;
+                    $norm = UploadHelper::normalizePath($val);
+                    $dbPaths[strtolower($norm)] = true;
+                    $dbPaths[strtolower(basename($norm))] = true;
+                    $thumbNorm = UploadHelper::getThumbnailPath($norm);
+                    $dbPaths[strtolower($thumbNorm)] = true;
+                    $dbPaths[strtolower(basename($thumbNorm))] = true;
+
+                    if (preg_match_all('#uploads/[^\s"\'<>]+#i', $val, $m)) {
+                        foreach ($m[0] as $found) {
+                            $fNorm = UploadHelper::normalizePath($found);
+                            $dbPaths[strtolower($fNorm)] = true;
+                            $dbPaths[strtolower(basename($fNorm))] = true;
+                            $fThumb = UploadHelper::getThumbnailPath($fNorm);
+                            $dbPaths[strtolower($fThumb)] = true;
+                            $dbPaths[strtolower(basename($fThumb))] = true;
+                        }
+                    }
+                }
+            } catch (\Throwable $t) {}
+        }
+
+        $scanDirs = [];
+        if ($tenant) {
+            $tenantDir = $uploadsDir . DIRECTORY_SEPARATOR . $tenant;
+            if (is_dir($tenantDir)) {
+                $scanDirs[] = $tenantDir;
+            }
+        } else {
+            $scanDirs[] = $uploadsDir;
+            foreach (glob($uploadsDir . '/*', GLOB_ONLYDIR) ?: [] as $sub) {
+                $scanDirs[] = $sub;
+            }
+        }
+
+        $removedCount = 0;
+        $bytesFreed = 0;
+        $scannedPaths = [];
+
+        foreach ($scanDirs as $dir) {
+            foreach (glob($dir . '/*.*') ?: [] as $filePath) {
+                if (!is_file($filePath)) continue;
+                $real = realpath($filePath);
+                if (isset($scannedPaths[$real])) continue;
+                $scannedPaths[$real] = true;
+
+                $rel = UploadHelper::normalizePath(str_replace($uploadsDir, 'uploads', $filePath));
+                $base = basename($filePath);
+
+                if ($base === '.htaccess' || $base === 'index.html' || $base === 'index.php') {
+                    continue;
+                }
+
+                $isRef = isset($dbPaths[strtolower($rel)]) || isset($dbPaths[strtolower($base)]);
+                if (!$isRef) {
+                    $size = filesize($filePath) ?: 0;
+                    if (@unlink($filePath)) {
+                        $removedCount++;
+                        $bytesFreed += $size;
+                    }
+                }
+            }
+        }
+
+        $freedMb = round($bytesFreed / (1024 * 1024), 2);
+        DB::log(
+            $this->user['nome'] ?? $this->user['user'] ?? 'Admin',
+            'MEDIA_CLEANUP',
+            "Limpeza manual de mídia órfã: {$removedCount} arquivos removidos ({$freedMb} MB liberados)",
+            null,
+            ['removed' => $removedCount, 'bytes' => $bytesFreed, 'tenant' => $tenant]
+        );
+
+        $this->success([
+            'removed_count' => $removedCount,
+            'bytes_freed' => $bytesFreed,
+            'freed_formatted' => "{$freedMb} MB",
+            'message' => "Limpeza concluída com sucesso! {$removedCount} arquivos órfãos removidos ({$freedMb} MB liberados)."
+        ]);
     }
 
     /**

@@ -2562,8 +2562,9 @@ function renderCatList(list) {
     container.innerHTML = list.map(i => {
         const stock = i.estoque_atual != null ? i.estoque_atual : 0;
         const tipoIcon = (i.tipo === 'Rolamento') ? 'circle-dot' : (i.tipo === 'Lubrificante' ? 'droplet' : 'package');
+        const thumbUrl = (typeof lubtekGetThumbUrl === 'function') ? lubtekGetThumbUrl(i.imagem) : i.imagem;
         const thumb = i.imagem
-            ? `<img src="${escapeAttr(i.imagem)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+            ? `<img src="${escapeAttr(thumbUrl)}" loading="lazy" decoding="async" onerror="if(this.dataset.tried!=='1'){this.dataset.tried='1';this.src='${escapeAttr(i.imagem)}';}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
             : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#e0f2fe,#f0f9ff);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="${tipoIcon}" style="width:22px;color:var(--primary);opacity:0.7;"></i></div>`;
         return `
     <div class="list-item cat-list-item" onclick="viewCatDetail(${i.id}, this)"
@@ -2872,7 +2873,7 @@ function renderDetailForm(item) {
                     onclick="triggerUpload('ced-img-input')"
                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();triggerUpload('ced-img-input');}">
                     ${item.imagem ?
-            `<img src="${escapeAttr(item.imagem)}" style="width:100%; height:100%; object-fit:cover;">` :
+            `<img src="${escapeAttr(item.imagem)}" loading="lazy" decoding="async" style="width:100%; height:100%; object-fit:cover;">` :
             `<div class="catalog-photo-placeholder"><i data-lucide="camera" aria-hidden="true"></i><span>Adicionar foto</span></div>`
         }
                      <div class="catalog-photo-badge" aria-hidden="true">
@@ -3034,8 +3035,10 @@ async function uploadImage(input, previewId, valueId) {
     const isAsset = valueId === 'af_img_val' || (previewId && previewId.startsWith('af-'));
     if (isAsset && editingNode && editingNode.id) {
         fd.append('asset_id', editingNode.id);
-        const oldVal = document.getElementById('af_img_val')?.value;
-        if (oldVal) fd.append('old_path', oldVal);
+    }
+    const oldVal = document.getElementById(valueId)?.value || (isAsset ? (editingNode?.imagem || '') : '');
+    if (oldVal && typeof oldVal === 'string' && oldVal.includes('uploads/')) {
+        fd.append('old_path', oldVal);
     }
 
     try {
@@ -4246,6 +4249,110 @@ function lubtekMediaSrc(path) {
     if (/^(https?:|data:|blob:)/i.test(p)) return p;
     return p.replace(/^\.\//, '');
 }
+
+function lubtekGetThumbUrl(path) {
+    const p = String(path || '').trim();
+    if (!p) return '';
+    if (/^(https?:|data:|blob:)/i.test(p)) return p;
+    if (p.includes('thumb_')) return p;
+    return p.replace(/^(.*\/)?([^\/]+)$/, '$1thumb_$2');
+}
+window.lubtekGetThumbUrl = lubtekGetThumbUrl;
+
+async function openMediaStorageModal() {
+    let modal = document.getElementById('media-storage-modal');
+    if (!modal) {
+        console.error('Modal media-storage-modal não encontrado no DOM');
+        return;
+    }
+    modal.style.display = 'flex';
+    await refreshMediaStorageStats();
+}
+window.openMediaStorageModal = openMediaStorageModal;
+
+function closeMediaStorageModal() {
+    const modal = document.getElementById('media-storage-modal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeMediaStorageModal = closeMediaStorageModal;
+
+async function refreshMediaStorageStats() {
+    const statsContainer = document.getElementById('media-storage-stats-content');
+    if (!statsContainer) return;
+    statsContainer.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);"><i data-lucide="loader-2" class="spin" style="width:28px;height:28px;margin-bottom:8px;"></i><p>Analisando armazenamento de fotos...</p></div>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    try {
+        const res = await api('get_media_storage_stats');
+        if (res && res.ok) {
+            const data = res.data || res;
+            statsContainer.innerHTML = `
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:20px;">
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+                        <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Total de Fotos</div>
+                        <div style="font-size:1.4rem; font-weight:800; color:var(--primary); margin-top:4px;">${data.total_files || 0}</div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+                        <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Espaço em Disco</div>
+                        <div style="font-size:1.4rem; font-weight:800; color:#334155; margin-top:4px;">${data.total_size_formatted || '0 MB'}</div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+                        <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Fotos em Uso</div>
+                        <div style="font-size:1.4rem; font-weight:800; color:#059669; margin-top:4px;">${data.referenced_files || 0}</div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+                        <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Fotos Órfãs</div>
+                        <div style="font-size:1.4rem; font-weight:800; color:${(data.orphan_files > 0) ? '#e11d48' : '#64748b'}; margin-top:4px;">${data.orphan_files || 0}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${data.orphan_size_formatted || '0 MB'}</div>
+                    </div>
+                </div>
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-size:0.85rem; color:#1e40af; margin-bottom:16px;">
+                    <i data-lucide="info" style="width:16px; display:inline-block; vertical-align:middle; margin-right:4px;"></i>
+                    As fotos enviadas são compactadas em WebP ultraleve e os thumbnails são gerados automaticamente. Ao excluir um equipamento ou produto, suas fotos vinculadas são apagadas junto do disco.
+                </div>
+            `;
+            const cleanBtn = document.getElementById('btn-run-media-cleanup');
+            if (cleanBtn) {
+                cleanBtn.disabled = (data.orphan_files === 0);
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            statsContainer.innerHTML = '<div style="color:#ef4444; padding:15px; text-align:center;">Falha ao carregar estatísticas de mídia.</div>';
+        }
+    } catch (e) {
+        statsContainer.innerHTML = '<div style="color:#ef4444; padding:15px; text-align:center;">Erro ao consultar armazenamento.</div>';
+    }
+}
+window.refreshMediaStorageStats = refreshMediaStorageStats;
+
+async function executeManualMediaCleanup() {
+    if (!confirm('Deseja realmente remover todas as fotos órfãs não vinculadas a equipamentos ou produtos?')) {
+        return;
+    }
+    const cleanBtn = document.getElementById('btn-run-media-cleanup');
+    if (cleanBtn) {
+        cleanBtn.disabled = true;
+        cleanBtn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width:16px; margin-right:6px;"></i> Limpando...';
+    }
+    try {
+        const res = await api('cleanup_orphan_media');
+        if (res && res.ok) {
+            showToast(res.message || 'Limpeza realizada com sucesso!', 'success');
+            await refreshMediaStorageStats();
+        } else {
+            showToast(res.error || 'Erro ao executar limpeza.', 'error');
+        }
+    } catch (e) {
+        showToast('Erro de conexão ao limpar fotos órfãs.', 'error');
+    } finally {
+        if (cleanBtn) {
+            cleanBtn.disabled = false;
+            cleanBtn.innerHTML = '<i data-lucide="trash-2" style="width:16px; margin-right:6px;"></i> Limpar Fotos Órfãs Agora';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+}
+window.executeManualMediaCleanup = executeManualMediaCleanup;
 
 function revealNodeInTree(node) {
     if (!node) return;

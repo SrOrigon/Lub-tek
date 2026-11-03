@@ -93,7 +93,7 @@ class InventoryController
         });
 
         if ($oldImage && $oldImage !== ($in['imagem'] ?? '')) {
-            UploadHelper::deleteIfUploaded($oldImage);
+            UploadHelper::deleteIfUploaded($oldImage, $this->db, null, $in['id'] ?? null);
         }
 
         return ['success' => true];
@@ -122,7 +122,7 @@ class InventoryController
         });
 
         if ($oldImage) {
-            UploadHelper::deleteIfUploaded($oldImage);
+            UploadHelper::deleteIfUploaded($oldImage, $this->db, null, $id);
         }
 
         return ['success' => true];

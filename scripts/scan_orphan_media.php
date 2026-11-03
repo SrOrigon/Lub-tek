@@ -11,8 +11,10 @@ function lubtek_collect_db_media_paths(PDO $pdo): array
     $paths = [];
     $queries = [
         "SELECT imagem FROM ativos WHERE imagem IS NOT NULL AND imagem != ''",
+        "SELECT imagem_3d FROM ativos WHERE imagem_3d IS NOT NULL AND imagem_3d != ''",
         "SELECT dados_tecnicos FROM ativos WHERE dados_tecnicos IS NOT NULL",
         "SELECT imagem FROM catalogo WHERE imagem IS NOT NULL AND imagem != ''",
+        "SELECT obs_exec FROM ordens WHERE obs_exec LIKE '%uploads/%'",
     ];
     foreach ($queries as $sql) {
         try {
@@ -20,10 +22,16 @@ function lubtek_collect_db_media_paths(PDO $pdo): array
                 if (!is_string($val) || $val === '') {
                     continue;
                 }
-                $paths[] = str_replace('\\', '/', $val);
+                $pClean = str_replace('\\', '/', $val);
+                $paths[] = $pClean;
+                $paths[] = basename($pClean);
+                $paths[] = 'thumb_' . basename($pClean);
                 if (preg_match_all('#(?:uploads/|assets/img/)[^\s"\'<>]+#i', $val, $m)) {
                     foreach ($m[0] as $p) {
-                        $paths[] = $p;
+                        $pClean = str_replace('\\', '/', $p);
+                        $paths[] = $pClean;
+                        $paths[] = basename($pClean);
+                        $paths[] = 'thumb_' . basename($pClean);
                     }
                 }
             }

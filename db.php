@@ -58,6 +58,18 @@ class DB
                 )");
             }
 
+            // Garante tabela de auditoria em todos os bancos (master e tenants)
+            $this->pdo->exec("CREATE TABLE IF NOT EXISTS logs_auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario TEXT,
+                acao TEXT,
+                alvo TEXT,
+                dados_antigos TEXT,
+                dados_novos TEXT,
+                detalhes_erro TEXT,
+                data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
             // CRÍTICO: getMeta/setMeta usam $this->pdo (NUNCA getInstance) para evitar
             // recursão infinita no construtor — causa do 503 no Hostinger.
             $currentVer = $this->getMeta('db_version');

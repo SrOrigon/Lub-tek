@@ -256,6 +256,7 @@ class Permissions
                 'neural_generate_os', 'neural_diagnose', 'lubria_excel_mapper', 'save_agent_feedback',
                 'get_ai_usage_summary', 'get_agent_feedback_stats',
                 'get_asset_by_qr', 'get_line_lubrication_points',
+                'get_media_storage_stats', 'cleanup_orphan_media',
             ]
         )));
     }

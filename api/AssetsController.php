@@ -422,7 +422,7 @@ class AssetsController
             ]);
             foreach ($previousMediaPaths as $oldPath) {
                 if (!in_array($oldPath, $newMedia, true)) {
-                    UploadHelper::deleteIfUploaded($oldPath);
+                    UploadHelper::deleteIfUploaded($oldPath, $this->db, $newId);
                 }
             }
         }
@@ -495,6 +495,24 @@ class AssetsController
         }
 
         $mediaPaths = [];
+        $subtreeIds = [];
+        $this->collectSubtreeIds($id, $subtreeIds);
+
+        // Coleta previamente todas as mídias da subárvore para garantir deleção completa de fotos e modelos
+        if (!empty($subtreeIds)) {
+            require_once __DIR__ . '/../includes/db_dialect.php';
+            [$inPh, $idList] = DbDialect::placeholdersIn($subtreeIds);
+            if ($inPh !== '') {
+                try {
+                    $imgStmt = $this->db->prepare("SELECT imagem, imagem_3d, dados_tecnicos FROM ativos WHERE id IN ($inPh)");
+                    $imgStmt->execute($idList);
+                    foreach ($imgStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $mediaPaths = array_merge($mediaPaths, UploadHelper::collectAssetMediaPaths($row));
+                    }
+                } catch (\Throwable $t) {}
+            }
+        }
+
         try {
             DB::safeExecute(function ($db) use ($id, &$mediaPaths) {
                 $this->deleteRecursive($id, $mediaPaths);
@@ -504,8 +522,10 @@ class AssetsController
             $db->exec('PRAGMA foreign_keys = OFF');
             try {
                 $db->beginTransaction();
-                $ids = [];
-                $this->collectSubtreeIds($id, $ids);
+                $ids = !empty($subtreeIds) ? $subtreeIds : [];
+                if (empty($ids)) {
+                    $this->collectSubtreeIds($id, $ids);
+                }
                 require_once __DIR__ . '/../includes/db_dialect.php';
                 [$inPh, $idList] = DbDialect::placeholdersIn($ids);
                 if ($inPh !== '') {
@@ -534,7 +554,8 @@ class AssetsController
             }
         }
 
-        UploadHelper::deleteMany(array_unique($mediaPaths));
+        // Executa cascade delete físico de imagens e thumbnails no disco com proteção de integridade referencial
+        UploadHelper::deleteMany(array_unique($mediaPaths), $this->db, $subtreeIds);
 
         return ['deleted' => $id];
     }
