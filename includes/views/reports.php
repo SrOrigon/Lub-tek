@@ -1,4 +1,4 @@
-<div id="view-reports" class="view-container active view-block"
+<div id="view-reports" class="view-container view-block"
     style="padding: 24px; background: #f8fafc;">
     
     <div class="flex-between" style="margin-bottom:30px;">

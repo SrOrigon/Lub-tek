@@ -1,4 +1,4 @@
-<div id="view-assets" class="view-container active view-block assets-workspace">
+<div id="view-assets" class="view-container view-block assets-workspace">
     <style>
         .assets-workspace {
             display: none;

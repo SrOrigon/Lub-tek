@@ -1,4 +1,4 @@
-<div id="view-sap" class="view-container active view-flex" style="flex-direction: column; gap: 24px; background: #f8fafc; padding: 24px;">
+<div id="view-sap" class="view-container view-flex" style="flex-direction: column; gap: 24px; background: #f8fafc; padding: 24px;">
     
     <!-- Title Section -->
     <div class="flex-between">

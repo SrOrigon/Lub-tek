@@ -1,4 +1,4 @@
-<div id="view-kpi" class="view-container active view-block kpi-workspace" style="padding:15px; background:#f8fafc;">
+<div id="view-kpi" class="view-container view-block kpi-workspace" style="padding:15px; background:#f8fafc;">
 
     <div class="kpi-header">
         <div>

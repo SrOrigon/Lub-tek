@@ -1,4 +1,4 @@
-<div id="view-pi" class="view-container active view-block"
+<div id="view-pi" class="view-container view-block"
     style="padding:15px; background: #f8fafc;">
     
     <style>

@@ -126,6 +126,9 @@ function initApp() {
     if (page === 'kpi' && typeof loadKpiView === 'function') loadKpiView();
     if (page === 'pi' && typeof loadPiView === 'function') loadPiView();
     if (page === 'routes' && typeof loadRoutes === 'function') loadRoutes();
+    if (page === 'users' && typeof loadUsuarios === 'function') loadUsuarios();
+    if (page === 'audit' && typeof loadAuditLogs === 'function') loadAuditLogs();
+    if (typeof Session !== 'undefined' && Session.saveView) Session.saveView(page);
 
     // Catálogo: ao redimensionar para desktop, restaura layout split
     if (!window.__catalogResizeBound) {
@@ -3316,8 +3319,39 @@ window.PlantSync = {
         this.pi = null;
         this.fetchedAt = 0;
         if (window.ApiSmartCache) window.ApiSmartCache.clear();
+    },
+    watch() {
+        if (this._timer) return;
+        const tick = async () => {
+            if (document.hidden) return;
+            const editing = document.activeElement;
+            const tag = editing ? editing.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (editing && editing.isContentEditable)) {
+                return;
+            }
+            const prevCore = this.core;
+            const prevPi = this.pi;
+            const next = await this.load(true);
+            if (!prevCore) return;
+            const page = (new URLSearchParams(window.location.search).get('page')
+                || (typeof Session !== 'undefined' && Session.getLastView ? Session.getLastView() : 'home'));
+            if (next.revision && next.revision !== prevCore) {
+                if ((page === 'dash' || page === 'home') && typeof loadDash === 'function') loadDash();
+                if (page === 'catalog' && typeof loadCatalog === 'function') loadCatalog();
+                if (page === 'routes' && typeof loadRoutes === 'function') loadRoutes();
+                if (page === 'kpi' && typeof loadKpiView === 'function') loadKpiView();
+                if (page === 'assets' && typeof loadTree === 'function') loadTree(true);
+                if (page === 'users' && typeof loadUsuarios === 'function') loadUsuarios();
+                if (page === 'audit' && typeof loadAuditLogs === 'function') loadAuditLogs();
+            }
+            if (next.pi_revision && next.pi_revision !== prevPi && page === 'pi' && typeof loadPiView === 'function') {
+                loadPiView();
+            }
+        };
+        this._timer = setInterval(tick, 8000);
     }
 };
+window.PlantSync.watch();
 
 window.ApiSmartCache = {
     store: new Map(),

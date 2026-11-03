@@ -1,4 +1,4 @@
-<div id="view-catalog" class="view-container active view-block catalog-view"
+<div id="view-catalog" class="view-container view-block catalog-view"
     style="padding:15px; background:#f8fafc;">
     <div class="flex-between catalog-header" style="margin-bottom:20px;">
         <div>

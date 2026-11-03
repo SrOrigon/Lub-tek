@@ -1,4 +1,4 @@
-<div id="view-calc" class="view-container active view-block"
+<div id="view-calc" class="view-container view-block"
     style="padding:15px; background:#f8fafc;">
     <div class="flex-between" style="margin-bottom:20px;">
         <div>

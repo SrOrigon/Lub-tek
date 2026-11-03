@@ -1,4 +1,4 @@
-<div id="view-dash" class="view-container active view-flex dash-workspace" role="region" aria-labelledby="dash-page-title">
+<div id="view-dash" class="view-container view-flex dash-workspace" role="region" aria-labelledby="dash-page-title">
 
     <!-- TOP BAR: COMPACT KPI & ACTIONS -->
     <div class="dash-toolbar"

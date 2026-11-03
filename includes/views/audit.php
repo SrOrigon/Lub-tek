@@ -8,7 +8,7 @@ if (!defined('BUILD_VER') && !isset($auth)) {
 // Access Guard
 $auth->requirePermission('audit_logs');
 ?>
-<div id="view-audit" class="view-container active view-flex" style="padding:20px; flex-direction:column; gap:20px; background:#f8fafc;">
+<div id="view-audit" class="view-container view-flex" style="padding:20px; flex-direction:column; gap:20px; background:#f8fafc;">
     
     <!-- TOP TOOLBAR -->
     <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:16px 20px; border-radius:16px; border:1px solid #e2e8f0; box-shadow:0 4px 12px rgba(15,23,42,0.02); flex-wrap:wrap; gap:16px;">
