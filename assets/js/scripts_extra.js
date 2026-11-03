@@ -2047,11 +2047,89 @@
         activeVoiceTarget = null;
     }
 
+    function showMicrophonePermissionHelpModal(inputElement) {
+        let overlay = document.getElementById('lubtek-mic-help-modal');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'lubtek-mic-help-modal';
+            overlay.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.75);
+                backdrop-filter: blur(4px);
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+                animation: fadeIn 0.2s ease-out;
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        const host = window.location.hostname || 'sistema';
+        const safeHost = typeof escapeRouteHtml === 'function' ? escapeRouteHtml(host) : host;
+
+        overlay.innerHTML = `
+            <div style="background: var(--card-bg, #1e293b); color: var(--text-color, #f8fafc); border: 1px solid var(--border-color, #334155); border-radius: 14px; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); padding: 24px; position: relative;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(59, 130, 246, 0.15); display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 24px;">
+                        🎙️
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #f8fafc;">Como Liberar o Microfone</h3>
+                        <p style="margin: 2px 0 0; font-size: 0.8rem; color: #94a3b8;">Permissão necessária para ditado por voz</p>
+                    </div>
+                </div>
+
+                <div style="background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 0.85rem; line-height: 1.5; color: #cbd5e1;">
+                    <p style="margin: 0 0 10px 0;">O navegador requer autorização para o microfone em <strong>${safeHost}</strong>. Para ativar:</p>
+                    <ol style="margin: 0; padding-left: 20px;">
+                        <li style="margin-bottom: 6px;">Clique no ícone de <strong>Cadeado / Ajustes 🔒</strong> ao lado do link na barra de endereços (topo do navegador).</li>
+                        <li style="margin-bottom: 6px;">Na opção <strong>Microfone</strong>, selecione <strong>Permitir</strong>.</li>
+                        <li>Clique em <strong>Tentar Novamente</strong> abaixo.</li>
+                    </ol>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" id="lubtek-mic-close-btn" class="btn btn-secondary" style="background: #334155; color: #e2e8f0; border: none; padding: 9px 16px; border-radius: 8px; font-size: 0.85rem; cursor: pointer;">
+                        Digitar Manualmente
+                    </button>
+                    <button type="button" id="lubtek-mic-retry-btn" class="btn btn-primary" style="background: #2563eb; color: #ffffff; border: none; padding: 9px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                        🔄 Tentar Novamente
+                    </button>
+                </div>
+            </div>
+        `;
+
+        overlay.style.display = 'flex';
+
+        const btnClose = document.getElementById('lubtek-mic-close-btn');
+        if (btnClose) {
+            btnClose.onclick = () => {
+                overlay.style.display = 'none';
+                if (inputElement && typeof inputElement.focus === 'function') {
+                    inputElement.focus();
+                }
+            };
+        }
+
+        const btnRetry = document.getElementById('lubtek-mic-retry-btn');
+        if (btnRetry) {
+            btnRetry.onclick = () => {
+                overlay.style.display = 'none';
+                if (inputElement) {
+                    startVoiceInput(inputElement);
+                }
+            };
+        }
+    }
+
     function initVoiceInput(targetId, btnElement) {
         return startVoiceInput(targetId, btnElement);
     }
 
-    function startVoiceInput(targetId, btnElement) {
+    async function startVoiceInput(targetId, btnElement) {
         const input = typeof targetId === 'string' ? document.getElementById(targetId) : targetId;
         if (!input) {
             if (typeof showToast === 'function') showToast('Campo de texto não encontrado.', 'warning');
@@ -2074,6 +2152,42 @@
 
         activeVoiceTarget = input;
         activeVoiceBtn = btn;
+
+        // 1. Pré-checagem e solicitação amigável de microfone via getUserMedia
+        // Isso força o Chrome a exibir o popup "Permitir Microfone" caso ainda não tenha sido exibido,
+        // evitando o erro "not-allowed" imediato do Web Speech API.
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                if (navigator.permissions && navigator.permissions.query) {
+                    try {
+                        const status = await navigator.permissions.query({ name: 'microphone' });
+                        if (status.state === 'denied') {
+                            showMicrophonePermissionHelpModal(input);
+                            stopVoiceInput();
+                            return;
+                        }
+                    } catch (permErr) {}
+                }
+
+                // Solicita acesso ao microfone (aciona o popup de permissão nativo do Chrome)
+                const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                testStream.getTracks().forEach(t => {
+                    try { t.stop(); } catch (e) {}
+                });
+            } catch (mediaErr) {
+                const name = mediaErr.name || '';
+                if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+                    showMicrophonePermissionHelpModal(input);
+                    stopVoiceInput();
+                    return;
+                } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+                    if (typeof showToast === 'function') showToast('Nenhum microfone encontrado no dispositivo.', 'warning');
+                    stopVoiceInput();
+                    return;
+                }
+                console.warn('[Voice Dictation] Aviso ao testar microfone:', mediaErr);
+            }
+        }
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -2104,9 +2218,8 @@
                         return;
                     }
                     if (err === 'not-allowed') {
-                        if (typeof showToast === 'function') showToast('Permissão de microfone negada no navegador.', 'warning');
-                    } else if (err === 'network') {
-                        fallbackToMediaRecorderGemini(input, btn);
+                        showMicrophonePermissionHelpModal(input);
+                        stopVoiceInput();
                     } else {
                         fallbackToMediaRecorderGemini(input, btn);
                     }
@@ -2221,8 +2334,11 @@
         } catch (mediaErr) {
             console.warn('Erro ao obter microfone:', mediaErr);
             stopVoiceInput();
-            if (typeof showToast === 'function') {
-                showToast('Permissão de microfone negada ou indisponível.', 'warning');
+            const name = mediaErr.name || '';
+            if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+                showMicrophonePermissionHelpModal(input);
+            } else if (typeof showToast === 'function') {
+                showToast('Microfone indisponível no dispositivo.', 'warning');
             }
         }
     }

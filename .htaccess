@@ -149,7 +149,7 @@ RewriteRule ^sitemap\.xml$ sitemap.php [L,NC]
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
     Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
-    # Permissão explícita de câmera para escaneamento industrial de QR Code no PWA
-    Header set Permissions-Policy "geolocation=(), microphone=(), camera=(self)"
+    # Permissão explícita de câmera (QR Code) e microfone (ditado por voz / IA) no PWA
+    Header set Permissions-Policy "geolocation=(), microphone=(self), camera=(self)"
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
 </IfModule>

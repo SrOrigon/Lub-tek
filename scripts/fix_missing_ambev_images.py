@@ -28,3 +28,4 @@ for img_path in images_needed:
 
 print(f"Created {created} lightweight webp images in uploads/ambev")
 conn.close()
+
