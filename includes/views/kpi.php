@@ -74,37 +74,37 @@
         <div class="grid-3" style="margin-bottom:24px; gap:20px;">
             <div class="card" style="padding:24px; border-radius:16px;">
                 <h3 class="kpi-chart-title">Máquinas e Equipamentos</h3>
-                <div style="height:200px; position:relative;">
-                    <canvas id="chart-health"></canvas>
+                <div style="height:200px; width:100%; position:relative;">
+                    <canvas id="chart-health" style="display:block; width:100%; height:100%;"></canvas>
                 </div>
             </div>
             <div class="card" style="padding:24px; text-align:center; border-radius:16px;">
                 <h3 class="kpi-chart-title">Tarefas Feitas no Prazo</h3>
-                <div style="height:200px; position:relative; display:flex; justify-content:center; align-items:center;">
-                    <canvas id="chart-adherence"></canvas>
-                    <div style="position:absolute; font-size:2.2rem; font-weight:900; color:var(--text-main);">
+                <div style="height:200px; width:100%; position:relative;">
+                    <canvas id="chart-adherence" style="display:block; width:100%; height:100%;"></canvas>
+                    <div style="position:absolute; top:62%; left:50%; transform:translate(-50%, -50%); font-size:2.2rem; font-weight:900; color:var(--text-main); pointer-events:none; line-height:1;">
                         <span id="label-adherence">—</span>
                     </div>
                 </div>
             </div>
             <div class="card" style="padding:24px; border-radius:16px;">
                 <h3 class="kpi-chart-title">O que Falta Fazer</h3>
-                <div style="height:200px;">
-                    <canvas id="chart-backlog"></canvas>
+                <div style="height:200px; width:100%; position:relative;">
+                    <canvas id="chart-backlog" style="display:block; width:100%; height:100%;"></canvas>
                 </div>
             </div>
         </div>
         <div class="grid-2" style="gap:20px;">
             <div class="card" style="padding:24px; border-radius:16px;">
                 <h3 class="kpi-chart-title">Óleos e Graxas Usados</h3>
-                <div style="height:220px;">
-                    <canvas id="chart-consumption"></canvas>
+                <div style="height:220px; width:100%; position:relative;">
+                    <canvas id="chart-consumption" style="display:block; width:100%; height:100%;"></canvas>
                 </div>
             </div>
             <div class="card" style="padding:24px; border-radius:16px;">
                 <h3 class="kpi-chart-title">Principais Problemas Encontrados</h3>
-                <div style="height:220px;">
-                    <canvas id="chart-causes"></canvas>
+                <div style="height:220px; width:100%; position:relative;">
+                    <canvas id="chart-causes" style="display:block; width:100%; height:100%;"></canvas>
                 </div>
             </div>
         </div>

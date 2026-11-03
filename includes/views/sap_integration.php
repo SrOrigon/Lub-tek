@@ -50,6 +50,11 @@
                         <option value="assets">Estrutura de Ativos (SAP PM - IH01)</option>
                         <option value="materials">Catálogo de Materiais (SAP MM - MM60)</option>
                     </select>
+                    <div style="margin-top: 8px;">
+                        <button type="button" onclick="downloadSAPTemplate()" class="btn btn-sm btn-outline" style="width: 100%; justify-content: center; font-size: 0.78rem; font-weight: 700; border-radius: 8px; border-color: #cbd5e1; color: #0284c7; background: #f0f9ff; display: inline-flex; align-items: center; gap: 6px; height: 36px;">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Baixar Planilha Modelo (Template SAP)
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Drag & Drop Zone -->
@@ -996,12 +1001,131 @@
     }
 
     function copyPbiFeedUrl(actionName) {
-        const fullUrl = `${getBaseApiUrl()}?action=${actionName}&format=flat`;
+        const keyParam = currentPbiApiKey ? `&api_key=${encodeURIComponent(currentPbiApiKey)}` : '';
+        const fullUrl = `${getBaseApiUrl()}?action=${actionName}&format=flat${keyParam}`;
         navigator.clipboard.writeText(fullUrl).then(() => {
-            showToast(`URL do feed '${actionName}' copiada!`, 'success');
+            showToast(`URL do feed '${actionName}' copiada com autenticação para o Power BI!`, 'success');
         }).catch(() => {
-            prompt('URL do feed:', fullUrl);
+            prompt('URL do feed para o Power BI:', fullUrl);
         });
+    }
+
+    async function downloadSAPTemplate() {
+        const type = document.getElementById('sap-import-type').value;
+        let filename = 'template_sap_' + type;
+        let data = [];
+
+        if (type === 'orders') {
+            filename = 'template_sap_ordens_iw39.xlsx';
+            data = [
+                {
+                    'AUFNR': '4001092831',
+                    'KTEXT': 'LUBRIFICAR MANCAL BOMBA P-101',
+                    'TPLNR': 'EMB-01-PAL',
+                    'GSTRP': new Date().toISOString().split('T')[0],
+                    'PRIOK': '2',
+                    'INGRPR': 'LUB-TEK FIELD',
+                    'RSNUM': 'RES-99012',
+                    'IP': '1001'
+                },
+                {
+                    'AUFNR': '4001092832',
+                    'KTEXT': 'TROCA DE OLEO REDUTOR PRINCIPAL',
+                    'TPLNR': 'RED-SEW-01',
+                    'GSTRP': new Date().toISOString().split('T')[0],
+                    'PRIOK': '3',
+                    'INGRPR': 'PCM MECANICA',
+                    'RSNUM': 'RES-99013',
+                    'IP': '1002'
+                }
+            ];
+        } else if (type === 'assets') {
+            filename = 'template_sap_hierarquia_ih01.xlsx';
+            data = [
+                {
+                    'TPLNR': 'LINHA-01',
+                    'PLTXT': 'LINHA DE ENVASE PET 160',
+                    'FLTYP': 'unidade',
+                    'TPLMA': '',
+                    'HERST': 'Krones',
+                    'TYPBZ': 'Linha Completa',
+                    'SERGE': 'SN-2024-PET'
+                },
+                {
+                    'TPLNR': 'ENV-ROT-01',
+                    'PLTXT': 'ROTULADORA CANOPUS',
+                    'FLTYP': 'equipamento',
+                    'TPLMA': 'LINHA-01',
+                    'HERST': 'Krones',
+                    'TYPBZ': 'Canopus 1800',
+                    'SERGE': 'KRN-99214'
+                },
+                {
+                    'TPLNR': 'PT-MANCAL-01',
+                    'PLTXT': 'MANCAL GUIA PRINCIPAL',
+                    'FLTYP': 'ponto',
+                    'TPLMA': 'ENV-ROT-01',
+                    'HERST': 'SKF',
+                    'TYPBZ': 'SNL 512',
+                    'SERGE': ''
+                }
+            ];
+        } else {
+            filename = 'template_sap_materiais_mm60.xlsx';
+            data = [
+                {
+                    'MATNR': '1004291',
+                    'MAKTX': 'LE Duolec 1605 ISO VG220',
+                    'MTART': 'HIBE',
+                    'HERST': 'Lubrication Engineers',
+                    'LABST': 120,
+                    'MEINS': 'L',
+                    'LGPBE': 'ALMOX-01'
+                },
+                {
+                    'MATNR': '1004292',
+                    'MAKTX': 'Graxa Quinplex FG 4072 H1',
+                    'MTART': 'HIBE',
+                    'HERST': 'Lubrication Engineers',
+                    'LABST': 45,
+                    'MEINS': 'KG',
+                    'LGPBE': 'ALMOX-01'
+                }
+            ];
+        }
+
+        try {
+            if (typeof lubtekEnsureXLSX === 'function' && typeof window.XLSX === 'undefined') {
+                await lubtekEnsureXLSX();
+            }
+            if (typeof window.XLSX !== 'undefined') {
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Template_SAP");
+                XLSX.writeFile(wb, filename);
+                showToast(`Modelo ${filename} baixado com sucesso!`, 'success');
+                return;
+            }
+        } catch (e) {
+            console.warn('XLSX fallback to CSV:', e);
+        }
+
+        // CSV fallback
+        const headers = Object.keys(data[0]);
+        let csv = headers.join(';') + '\n';
+        data.forEach(row => {
+            csv += headers.map(h => `"${String(row[h] || '').replace(/"/g, '""')}"`).join(';') + '\n';
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename.replace(/\.xlsx$/, '.csv');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Modelo CSV baixado com sucesso!', 'success');
     }
 
     function renderPowerBiMCode(apiKey) {

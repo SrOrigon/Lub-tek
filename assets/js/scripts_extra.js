@@ -1190,9 +1190,12 @@
 
             if (typeof lubtekEnsureChart === 'function') {
                 try {
-                    await lubtekEnsureChart();
+                    await Promise.race([
+                        lubtekEnsureChart(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Chart load timeout')), 2500))
+                    ]);
                 } catch (e) {
-                    console.warn('[KPI] Could not load Chart.js library via CDN, fallback will be used.', e);
+                    console.warn('[KPI] Could not load Chart.js library via CDN/local, fallback will be used.', e);
                 }
             }
 
@@ -1467,6 +1470,10 @@
         const el = document.getElementById('chart-' + id);
         if (!el) return;
 
+        el.style.width = '100%';
+        el.style.height = '100%';
+        el.style.display = 'block';
+
         if (window.kpiChartsExtra && window.kpiChartsExtra[id]) {
             if (typeof window.kpiChartsExtra[id].destroy === 'function') {
                 try { window.kpiChartsExtra[id].destroy(); } catch (e) {}
@@ -1485,10 +1492,11 @@
         }
 
         const ctx = el.getContext('2d');
+        const isBar = (type === 'bar');
         const CommonOptions = {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 800, easing: 'easeOutQuart' },
+            animation: { duration: 500, easing: 'easeOutQuart' },
             plugins: {
                 legend: { 
                     display: type === 'doughnut' && id === 'health',
@@ -1499,11 +1507,14 @@
                     backgroundColor: 'rgba(15, 23, 42, 0.9)',
                     titleColor: '#fff',
                     bodyColor: '#cbd5e1',
-                    padding: 12,
+                    padding: 10,
                     cornerRadius: 8
                 }
-            },
-            scales: type === 'bar' ? {
+            }
+        };
+
+        if (isBar) {
+            CommonOptions.scales = {
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(226, 232, 240, 0.4)', drawBorder: false },
@@ -1513,14 +1524,20 @@
                     grid: { display: false },
                     ticks: { color: '#64748b', font: { family: "'Inter', sans-serif", size: 10 } }
                 }
-            } : {}
-        };
+            };
+        }
+
+        const pluginsMerged = Object.assign({}, CommonOptions.plugins, extraOptions.plugins || {});
+        const finalChartOptions = Object.assign({}, CommonOptions, extraOptions, { plugins: pluginsMerged });
+        if (!isBar) {
+            delete finalChartOptions.scales;
+        }
 
         try {
             window.kpiChartsExtra[id] = new Chart(ctx, {
                 type: type,
                 data: data,
-                options: { ...CommonOptions, ...extraOptions }
+                options: finalChartOptions
             });
         } catch (e) {
             console.warn('[KPI] Error in Chart.js instance, drawing Canvas 2D fallback:', e);
@@ -2274,7 +2291,15 @@
             const video = document.getElementById('qr-video');
             if (video) {
                 video.srcObject = stream;
-                await video.play();
+                video.muted = true;
+                video.setAttribute('playsinline', 'true');
+                try {
+                    await video.play();
+                } catch (playErr) {
+                    console.warn('[QR Scanner] video.play error, retrying muted:', playErr);
+                    video.muted = true;
+                    await video.play();
+                }
                 qrVideoTrack = stream.getVideoTracks()[0];
                 if (placeholder) placeholder.style.display = 'none';
 
@@ -2818,3 +2843,35 @@
     window.triggerExcelImport = triggerExcelImport;
     window.exportFullAssetTreeExcel = exportFullAssetTreeExcel;
     // Calculadoras Synth (runSynthRolCalc/Visc/Buc/DN): expostas nativamente por scripts_main.js.
+
+    // --- KPI VIEW AUTO-INITIALIZATION & RE-RENDER OBSERVER ---
+    (function initKpiReactivity() {
+        function checkAndTriggerKpi() {
+            const curPage = window.__lubtekCurrentPage || (new URLSearchParams(window.location.search).get('page'));
+            const kpiView = document.getElementById('view-kpi');
+            if (curPage === 'kpi' || (kpiView && kpiView.classList.contains('active'))) {
+                setTimeout(() => { if (typeof loadKpiView === 'function') loadKpiView(); }, 80);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkAndTriggerKpi);
+        } else {
+            checkAndTriggerKpi();
+        }
+
+        const kpiViewEl = document.getElementById('view-kpi');
+        if (kpiViewEl && typeof MutationObserver !== 'undefined' && !window.__kpiObserverActive) {
+            window.__kpiObserverActive = true;
+            let resizeDebounce = null;
+            const obs = new MutationObserver(() => {
+                if (kpiViewEl.classList.contains('active')) {
+                    clearTimeout(resizeDebounce);
+                    resizeDebounce = setTimeout(() => {
+                        if (typeof loadKpiView === 'function') loadKpiView();
+                    }, 120);
+                }
+            });
+            obs.observe(kpiViewEl, { attributes: true, attributeFilter: ['class', 'style'] });
+        }
+    })();

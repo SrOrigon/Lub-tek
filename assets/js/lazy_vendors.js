@@ -21,7 +21,10 @@
 
     const LubtekVendors = {
         chart: function () {
-            return loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
+            return loadScript('assets/js/vendor/chart.umd.min.js')
+                .catch(function () {
+                    return loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
+                });
         },
         jsPdf: function () {
             return loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
@@ -42,7 +45,10 @@
             return loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
         },
         jsqr: function () {
-            return loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+            return loadScript('assets/js/vendor/jsqr.min.js')
+                .catch(function () {
+                    return loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+                });
         },
         exportStack: function () {
             return Promise.all([

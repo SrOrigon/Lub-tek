@@ -72,6 +72,16 @@ SCHEMA = [
         conc_percent REAL,
         data_execucao TEXT
     )""",
+    """CREATE TABLE IF NOT EXISTS logs_auditoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario TEXT,
+        acao TEXT,
+        alvo TEXT,
+        dados_antigos TEXT,
+        dados_novos TEXT,
+        detalhes_erro TEXT,
+        data TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
     """CREATE TABLE IF NOT EXISTS rate_limits (
         ip TEXT PRIMARY KEY,
         count INTEGER NOT NULL DEFAULT 0,

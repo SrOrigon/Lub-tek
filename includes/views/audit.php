@@ -46,7 +46,7 @@ $auth->requirePermission('audit_logs');
             <input type="date" id="audit-filter-end" onchange="loadAuditLogs()" style="padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:0.9rem; width:100%; height:42px;">
         </div>
         <button class="btn btn-sm btn-outline" onclick="clearAuditFilters()" style="height:42px; border-radius:10px; color:#475569; border-color:#cbd5e1; display:flex; align-items:center; gap:6px; font-weight:600; padding:0 16px;">
-            <i data-lucide="x" style="width:14px;"></i> Limpar Filtros
+            <i data-lucide="filter-x" style="width:14px;"></i> Redefinir Filtros
         </button>
     </div>
 
@@ -277,16 +277,40 @@ $auth->requirePermission('audit_logs');
             qtd_real: 'Dose Aplicada',
             materiais: 'Lubrificante',
             reserva_almox: 'Reserva Almoxarifado',
-            ip: 'IP do Ponto',
+            ip: 'IP Hierárquico do Ponto',
             created: 'Ordens Criadas',
             scanned: 'Pontos Analisados',
             due: 'Ordens em Prazo',
-            skipped: 'Pontos Ignorados'
+            skipped: 'Pontos Ignorados',
+            capacidade: 'Capacidade / Volume',
+            lubrificante: 'Lubrificante Homologado',
+            frequencia: 'Frequência de Relubrificação'
         };
 
         if (newData && typeof newData === 'object') {
             for (const key of Object.keys(newData)) {
-                if (key === 'pass' || key === 'password' || key === 'senha') continue;
+                if (key === 'pass' || key === 'password' || key === 'senha' || key === 'id' || key === 'pai_id' || key === 'user_id' || key === 'action') continue;
+                
+                if (key === 'dados_tecnicos') {
+                    let dt = newData[key];
+                    if (typeof dt === 'string') {
+                        try { dt = JSON.parse(dt); } catch(e) {}
+                    }
+                    if (dt && typeof dt === 'object') {
+                        for (const dtKey of Object.keys(dt)) {
+                            const dtName = fieldDict[dtKey] || ('Parâmetro: ' + dtKey);
+                            let dtVal = dt[dtKey];
+                            if (typeof dtVal === 'object') dtVal = JSON.stringify(dtVal);
+                            changes.push({
+                                name: dtName,
+                                oldVal: '—',
+                                newVal: String(dtVal ?? '—')
+                            });
+                        }
+                    }
+                    continue;
+                }
+
                 const fieldName = fieldDict[key] || key;
                 let newVal = newData[key];
                 if (typeof newVal === 'object') newVal = JSON.stringify(newVal);

@@ -26,7 +26,7 @@ class KPIController {
         $health = ['Em Dia' => 0, 'Atenção' => 0, 'Crítico' => 0];
         try {
             $sql = "SELECT COALESCE(NULLIF(TRIM(status), ''), 'OK') AS st, COUNT(*) AS c
-                    FROM ativos WHERE tipo IN ('equipamento', 'ponto') GROUP BY st";
+                    FROM ativos WHERE tipo IN ('equipamento', 'ponto', 'componente') GROUP BY st";
             $rows = $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
             foreach ($rows as $r) {
                 // mb_strtoupper (não strtoupper) é obrigatório aqui: strtoupper() não

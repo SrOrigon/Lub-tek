@@ -133,7 +133,12 @@ class RodrigoAPI
         }
 
         if ($apiKey === '' && !empty($_GET['api_key'])) {
-            $this->error('API key via query string não é permitida. Envie o header X-API-KEY.', 401);
+            if (in_array($this->action, $powerbiActions, true)) {
+                // Suporte direto e transparente para Power BI Desktop (conector Web padrão básico)
+                $apiKey = trim((string) $_GET['api_key']);
+            } else {
+                $this->error('API key via query string não é permitida para mutações de escrita. Envie o header X-API-KEY.', 401);
+            }
         }
         $this->iotApiKeyProvided = ($apiKey !== '');
 
@@ -939,7 +944,7 @@ class RodrigoAPI
                 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
 
-            // Mapeia IDs numéricos legados para nomes de funcionários
+            // Mapeia IDs numéricos legados para nomes de funcionários e nomes de ativos
             $userNamesMap = [];
             try {
                 $uRows = $this->db->query("SELECT id, nome FROM usuarios")->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -948,24 +953,42 @@ class RodrigoAPI
                 }
             } catch (\Throwable $t) {}
 
+            $assetNamesMap = [];
+            try {
+                $aRows = $this->db->query("SELECT id, nome FROM ativos")->fetchAll(PDO::FETCH_KEY_PAIR);
+                if (is_array($aRows)) {
+                    $assetNamesMap = $aRows;
+                }
+            } catch (\Throwable $t) {}
+
             foreach ($logs as &$log) {
                 $u = trim((string) ($log['usuario'] ?? ''));
                 if (is_numeric($u) && isset($userNamesMap[(int) $u])) {
                     $log['usuario'] = $userNamesMap[(int) $u];
                 } elseif ($u === '1' || $u === '') {
-                    $log['usuario'] = 'Admin';
+                    $log['usuario'] = $userNamesMap[1] ?? 'Admin Global';
                 }
 
-                // Desfaz dupla codificação e decodifica JSON bruto no campo alvo
+                // Desfaz dupla codificação e decodifica referências brutas no campo alvo
                 $alvo = trim((string) ($log['alvo'] ?? ''));
                 if (str_contains($alvo, '&quot;') || str_starts_with($alvo, '{')) {
                     $cleanAlvo = html_entity_decode($alvo, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                     $dec = json_decode($cleanAlvo, true);
                     if (is_array($dec) && isset($dec['created'])) {
-                        $log['alvo'] = "Agente de O.S. ({$dec['created']} novas tarefas)";
+                        $log['alvo'] = "Planta Industrial ({$dec['created']} novas ordens geradas)";
                     } else {
                         $log['alvo'] = $cleanAlvo;
                     }
+                } elseif (preg_match('/^ativos:(\d+)$/i', $alvo, $m)) {
+                    $aId = (int)$m[1];
+                    $aName = $assetNamesMap[$aId] ?? '';
+                    $log['alvo'] = $aName ? "{$aName} (Ativo #{$aId})" : "Ativo Industrial #{$aId}";
+                } elseif (preg_match('/^usuarios:(\d+)$/i', $alvo, $m)) {
+                    $uId = (int)$m[1];
+                    $uName = $userNamesMap[$uId] ?? '';
+                    $log['alvo'] = $uName ? "Colaborador {$uName} (ID #{$uId})" : "Colaborador #{$uId}";
+                } elseif (preg_match('/^ordens:(\d+)$/i', $alvo, $m)) {
+                    $log['alvo'] = "Ordem de Serviço #{$m[1]}";
                 }
             }
 
@@ -997,10 +1020,10 @@ class RodrigoAPI
 
             if ($countOld === 0) {
                 $this->success([
-                    'ok' => false,
+                    'ok' => true,
                     'deleted' => 0,
                     'preserved' => $countRecent,
-                    'message' => "Política de Conformidade Ativa: Todos os {$countRecent} registros atuais pertencem aos últimos 30 dias e estão estritamente preservados. O sistema só permite limpar históricos anteriores a 1 mês."
+                    'message' => "Política de Conformidade Ativa:\n\nTodos os {$countRecent} registros atuais pertencem aos últimos 30 dias e estão estritamente preservados.\nO sistema mantém 100% dos dados recentes protegidos e só permite expurgar históricos com mais de 30 dias."
                 ]);
                 return;
             }
@@ -1008,7 +1031,7 @@ class RodrigoAPI
             $stmtDelete = $this->db->prepare("DELETE FROM logs_auditoria WHERE data < ?");
             $stmtDelete->execute([$threshold]);
 
-            $userLabel = $this->user['nome'] ?? $this->user['name'] ?? 'Admin';
+            $userLabel = $this->user['nome'] ?? $this->user['name'] ?? 'Admin Global';
             DB::log(
                 $userLabel,
                 'PURGE_AUDIT_LOGS',
@@ -1021,7 +1044,7 @@ class RodrigoAPI
                 'ok' => true,
                 'deleted' => $countOld,
                 'preserved' => $countRecent,
-                'message' => "Limpeza concluída com sucesso! {$countOld} registro(s) com mais de 30 dias foram expurgados. Os {$countRecent} registros do último mês permanecem 100% protegidos e preservados."
+                'message' => "Limpeza de histórico concluída com sucesso!\n\n• Foram expurgados {$countOld} registros antigos (> 30 dias).\n• Todos os {$countRecent} registros do último mês permanecem 100% protegidos e preservados."
             ]);
         } catch (Exception $e) {
             error_log('handle_purge_audit_logs failed: ' . $e->getMessage());

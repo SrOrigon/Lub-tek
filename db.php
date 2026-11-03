@@ -774,7 +774,7 @@ class DB
                 qtd_real TEXT
             )",
             "CREATE TABLE IF NOT EXISTS logs_auditoria (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id INTEGER PRIMARY KEY " . ($this->driver === 'mysql' ? 'AUTO_INCREMENT' : 'AUTOINCREMENT') . ",
                 usuario TEXT,
                 acao TEXT,
                 alvo TEXT,
@@ -788,6 +788,11 @@ class DB
         foreach ($queries as $q) {
             $this->pdo->exec($q);
         }
+
+        // Limpeza de IDs legados numéricos em logs de auditoria
+        try {
+            $this->pdo->exec("UPDATE logs_auditoria SET usuario = 'Admin Global' WHERE usuario = '1' OR usuario = '' OR usuario IS NULL");
+        } catch (\Throwable $t) {}
 
         $this->pdo->exec("CREATE TABLE IF NOT EXISTS mercado_ofertas (
             id INTEGER PRIMARY KEY,
@@ -890,8 +895,9 @@ class DB
 
             // Auto-provisiona tabela de auditoria se ainda não existir no tenant
             try {
+                $autoInc = (self::$driver === 'mysql') ? 'AUTO_INCREMENT' : 'AUTOINCREMENT';
                 $pdo->exec("CREATE TABLE IF NOT EXISTS logs_auditoria (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY $autoInc,
                     usuario TEXT,
                     acao TEXT,
                     alvo TEXT,

@@ -32,12 +32,19 @@ backups/
 uploads/*
 !uploads/.htaccess
 !uploads/.gitkeep
+!uploads/*/
 !uploads/*.png
 !uploads/*.jpg
 !uploads/*.jpeg
 !uploads/*.webp
 !uploads/*.gif
 !uploads/*.svg
+!uploads/**/*.png
+!uploads/**/*.jpg
+!uploads/**/*.jpeg
+!uploads/**/*.webp
+!uploads/**/*.gif
+!uploads/**/*.svg
 storage/*
 !storage/.htaccess
 !storage/.gitkeep
@@ -77,7 +84,9 @@ data/ai_cache/*
 
 # Dependências de terceiros
 node_modules/
-vendor/
+/vendor/
+!assets/js/vendor/
+!assets/js/vendor/**
 
 # Logs de debug locais e temporários
 debug-*.log

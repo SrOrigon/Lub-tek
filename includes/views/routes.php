@@ -411,5 +411,6 @@
                 padding: 8px;
             }
         </style>
-        <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+        <script src="assets/js/vendor/jsqr.min.js"></script>
+        <script>if (typeof window.jsQR === 'undefined') { document.write('<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"><\/script>'); }</script>
     </div>
