@@ -894,3 +894,42 @@ tbody tr.os-row:hover {
         height: calc(100vh - 90px) !important;
     }
 }
+
+/* ==========================================================================
+   60 FPS PIPELINE — FLUIDEZ E ACELERAÇÃO DE HARDWARE GPU
+   Garante renderização estável a 60 FPS no PWA, tabelas industriais e gráficos
+   ========================================================================== */
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Força aceleração de GPU pelo compositor gráfico (elimina repaints na CPU) */
+.card,
+.lub-card,
+.os-card,
+.route-card,
+.modal-content,
+.topbar,
+.btn,
+canvas {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* Otimização de rolagem fluida em listas grandes e checklist */
+#task-list,
+#route-points-list,
+#asset-tree-container,
+.table-responsive {
+    contain: content;
+    will-change: scroll-position;
+}

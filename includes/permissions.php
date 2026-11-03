@@ -27,6 +27,9 @@ class Permissions
     public static function normalizeRole(string $role): string
     {
         $role = strtolower(trim($role));
+        if ($role === 'powerbi_reader' || $role === 'iot_gateway') {
+            return $role;
+        }
         if (in_array($role, ['developer', 'administrador global', 'admin global', 'administrador_global'], true)) {
             return self::ROLE_DEVELOPER;
         }

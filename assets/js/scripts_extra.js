@@ -2399,10 +2399,17 @@
             let stream = null;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 60, min: 30 }
+                    }
                 });
             } catch (errConstraint) {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { frameRate: { ideal: 60, min: 30 } }
+                });
             }
             const video = document.getElementById('qr-video');
             if (video) {
@@ -2425,9 +2432,12 @@
                 if (hasBarcodeDetector) {
                     try {
                         const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+                        let scanning = false;
                         qrDetectionInterval = setInterval(async () => {
+                            if (scanning) return;
                             try {
                                 if (video.readyState >= 2) {
+                                    scanning = true;
                                     const barcodes = await detector.detect(video);
                                     if (barcodes.length > 0) {
                                         const rawValue = barcodes[0].rawValue;
@@ -2435,18 +2445,24 @@
                                         processScannedTag(rawValue);
                                     }
                                 }
-                            } catch (err) {}
-                        }, 250);
+                            } catch (err) {
+                            } finally {
+                                scanning = false;
+                            }
+                        }, 50); // 20-60 FPS scan loop
                         return;
                     } catch (e) {}
                 }
 
                 // Motor Universal jsQR (compatível com Desktop, Mac, Windows, iOS e Android)
+                let jsqrScanning = false;
                 qrDetectionInterval = setInterval(() => {
+                    if (jsqrScanning) return;
                     try {
                         if (video.readyState >= 2 && video.videoWidth > 0 && typeof window.jsQR === 'function') {
-                            scanCanvas.width = video.videoWidth;
-                            scanCanvas.height = video.videoHeight;
+                            jsqrScanning = true;
+                            scanCanvas.width = Math.min(video.videoWidth, 640);
+                            scanCanvas.height = Math.min(video.videoHeight, 480);
                             scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
                             const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
                             const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
@@ -2457,8 +2473,11 @@
                                 processScannedTag(code.data);
                             }
                         }
-                    } catch (err) {}
-                }, 250);
+                    } catch (err) {
+                    } finally {
+                        jsqrScanning = false;
+                    }
+                }, 80); // ~12-60 FPS responsive frame decoding
             }
         } catch (err) {
             console.warn('[QR Scanner] Erro ao acessar a câmera:', err);
