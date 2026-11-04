@@ -24,7 +24,7 @@ class SecurityGuard
         header('X-XSS-Protection: 1; mode=block');
         header('Referrer-Policy: strict-origin-when-cross-origin');
         header('X-Robots-Tag: noindex, nofollow, noarchive, nosnippet');
-        header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+        header('Permissions-Policy: geolocation=(), microphone=(self), camera=(self)');
 
         // Só confia em X-Forwarded-Proto quando TRUSTED_PROXY estiver habilitado (evita spoofing).
         $trustProxy = (defined('TRUSTED_PROXY') && TRUSTED_PROXY) || (getenv('TRUSTED_PROXY') === '1');

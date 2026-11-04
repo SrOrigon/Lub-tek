@@ -2320,11 +2320,11 @@
                 </div>
 
                 <div style="background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 0.85rem; line-height: 1.5; color: #cbd5e1;">
-                    <p style="margin: 0 0 10px 0;">O navegador requer autorização para o microfone em <strong>${safeHost}</strong>. Para ativar:</p>
+                    <p style="margin: 0 0 10px 0;">O navegador bloqueou o microfone em <strong>${safeHost}</strong>. Para liberar o ditado por voz:</p>
                     <ol style="margin: 0; padding-left: 20px;">
-                        <li style="margin-bottom: 6px;">Clique no ícone de <strong>Cadeado / Ajustes 🔒</strong> ao lado do link na barra de endereços (topo do navegador).</li>
-                        <li style="margin-bottom: 6px;">Na opção <strong>Microfone</strong>, selecione <strong>Permitir</strong>.</li>
-                        <li>Clique em <strong>Tentar Novamente</strong> abaixo.</li>
+                        <li style="margin-bottom: 6px;">Clique no ícone de <strong>Ajustes / Cadeado (ou ícone de câmera/microfone bloqueado 🚫)</strong> na barra de endereços do navegador (topo).</li>
+                        <li style="margin-bottom: 6px;">Em <strong>Microfone</strong>, altere para <strong>Permitir</strong>.</li>
+                        <li>Clique em <strong>🔄 Tentar Novamente</strong> ou use o teclado em <strong>Digitar Manualmente</strong>.</li>
                     </ol>
                 </div>
 
@@ -2418,8 +2418,9 @@
                     stopVoiceInput();
                     return;
                 } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-                    if (typeof showToast === 'function') showToast('Nenhum microfone encontrado no dispositivo.', 'warning');
+                    if (typeof showToast === 'function') showToast('Nenhum microfone encontrado. Digite as instruções manualmente.', 'warning');
                     stopVoiceInput();
+                    if (input && typeof input.focus === 'function') input.focus();
                     return;
                 }
                 console.warn('[Voice Dictation] Aviso ao testar microfone:', mediaErr);
