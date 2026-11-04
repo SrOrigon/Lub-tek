@@ -66,25 +66,31 @@
     async function exportFullAssetTreeExcel() {
         showToast('Gerando relatorio completo...', 'info');
         try {
-            // Need flattened tree. `assetsList` pode não existir como global nesta view
-            // (não é declarada em nenhum outro script) — nesse caso caímos direto no fallback.
-            const localTree = (typeof assetsList !== 'undefined') ? assetsList : null;
-            const list = localTree ? flattenTree(localTree) : null;
-            if (!list || list.length === 0) {
-                // Fallback if local tree var is empty, fetch fresh
+            const localTree = (Array.isArray(window.treeState) && window.treeState.length > 0) ? window.treeState : null;
+            let list = localTree ? flattenTree(localTree) : [];
+            if (list.length === 0) {
                 const fresh = await api('get_tree');
-                return exportFullAssetTreeExcel_Process(flattenTree(fresh));
+                list = flattenTree(fresh);
             }
-            exportFullAssetTreeExcel_Process(list);
+            if (list.length === 0) return showToast('Nenhum ativo cadastrado para exportar.', 'warning');
+            await exportFullAssetTreeExcel_Process(list);
         } catch (e) {
             console.error(e);
             showToast('Erro ao gerar Excel.', 'error');
         }
     }
 
+    function readNodeTech(node) {
+        const raw = node && node.dados_tecnicos;
+        if (!raw) return {};
+        if (typeof raw === 'object') return raw;
+        try { return JSON.parse(raw); } catch (e) { return {}; }
+    }
+
     function flattenTree(nodes, parentId = null, depth = 0, res = []) {
-        if (!nodes) return res;
-        nodes.forEach(n => {
+        const list = Array.isArray(nodes) ? nodes : (nodes && Array.isArray(nodes.data) ? nodes.data : []);
+        list.forEach(n => {
+            const tech = readNodeTech(n);
             res.push({
                 ID: n.id,
                 Nivel: depth,
@@ -94,17 +100,18 @@
                 Pai_ID: parentId,
                 Status: n.status || 'Ok',
                 Fabricante: n.fabricante || '',
-                Lubrificante: n.dados_tecnicos?.material || '',
-                Qtd: n.dados_tecnicos?.qtd_material || '',
-                Freq: n.dados_tecnicos?.periodo || ''
+                Lubrificante: tech.material || '',
+                Qtd: tech.qtd_material || '',
+                Freq: tech.periodo || ''
             });
             if (n.children) flattenTree(n.children, n.id, depth + 1, res);
         });
         return res;
     }
 
-    function exportFullAssetTreeExcel_Process(data) {
-        if (typeof XLSX === 'undefined') return showToast("Erro: Lib Excel faltando.");
+    async function exportFullAssetTreeExcel_Process(data) {
+        try { if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx(); } catch (e) { }
+        if (typeof XLSX === 'undefined') return showToast('Biblioteca Excel indisponível. Verifique a conexão e tente novamente.', 'error');
 
         const ws = XLSX.utils.json_to_sheet(data);
         // Basic Width Adjust
@@ -119,10 +126,6 @@
         showToast('Download iniciado!', 'success');
     }
 
-
-    async function exportTasks(format) {
-        showToast('Funcionalidade em desenvolvimento para ' + format, 'info');
-    }
 
     function printPage() {
         try {
@@ -248,10 +251,9 @@
 
         try {
             showToast('Enviando imagem 2D...', 'info');
-            const res = await fetch('api.php?action=upload_image', { method: 'POST', body: fd });
-            const json = await res.json();
+            const json = await lubtekFormUpload('upload_image', fd);
 
-            if (json.ok) {
+            if (json && json.ok) {
                 selected3DNode.imagem_3d = json.path;
                 const saveRes = await api('save_3d_view', { id: selected3DNode.id, path: json.path });
 
@@ -496,8 +498,10 @@
     // --- ROTAS DE LUBRIFICAÇÃO (Checklist de Campo) ---
     let routePoints = [];
     let currentAnomalyId = null;
+    let currentDonePointId = null;
     let lastRouteAlertOsId = null;
     let pendingAlertPhotoPath = null;
+    let pendingAlertPhotoBase64 = null;
 
     function parseTechData(raw) {
         if (!raw) return {};
@@ -518,7 +522,9 @@
                     tag: node.tag || '',
                     sector: setor ? setor.nome : 'Geral',
                     equipment: equip ? equip.nome : '',
-                    material: tech.material || tech.ponto_lub || '—',
+                    material: tech.material || tech.ponto_lub || tech.lubrificante || '—',
+                    quantidade: tech.qtd_material || tech.quantidade || null,
+                    unidade: tech.unid_material || tech.unidade || 'g',
                     servico: tech.servico || 'Lubrificar',
                     periodo: tech.periodo || '—',
                     condicao: tech.condicao || '—',
@@ -753,6 +759,89 @@
         currentAnomalyId = null;
     }
 
+    function openRouteDoneModal(id) {
+        const p = routePoints.find(x => x.id === id);
+        if (!p) return;
+        currentDonePointId = id;
+
+        const overlay = document.getElementById('route-done-overlay');
+        const subtitle = document.getElementById('route-done-subtitle');
+        const matEl = document.getElementById('route-done-material');
+        const doseEl = document.getElementById('route-done-dose-amount');
+        const unitEl = document.getElementById('route-done-dose-unit');
+
+        if (subtitle) {
+            subtitle.textContent = `${p.name} ${p.equipment ? '· ' + p.equipment : ''} ${p.tag ? '(' + p.tag + ')' : ''}`;
+        }
+        if (matEl) {
+            matEl.textContent = p.material || 'Graxa/Óleo padrão';
+        }
+        if (doseEl) {
+            doseEl.value = (p.quantidade !== null && p.quantidade !== undefined && p.quantidade !== '') ? p.quantidade : 20;
+        }
+        if (unitEl) {
+            unitEl.value = p.unidade || 'g';
+        }
+        if (overlay) overlay.classList.add('active');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function closeRouteDoneModal() {
+        const overlay = document.getElementById('route-done-overlay');
+        if (overlay) overlay.classList.remove('active');
+        currentDonePointId = null;
+    }
+
+    async function submitRouteDone() {
+        const id = currentDonePointId;
+        const p = routePoints.find(x => x.id === id);
+        if (!p) return;
+
+        const doseEl = document.getElementById('route-done-dose-amount');
+        const unitEl = document.getElementById('route-done-dose-unit');
+        const rawDose = parseFloat(doseEl?.value || '0');
+        const unit = unitEl?.value || 'g';
+
+        const submitBtn = document.getElementById('route-done-submit-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Gravando...';
+        }
+
+        try {
+            p.status = 'Concluido';
+            const cardEl = document.getElementById('route-card-' + id) || document.querySelector(`[data-id="${id}"]`);
+            if (cardEl) {
+                cardEl.style.transition = 'all 0.35s ease';
+                cardEl.style.opacity = '0';
+                cardEl.style.transform = 'translateY(-10px) scale(0.98)';
+            }
+
+            notificarSucessoCampo(
+                isOfflineMode
+                    ? `✅ ${p.name} concluído neste aparelho (${rawDose}${unit}). A ordem de serviço será baixada quando a rede voltar.`
+                    : `✅ ${p.name} concluído (${rawDose}${unit}). A ordem pendente deste ponto foi encerrada.`,
+                'success'
+            );
+
+            await saveRouteStatus(id, 'Concluido', p.tag || '', { dosage_amount: rawDose, dosage_unit: unit });
+            closeRouteDoneModal();
+
+            setTimeout(() => {
+                renderRoutes();
+            }, 350);
+        } catch (e) {
+            console.error('Erro ao concluir ponto:', e);
+            showToast('Erro ao concluir ponto. Tente novamente.', 'error');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="check" style="width:16px;height:16px;"></i> Confirmar Conclusão';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
+    }
+
     function attachOptionalAlertPhoto() {
         const cam = document.getElementById('anomaly-cam');
         if (cam) cam.click();
@@ -778,8 +867,10 @@
             if (isOfflineMode) {
                 p.status = 'Alerta';
                 saveRouteStatus(id, 'Alerta');
-                queueRouteAlert(id, motivo);
-                showToast('Alerta salvo offline. Será sincronizado quando voltar online.', 'warning');
+                queueRouteAlert(id, motivo, pendingAlertPhotoBase64);
+                pendingAlertPhotoBase64 = null;
+                pendingAlertPhotoPath = null;
+                showToast('Alerta e foto salvos offline. Serão sincronizados quando voltar online.', 'warning');
                 closeRouteAlertModal();
                 renderRoutes();
                 return;
@@ -797,6 +888,7 @@
                 p.status = 'Alerta';
                 lastRouteAlertOsId = res.os_id || null;
                 pendingAlertPhotoPath = null;
+                pendingAlertPhotoBase64 = null;
                 notificarSucessoCampo(`🚨 Alerta registrado! Ordem de Serviço criada para ${p.name}.`, 'warning');
                 closeRouteAlertModal();
                 renderRoutes();
@@ -816,27 +908,93 @@
         }
     }
 
-    function queueRouteAlert(id, motivo) {
-        let queue = JSON.parse(localStorage.getItem('lub_route_alerts_queue') || '[]');
+    function readRouteQueue(key) {
+        try {
+            const q = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(q) ? q : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // Itens enfileirados durante o envio não estão no snapshot e precisam ser preservados.
+    function commitRouteQueue(key, snapshot, remaining) {
+        const current = readRouteQueue(key);
+        const added = current.filter(c => !snapshot.some(s => s.id === c.id && s.time === c.time));
+        const merged = remaining.filter(r => !added.some(a => a.id === r.id)).concat(added);
+        localStorage.setItem(key, JSON.stringify(merged));
+        return merged;
+    }
+
+    function queueRouteAlert(id, motivo, photoBase64 = null) {
+        let queue = readRouteQueue('lub_route_alerts_queue');
         queue = queue.filter(x => x.id !== id);
-        queue.push({ id, motivo, time: Date.now() });
+        queue.push({ id, motivo, photo_base64: photoBase64 || null, time: Date.now() });
         localStorage.setItem('lub_route_alerts_queue', JSON.stringify(queue));
     }
 
+    function dataURLtoBlob(dataurl) {
+        try {
+            const arr = dataurl.split(',');
+            const mimeMatch = arr[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/webp';
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        } catch (e) {
+            console.error('Falha ao converter DataURL em Blob:', e);
+            return null;
+        }
+    }
+
     async function syncRouteAlerts() {
-        let queue = JSON.parse(localStorage.getItem('lub_route_alerts_queue') || '[]');
+        const queue = readRouteQueue('lub_route_alerts_queue');
         if (queue.length === 0) return;
 
         const remaining = [];
         for (const item of queue) {
             try {
-                const res = await api('report_route_alert', { id: item.id, ativo_id: item.id, motivo: item.motivo });
+                let photoPath = '';
+                if (item.photo_base64) {
+                    try {
+                        const blob = dataURLtoBlob(item.photo_base64);
+                        if (blob) {
+                            const fd = new FormData();
+                            fd.append('action', 'upload_image');
+                            fd.append('file', blob, `offline_alert_${item.id}.webp`);
+                            fd.append('watermark', '1');
+                            const p = routePoints.find(x => x.id === item.id);
+                            if (p) fd.append('watermark_tag', p.tag || p.name || '');
+                            if (window.CURRENT_USER && window.CURRENT_USER.nome) {
+                                fd.append('watermark_user', window.CURRENT_USER.nome);
+                            }
+                            const upRes = await lubtekFormUpload('upload_image', fd);
+                            if (upRes && (upRes.ok || upRes.path)) {
+                                photoPath = upRes.path || '';
+                            }
+                        }
+                    } catch (uploadErr) {
+                        console.warn('Falha no upload da foto offline:', uploadErr);
+                    }
+                }
+                const p = routePoints.find(x => x.id === item.id);
+                const res = await api('report_route_alert', {
+                    id: item.id,
+                    ativo_id: item.id,
+                    motivo: item.motivo,
+                    equipamento: p ? (p.equipment || '') : '',
+                    photo_path: photoPath
+                });
                 if (!isApiSuccess(res)) throw new Error('Sync failed');
             } catch (e) {
                 remaining.push(item);
             }
         }
-        localStorage.setItem('lub_route_alerts_queue', JSON.stringify(remaining));
+        commitRouteQueue('lub_route_alerts_queue', queue, remaining);
     }
 
     async function handleSwipeAction(id, type) {
@@ -844,21 +1002,7 @@
         if (!p) return;
 
         if (type === 'ok') {
-            p.status = 'Concluido';
-
-            const cardEl = document.getElementById('route-card-' + id) || document.querySelector(`[data-id="${id}"]`);
-            if (cardEl) {
-                cardEl.style.transition = 'all 0.35s ease';
-                cardEl.style.opacity = '0';
-                cardEl.style.transform = 'translateY(-10px) scale(0.98)';
-            }
-
-            notificarSucessoCampo(`✅ ${p.name} concluído com sucesso!`, 'success');
-            saveRouteStatus(id, 'Concluido', p.tag || '');
-
-            setTimeout(() => {
-                renderRoutes();
-            }, 350);
+            openRouteDoneModal(id);
         } else {
             openRouteAlertModal(id);
         }
@@ -912,6 +1056,20 @@
         showToast('Otimizando imagem no dispositivo...', 'info');
         const fileToUpload = await compressImageFileCanvas(input.files[0]);
 
+        if (isOfflineMode) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                pendingAlertPhotoBase64 = e.target.result;
+                showToast('Foto salva no dispositivo. Será enviada junto ao alerta quando voltar online.', 'success');
+            };
+            reader.onerror = () => {
+                showToast('Falha ao processar foto offline.', 'error');
+            };
+            reader.readAsDataURL(fileToUpload);
+            input.value = '';
+            return;
+        }
+
         showToast('Enviando foto...', 'info');
         const fd = new FormData();
         fd.append('action', 'upload_image');
@@ -928,13 +1086,8 @@
         input.value = '';
 
         try {
-            if (isOfflineMode) {
-                showToast('Foto não enviada (offline).', 'warning');
-                return;
-            }
-            const res = await fetch('api.php?action=upload_image', { method: 'POST', body: fd, credentials: 'same-origin' });
-            const json = await res.json();
-            if (json.ok) {
+            const json = await lubtekFormUpload('upload_image', fd);
+            if (json && json.ok) {
                 const path = json.path || '';
                 if (path) {
                     pendingAlertPhotoPath = path;
@@ -945,20 +1098,28 @@
                     showToast('Foto pronta. Será anexada ao registrar o alerta.', 'success');
                 }
             } else {
-                showToast(json.error || 'Não foi possível enviar a foto.', 'error');
+                showToast((json && json.error) || 'Não foi possível enviar a foto.', 'error');
             }
         } catch (e) {
             showToast('Não foi possível enviar a foto.', 'error');
         }
     }
 
-    async function saveRouteStatus(id, status, qrTag) {
+    async function saveRouteStatus(id, status, qrTag, dosage = null) {
         const p = routePoints.find(x => x.id === id);
         if (p) p.status = status;
 
-        let queue = JSON.parse(localStorage.getItem('lub_routes_queue') || '[]');
+        let queue = readRouteQueue('lub_routes_queue');
         queue = queue.filter(x => x.id !== id);
-        queue.push({ id, status, qr_tag: qrTag || '', time: Date.now() });
+        const item = {
+            id,
+            status,
+            qr_tag: qrTag || '',
+            dosage_amount: (dosage && dosage.dosage_amount !== undefined) ? dosage.dosage_amount : null,
+            dosage_unit: (dosage && dosage.dosage_unit) ? dosage.dosage_unit : 'g',
+            time: Date.now()
+        };
+        queue.push(item);
         localStorage.setItem('lub_routes_queue', JSON.stringify(queue));
 
         if (!isOfflineMode) {
@@ -973,27 +1134,48 @@
         return res.ok === true || res.updated === true || res.success === true;
     }
 
+    let routeSyncRunning = false;
+    let routeSyncAgain = false;
+
     async function syncRoutes() {
-        let queue = JSON.parse(localStorage.getItem('lub_routes_queue') || '[]');
-        if (queue.length === 0) return;
+        if (routeSyncRunning) { routeSyncAgain = true; return; }
+        routeSyncRunning = true;
+        try {
+            do {
+                routeSyncAgain = false;
+                const queue = readRouteQueue('lub_routes_queue');
+                if (queue.length > 0) {
+                    const remaining = [];
+                    for (let item of queue) {
+                        try {
+                            const payload = { id: item.id, status: item.status };
+                            if (item.qr_tag) payload.qr_tag = item.qr_tag;
+                            if (item.dosage_amount !== null && item.dosage_amount !== undefined) {
+                                payload.dosage_amount = item.dosage_amount;
+                                payload.dosage_unit = item.dosage_unit || 'g';
+                            }
+                            const res = await api('set_asset_status', payload);
+                            if (!isApiSuccess(res)) throw new Error('Sync failed');
+                            if (res && res.warning) {
+                                showToast(`⚠️ ${res.warning}`, 'warning', 7000);
+                            }
+                        } catch (e) {
+                            remaining.push(item);
+                        }
+                    }
 
-        const remaining = [];
-        for (let item of queue) {
-            try {
-                const payload = { id: item.id, status: item.status };
-                if (item.qr_tag) payload.qr_tag = item.qr_tag;
-                const res = await api('set_asset_status', payload);
-                if (!isApiSuccess(res)) throw new Error('Sync failed');
-            } catch (e) {
-                remaining.push(item);
-            }
+                    const left = commitRouteQueue('lub_routes_queue', queue, remaining);
+                    if (left.length === 0) {
+                        showToast('Sincronização concluída!', 'success');
+                    } else if (remaining.length > 0) {
+                        routeSyncAgain = false;
+                    }
+                }
+            } while (routeSyncAgain);
+            await syncRouteAlerts();
+        } finally {
+            routeSyncRunning = false;
         }
-
-        localStorage.setItem('lub_routes_queue', JSON.stringify(remaining));
-        if (remaining.length === 0 && queue.length > 0) {
-            showToast('Sincronização concluída!', 'success');
-        }
-        await syncRouteAlerts();
     }
 
     // --- VISUAL MANAGEMENT (KPIs) LOGIC ---
@@ -2588,6 +2770,11 @@
         }
 
         const win = window.open('', '_blank');
+        if (!win) {
+            if (typeof showToast === 'function') showToast('O navegador bloqueou a janela de impressão.', 'warning');
+            return;
+        }
+        const qrPayloads = [];
         let html = `
             <!DOCTYPE html>
             <html>
@@ -2619,27 +2806,41 @@
                 <div class="grid">
         `;
 
-        items.forEach(item => {
-            const qrText = encodeURIComponent(item.tag || item.id);
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrText}`;
+        items.forEach((item, index) => {
+            const code = String(item.qr_hash || item.tag || item.id || '');
+            const safe = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
             html += `
                 <div class="label-card">
-                    <img src="${qrUrl}" class="qr-box" alt="QR Code">
+                    <div id="qr-box-${index}" class="qr-box"></div>
                     <div class="info">
-                        <div class="tag">${item.tag || ('ID-' + item.id)}</div>
-                        <div class="name">${item.nome || item.name || 'Ponto de Lubrificação'}</div>
-                        <div class="meta">Lubrificante: <strong>${item.material || 'Padrão'}</strong></div>
-                        <div class="meta">Frequência: <strong>${item.periodo || item.frequencia || '30 dias'}</strong></div>
+                        <div class="tag">${safe(item.tag || ('ID-' + item.id))}</div>
+                        <div class="name">${safe(item.nome || item.name || 'Ponto de Lubrificação')}</div>
+                        <div class="meta">Lubrificante: <strong>${safe(item.material || 'Padrão')}</strong></div>
+                        <div class="meta">Frequência: <strong>${safe(item.periodo || item.frequencia || '30 dias')}</strong></div>
                     </div>
                 </div>
             `;
+            qrPayloads.push({ id: 'qr-box-' + index, text: code });
         });
 
         html += `
                 </div>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
                 <script>
-                    window.onload = function() { window.print(); };
-                </script>
+                    var payloads = ${JSON.stringify(qrPayloads).replace(/</g, '\\u003c')};
+                    window.onload = function () {
+                        if (typeof QRCode === 'undefined') {
+                            alert('Não foi possível gerar os QR Codes (sem conexão com a biblioteca). As etiquetas serão impressas apenas com o texto.');
+                        } else {
+                            payloads.forEach(function (item) {
+                                var el = document.getElementById(item.id);
+                                if (!el || !item.text) return;
+                                try { new QRCode(el, { text: item.text, width: 110, height: 110 }); } catch (e) { }
+                            });
+                        }
+                        setTimeout(function () { window.print(); }, 400);
+                    };
+                <\/script>
             </body>
             </html>
         `;
@@ -2818,7 +3019,10 @@
                     if (n.children && n.children.length > 0) searchTree(n.children);
                 }
             }
-            if (res && res.tree) searchTree(res.tree);
+            const treeNodes = Array.isArray(res) ? res
+                : (res && Array.isArray(res.data) ? res.data
+                    : (res && Array.isArray(res.tree) ? res.tree : []));
+            searchTree(treeNodes);
 
             if (!foundAsset) {
                 if (typeof showToast === 'function') showToast('Ativo original não encontrado para duplicação.', 'error');
@@ -2883,7 +3087,7 @@
             containerEl.innerHTML = `
                 <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 16px; border-radius:10px; margin:10px 0; font-weight:700; font-size:0.88rem; display:flex; align-items:center; gap:10px;">
                     <span style="font-size:1.2rem;">🚨</span>
-                    <div>${check.message}</div>
+                    <div>${escapeHtml(check.message)}</div>
                 </div>
             `;
         } else {

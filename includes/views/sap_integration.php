@@ -11,8 +11,8 @@
             </p>
         </div>
         <div style="background: white; border: 1px solid var(--border); padding: 8px 16px; border-radius: 12px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <div style="width: 10px; height: 10px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite;"></div>
-            <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a;">Conector SAP Ativo</span>
+            <div style="width: 10px; height: 10px; background: #64748b; border-radius: 50%;"></div>
+            <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a;">Troca por arquivo</span>
         </div>
     </div>
 
@@ -949,8 +949,9 @@
             }
         } catch (err) {
             console.warn('Erro ao obter API Key do tenant:', err);
-            input.value = 'lt_key_' + Math.random().toString(36).substring(2, 12);
-            renderPowerBiMCode(input.value);
+            currentPbiApiKey = '';
+            input.value = 'Chave indisponível (falha de conexão)';
+            if (typeof showToast === 'function') showToast('Não foi possível obter a chave de API do Power BI. Tente novamente.', 'error');
         }
     }
 
@@ -1164,13 +1165,23 @@ in
         try {
             const res = await api('powerbi_kpis', { format: 'flat' });
             const duration = Math.round(performance.now() - start);
-            if (res) {
-                alert(`Conexão com a API Power BI 100% OPERACIONAL!\n\n• Resposta HTTP: 200 OK\n• Latência: ${duration}ms\n• Formato: Tabular JSON\n• Status da Planta: Pronto para consumo no Power BI`);
+
+            let rowCount = 0;
+            if (Array.isArray(res)) {
+                rowCount = res.length;
+            } else if (res && Array.isArray(res.data)) {
+                rowCount = res.data.length;
+            } else if (res && typeof res === 'object' && Object.keys(res).length > 0) {
+                rowCount = 1;
+            }
+
+            if (rowCount > 0) {
+                alert(`O endereço respondeu com sucesso (HTTP 200 em ${duration}ms).\n\nRetorno: Veio tabela com ${rowCount} registro(s).\n\nNota: A API está acessível e devolvendo dados. A visualização final no Power BI depende da importação da consulta no aplicativo do cliente.`);
             } else {
-                alert('Aviso: A API respondeu, mas sem dados tabulares.');
+                alert(`O endereço respondeu com sucesso (HTTP 200 em ${duration}ms).\n\nRetorno: Veio vazio (nenhum registro retornado pelo banco de dados).`);
             }
         } catch (err) {
-            alert('Falha no teste de conexão: ' + (err.message || err));
+            alert('Falha ao testar o endereço do Power BI: ' + (err.message || err));
         }
     }
 

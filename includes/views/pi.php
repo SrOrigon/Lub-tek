@@ -50,15 +50,18 @@
         <!-- Live Status Indicators -->
         <div style="display: flex; gap: 15px; align-items: center;">
             <div style="background: white; border: 1px solid var(--border); padding: 10px 18px; border-radius: 12px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; animation: glow-green 1.5s infinite;"></div>
-                <span style="font-size: 0.8rem; font-weight: 800; color: #1e293b; letter-spacing: 0.5px;">PI WEB API: <span style="color:#10b981;">CONECTADO</span></span>
+                <div id="pi-link-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #94a3b8;"></div>
+                <span style="font-size: 0.8rem; font-weight: 800; color: #1e293b; letter-spacing: 0.5px;">PI WEB API: <span id="pi-link-status" style="color:#64748b;">VERIFICANDO</span></span>
             </div>
             
+            <?php if (!empty($_GET['dev_simulator']) && Permissions::isDeveloper($currentUser['role'] ?? '')): ?>
             <button onclick="toggleSimulationMode()" id="btn-simulation-toggle" class="btn-outline" 
-                style="background: white; padding: 10px 18px; border-radius: 12px; font-weight: 800; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); cursor: pointer;">
+                style="background: white; padding: 10px 18px; border-radius: 12px; font-weight: 800; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); cursor: pointer;"
+                title="Ferramenta restrita de homologação técnica. Grava leituras reais no histórico.">
                 <i data-lucide="play" id="sim-icon" style="width: 16px; color: #0ea5e9;"></i>
-                <span id="sim-text">Simular Telemetria Real</span>
+                <span id="sim-text">Simular Telemetria (Dev)</span>
             </button>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -227,27 +230,28 @@
                     <div style="flex:1;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
                             <span style="font-size: 0.75rem; font-weight: 900; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px;">Diagnóstico Neural Preditivo</span>
-                            <span id="ai-diag-urgencia" class="tag" style="font-size: 0.65rem; padding: 2px 10px; border-radius: 12px; font-weight: 800;">ALTA</span>
+                            <span id="ai-diag-urgencia" class="tag" style="font-size: 0.65rem; padding: 2px 10px; border-radius: 12px; font-weight: 800;">—</span>
                         </div>
-                        <div id="ai-diag-failmode" style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Fadiga Mecânica de Rolamento</div>
-                        <p id="ai-diag-desc" style="margin: 0; font-size: 0.82rem; color: #475569; line-height: 1.4; font-weight: 600;">O sensor aponta vibração anômala persistente.</p>
+                        <div id="ai-diag-failmode" style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">Aguardando diagnóstico</div>
+                        <p id="ai-diag-desc" style="margin: 0; font-size: 0.82rem; color: #475569; line-height: 1.4; font-weight: 600;">O parecer é preenchido ao diagnosticar o sensor selecionado.</p>
                         
                         <div style="background: white; border: 1px dashed rgba(124, 58, 237, 0.3); border-radius: 10px; padding: 12px; margin-top: 12px;">
                             <div style="font-size: 0.75rem; font-weight: 800; color: #7c3aed; text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
                                 <i data-lucide="check-square" style="width: 12px;"></i> Recomendação Prescritiva da I.A.
                             </div>
-                            <div id="ai-diag-reco" style="font-size: 0.8rem; color: #1e293b; line-height: 1.4; font-weight: 600;">Executar plano de lubrificação de segurança.</div>
+                            <div id="ai-diag-reco" style="font-size: 0.8rem; color: #1e293b; line-height: 1.4; font-weight: 600;">A recomendação aparece depois do diagnóstico.</div>
                         </div>
                         
                         <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #64748b; font-weight: 700; border-top: 1px solid rgba(0,0,0,0.03); padding-top: 10px;">
                             <span>Score Confiabilidade Estimado:</span>
-                            <span id="ai-diag-score" style="color: #10b981; font-weight: 800; font-size: 0.85rem;">92%</span>
+                            <span id="ai-diag-score" style="color: #64748b; font-weight: 800; font-size: 0.85rem;">—</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- SIMULATION CONTROL PANEL (WHEN SIMULATION MODE ACTIVE) -->
+            <?php if (!empty($_GET['dev_simulator']) && Permissions::isDeveloper($currentUser['role'] ?? '')): ?>
             <div class="card" id="pi-simulation-panel" style="display: none; padding: 24px; border-radius: 16px; background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.02); animation: slideDown 0.3s ease-out;">
                 <h3 style="margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="cpu" style="width: 18px; color: #0ea5e9;"></i>
@@ -280,6 +284,7 @@
                     </button>
                 </div>
             </div>
+            <?php endif; ?>
 
         </div>
     </div>
@@ -404,6 +409,31 @@
     /**
      * Load PI Tags from SQLite database
      */
+    function updatePiLinkStatus(tags) {
+        const dot = document.getElementById('pi-link-dot');
+        const label = document.getElementById('pi-link-status');
+        if (!dot || !label) return;
+        let color = '#94a3b8';
+        let text = 'SEM SENSORES';
+        if (Array.isArray(tags) && tags.length > 0) {
+            const newest = tags.reduce((max, t) => {
+                const ts = t && t.last_update ? Date.parse(String(t.last_update).replace(' ', 'T')) : NaN;
+                return isFinite(ts) && ts > max ? ts : max;
+            }, 0);
+            if (newest && (Date.now() - newest) <= 10 * 60 * 1000) {
+                color = '#10b981';
+                text = 'RECEBENDO DADOS';
+            } else {
+                color = '#f59e0b';
+                text = 'SEM LEITURAS RECENTES';
+            }
+        }
+        dot.style.background = color;
+        dot.style.animation = color === '#10b981' ? 'glow-green 1.5s infinite' : 'none';
+        label.style.color = color;
+        label.textContent = text;
+    }
+
     async function loadPITags() {
         const body = document.getElementById('pi-tags-body');
         if (!body) return;
@@ -411,6 +441,7 @@
         try {
             const res = await api('get_pi_tags');
             piTags = Array.isArray(res) ? res : (res?.data || []);
+            updatePiLinkStatus(piTags);
 
             if (piTags.length === 0) {
                 body.innerHTML = `
@@ -418,7 +449,7 @@
                         <td colspan="6" style="padding: 40px; text-align: center; color: #64748b;">
                             <i data-lucide="database-backup" style="width: 32px; height: 32px; opacity:0.5; margin-bottom: 10px; display:block; margin:0 auto 10px;"></i>
                             <div>Nenhum sensor de telemetria cadastrado.</div>
-                            <div style="font-size:0.8rem; margin-top:5px; color:#94a3b8;">Crie uma Tag no botão acima ou ative o Simulador para gerar dados!</div>
+                            <div style="font-size:0.8rem; margin-top:5px; color:#94a3b8;">Crie uma Tag no botão acima ou conecte o gateway PI/IoT para começar a receber leituras.</div>
                         </td>
                     </tr>
                 `;
@@ -497,6 +528,10 @@
                 if (row) row.classList.add('selected-row');
             }
         } catch (e) {
+            const lbl = document.getElementById('pi-link-status');
+            const dot = document.getElementById('pi-link-dot');
+            if (lbl) { lbl.textContent = 'FALHA DE CONEXÃO'; lbl.style.color = '#dc2626'; }
+            if (dot) { dot.style.background = '#dc2626'; dot.style.animation = 'none'; }
             body.innerHTML = `<tr><td colspan="6" style="padding: 30px; text-align: center; color: var(--danger);">Falha ao carregar catálogo PI.</td></tr>`;
         }
     }
@@ -592,7 +627,7 @@
             ctx.fillStyle = '#64748b';
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('Sem leituras no banco de dados. Inicie a simulação!', W/2, H/2);
+            ctx.fillText('Nenhuma leitura registrada para este sensor no banco de dados.', W/2, H/2);
             return;
         }
 

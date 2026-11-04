@@ -166,14 +166,6 @@
                 title="Baixar backup em Excel">
                 <i data-lucide="download" style="width:16px; margin-right:6px;"></i> Baixar Excel
             </button>
-            <button class="btn btn-outline" onclick="saveSystemSnapshot()" title="Salvar backup do sistema"
-                style="padding:8px 12px; font-weight:600; color:var(--primary); border-color:var(--primary);">
-                <i data-lucide="save" style="width:16px; margin-right:4px;"></i> Salvar Estado
-            </button>
-            <button class="btn btn-outline" onclick="wipeDatabase()" title="Apagar tudo e reiniciar"
-                style="padding:8px 12px; font-weight:600; color:var(--danger); border-color:var(--danger);">
-                <i data-lucide="trash-2" style="width:16px; margin-right:4px;"></i> Limpar Tudo
-            </button>
             <button class="btn btn-outline" onclick="loadTree(true)" title="Atualizar lista"
                 style="padding:8px 12px;">
                 <i data-lucide="refresh-cw" style="width:16px;"></i>
@@ -188,6 +180,10 @@
                 </button>
                 <div id="admin-tools-menu"
                     style="display:none; position:absolute; top:100%; right:0; margin-top:6px; background:white; border:1px solid var(--border); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.12); z-index:200; flex-direction:column; min-width:220px; padding:8px; gap:4px;">
+                    <button class="btn btn-ghost" onclick="saveSystemSnapshot(); toggleAdminToolsMenu();"
+                        style="justify-content:flex-start; width:100%; text-align:left; padding:10px 12px; font-size:0.85rem; color:var(--primary);">
+                        <i data-lucide="save" style="width:16px;"></i> Salvar ponto de restauração
+                    </button>
                     <button class="btn btn-ghost" onclick="bulkAutoIP(); toggleAdminToolsMenu();"
                         style="justify-content:flex-start; width:100%; text-align:left; padding:10px 12px; font-size:0.85rem;">
                         <i data-lucide="hash" style="width:16px;"></i> Gerar códigos IP
@@ -199,6 +195,10 @@
                     <button class="btn btn-ghost" onclick="openMediaStorageModal(); toggleAdminToolsMenu();"
                         style="justify-content:flex-start; width:100%; text-align:left; padding:10px 12px; font-size:0.85rem; color:var(--primary);">
                         <i data-lucide="hard-drive" style="width:16px;"></i> Otimizar & Limpar Fotos
+                    </button>
+                    <button class="btn btn-ghost" data-developer-only onclick="wipeDatabase(); toggleAdminToolsMenu();"
+                        style="justify-content:flex-start; width:100%; text-align:left; padding:10px 12px; font-size:0.85rem; color:var(--danger);">
+                        <i data-lucide="trash-2" style="width:16px;"></i> Apagar toda a planta
                     </button>
                 </div>
             </div>
@@ -954,8 +954,9 @@
                                 </p>
                             </div>
                             <div style="text-align:right;">
-                                <div style="font-size:0.7rem; opacity:0.8; text-transform:uppercase;">Economia Potencial
+                                <div style="font-size:0.7rem; opacity:0.8; text-transform:uppercase;">Economia Potencial / unid.
                                 </div>
+                                <div style="font-size:0.65rem; opacity:0.75;">vs. oferta mais cara</div>
                                 <div style="font-size:2rem; font-weight:800;">R$ <span
                                         id="market-savings-total">0</span></div>
                             </div>
@@ -998,7 +999,7 @@
 
                                 <!-- PRICE TREND CHART -->
                                 <div class="lub-group">
-                                    <span class="lub-group-title">📈 Tendência de Preços (90 dias)</span>
+                                    <span class="lub-group-title">📈 Preço por Fornecedor</span>
                                     <div style="height:220px; padding:15px;">
                                         <canvas id="market-price-trend"></canvas>
                                     </div>
@@ -1013,8 +1014,8 @@
                                 <!-- BULK PURCHASE OPTIMIZER -->
                                 <div class="lub-group" style="border-color:#10b981;">
                                     <span class="lub-group-title" style="color:#10b981;">
-                                        <i data-lucide="package-plus" style="width:14px;"></i> Otimizador de Compra em
-                                        Volume
+                                        <i data-lucide="package-plus" style="width:14px;"></i> Simulador de Compra
+                                        (melhor oferta)
                                     </span>
                                     <div
                                         style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:15px; margin-top:10px;">
@@ -1041,17 +1042,9 @@
                                                 id="bulk-total-price">R$ 0,00</div>
                                         </div>
                                     </div>
-                                    <div id="bulk-discount-alert"
-                                        style="display:none; margin-top:12px; background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding:12px; border-radius:8px; border:1px solid #fbbf24;">
-                                        <div style="display:flex; align-items:center; gap:10px;">
-                                            <i data-lucide="sparkles" style="width:20px; color:#f59e0b;"></i>
-                                            <div>
-                                                <div style="font-weight:700; color:#92400e; font-size:0.85rem;">
-                                                    Oportunidade de Desconto!</div>
-                                                <div style="font-size:0.75rem; color:#78350f;">Compre 10+ unidades e
-                                                    economize até 15%</div>
-                                            </div>
-                                        </div>
+                                    <div style="margin-top:10px; font-size:0.7rem; color:var(--text-muted);">
+                                        Calculado com o preço da melhor oferta cadastrada. Descontos por volume devem ser
+                                        negociados diretamente com o fornecedor.
                                     </div>
                                 </div>
                             </div>
@@ -1068,7 +1061,7 @@
                                             style="background:linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding:15px; border-radius:10px; border:1px solid #10b981;">
                                             <div
                                                 style="font-size:0.7rem; color:#065f46; text-transform:uppercase; font-weight:700;">
-                                                Economia (Ano)</div>
+                                                Economia / unid.</div>
                                             <div
                                                 style="font-size:1.6rem; font-weight:800; color:#10b981; margin:5px 0;">
                                                 R$ <span id="market-savings-year">0</span></div>
@@ -1081,13 +1074,13 @@
                                                 style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
                                                 Status da Cadeia</div>
                                             <div style="display:flex; align-items:center; gap:8px;">
-                                                <div
-                                                    style="width:10px; height:10px; border-radius:50%; background:#10b981;">
+                                                <div id="market-chain-dot"
+                                                    style="width:10px; height:10px; border-radius:50%; background:#94a3b8;">
                                                 </div>
-                                                <span style="font-weight:700; font-size:0.9rem;">Oferta Estável</span>
+                                                <span id="market-chain-status" style="font-weight:700; font-size:0.9rem;">Sem ofertas cadastradas</span>
                                             </div>
-                                            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:5px;">
-                                                Disponibilidade: 98%</div>
+                                            <div id="market-chain-detail" style="font-size:0.7rem; color:var(--text-muted); margin-top:5px;">
+                                                0 oferta(s)</div>
                                         </div>
 
                                         <div
@@ -1095,13 +1088,9 @@
                                             <div
                                                 style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
                                                 Tempo Médio Entrega</div>
-                                            <div style="font-weight:700; font-size:1.2rem; color:var(--primary);">1.8
-                                                dias</div>
-                                            <div style="display:flex; gap:5px; margin-top:5px;">
-                                                <span
-                                                    style="background:#10b981; color:white; font-size:0.65rem; padding:2px 6px; border-radius:4px;">24h
-                                                    disponível</span>
-                                            </div>
+                                            <div id="market-delivery-avg" style="font-weight:700; font-size:1.2rem; color:var(--primary);">—</div>
+                                            <div id="market-delivery-detail" style="font-size:0.7rem; color:var(--text-muted); margin-top:5px;">
+                                                Prazo não informado nas ofertas</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1111,24 +1100,8 @@
                                     <span class="lub-group-title" style="color:#f59e0b;">
                                         <i data-lucide="bell" style="width:14px;"></i> Alertas Inteligentes
                                     </span>
-                                    <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-                                        <div
-                                            style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding:12px; border-radius:8px; border-left:4px solid #f59e0b;">
-                                            <div
-                                                style="font-weight:700; font-size:0.8rem; color:#92400e; margin-bottom:3px;">
-                                                🔥 Promoção Ativa</div>
-                                            <div style="font-size:0.75rem; color:#78350f;">15% OFF até amanhã na Amazon
-                                                Business</div>
-                                        </div>
-
-                                        <div
-                                            style="background:#f1f5f9; padding:12px; border-radius:8px; border-left:4px solid #64748b;">
-                                            <div
-                                                style="font-weight:700; font-size:0.8rem; color:#334155; margin-bottom:3px;">
-                                                📊 Preço em Queda</div>
-                                            <div style="font-size:0.75rem; color:#475569;">-8% nas últimas 2 semanas
-                                            </div>
-                                        </div>
+                                    <div id="market-alerts-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+                                        <div style="font-size:0.8rem; color:var(--text-muted); padding:8px 0;">Nenhum alerta no momento.</div>
                                     </div>
                                 </div>
 
@@ -1154,29 +1127,9 @@
                                 <!-- VENDOR RATINGS -->
                                 <div class="lub-group">
                                     <span class="lub-group-title">⭐ Top Fornecedores</span>
-                                    <div
+                                    <div id="market-top-vendors"
                                         style="display:flex; flex-direction:column; gap:10px; margin-top:10px; font-size:0.8rem;">
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <span>Amazon Business</span>
-                                            <div style="display:flex; align-items:center; gap:5px;">
-                                                <span style="color:#fbbf24;">★</span>
-                                                <span style="font-weight:700;">4.9</span>
-                                            </div>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <span>Mercado Livre Pro</span>
-                                            <div style="display:flex; align-items:center; gap:5px;">
-                                                <span style="color:#fbbf24;">★</span>
-                                                <span style="font-weight:700;">4.8</span>
-                                            </div>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                                            <span>LubParts Express</span>
-                                            <div style="display:flex; align-items:center; gap:5px;">
-                                                <span style="color:#fbbf24;">★</span>
-                                                <span style="font-weight:700;">4.5</span>
-                                            </div>
-                                        </div>
+                                        <div style="color:var(--text-muted);">Nenhum fornecedor cadastrado.</div>
                                     </div>
                                 </div>
                             </div>
@@ -1266,13 +1219,12 @@
                                 <div
                                     style="font-size:0.6rem; color:var(--text-muted); font-weight:800; text-transform:uppercase;">
                                     Relatório Técnico IA-LUB</div>
-                                <div style="font-size:0.7rem; color:var(--success); font-weight:700;">VERIFICADO</div>
+                                <div id="v-lab-badge" style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">SEM AMOSTRA</div>
                             </div>
                             <div style="border-bottom:2px solid #f1f5f9; padding-bottom:15px; margin-bottom:15px;">
                                 <div style="font-size:1.1rem; font-weight:800; color:#1e293b;">Certificado de Condição
                                 </div>
-                                <div style="font-size:0.75rem; color:var(--text-muted);">Assinado por: <b>Felipe
-                                        Rodrigues (Lead Eng.)</b></div>
+                                <div style="font-size:0.75rem; color:var(--text-muted);">Preenchido com a amostra registrada neste ponto.</div>
                             </div>
                             <div style="display:flex; flex-direction:column; gap:12px;">
                                 <div style="display:flex; justify-content:space-between;"><span
@@ -1287,14 +1239,13 @@
                                 <hr style="border:0; border-top:1px dashed #e2e8f0;">
                                 <div style="display:flex; justify-content:space-between;"><span
                                         style="font-size:0.8rem; color:var(--text-muted);">Status IA:</span><span
-                                        style="font-weight:700; color:var(--success);">DENTRO DO LIMITE</span></div>
+                                        style="font-weight:700; color:var(--text-muted);" id="v-lab-status">SEM ANÁLISE</span></div>
                             </div>
                             <div
                                 style="margin-top:25px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0;">
                                 <div style="font-size:0.65rem; color:#64748b; font-weight:800; margin-bottom:5px;">
                                     PARECER TÉCNICO IA</div>
-                                <p style="font-size:0.75rem; color:#475569; margin:0; line-height:1.4;">Baseado no
-                                    histórico do ativo, a condição é estável. Manter intervalo de 500h.</p>
+                                <p id="v-lab-parecer" style="font-size:0.75rem; color:#475569; margin:0; line-height:1.4;">Nenhuma amostra registrada. O parecer aparece depois do lançamento da análise.</p>
                             </div>
                             <button class="btn btn-outline" style="width:100%; margin-top:20px; border-radius:10px;"
                                 onclick="window.print()"><i data-lucide="printer"></i> Imprimir Laudo</button>

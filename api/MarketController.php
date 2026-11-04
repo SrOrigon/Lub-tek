@@ -111,16 +111,41 @@ class MarketController
 
     public function getStats()
     {
+        $savings = 0.0;
+        $days = [];
         try {
-            $count = $this->db->query("SELECT COUNT(*) FROM mercado_ofertas")->fetchColumn();
-            // $avg = $this->db->query("SELECT AVG(price) FROM mercado_ofertas")->fetchColumn();
+            $rows = $this->db->query(
+                "SELECT catalogo_id, MAX(price) AS max_p, MIN(price) AS min_p, COUNT(*) AS n
+                 FROM mercado_ofertas WHERE price > 0 GROUP BY catalogo_id"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $r) {
+                if ((int) $r['n'] > 1) {
+                    $savings += max(0, (float) $r['max_p'] - (float) $r['min_p']);
+                }
+            }
+
+            $deliveries = $this->db->query("SELECT delivery FROM mercado_ofertas WHERE delivery IS NOT NULL AND delivery <> ''")
+                ->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($deliveries as $text) {
+                if (preg_match('/(\d+(?:[.,]\d+)?)\s*(h|hora|horas|d|dia|dias|sem|semana|semanas)?/iu', (string) $text, $m)) {
+                    $n = (float) str_replace(',', '.', $m[1]);
+                    $unit = strtolower($m[2] ?? 'd');
+                    if (strpos($unit, 'h') === 0) {
+                        $n /= 24;
+                    } elseif (strpos($unit, 'sem') === 0) {
+                        $n *= 7;
+                    }
+                    $days[] = $n;
+                }
+            }
         } catch (Exception $e) {
-            $count = 0;
+            $savings = 0.0;
+            $days = [];
         }
 
         return [
-            'global_savings' => ($count > 0) ? ($count * 150) : 0,
-            'avg_delivery' => ($count > 0) ? '2 Dias' : '--'
+            'global_savings' => round($savings, 2),
+            'avg_delivery' => $days ? (number_format(array_sum($days) / count($days), 1, ',', '') . ' dias') : '--'
         ];
     }
 }

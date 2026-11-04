@@ -237,6 +237,18 @@ window.__navReady = function(viewId, btn, isPopState = false) {
         return;
     }
 
+    if (window.isAssetFormDirty && viewId !== 'assets') {
+        const leave = confirm('Há alterações não salvas neste ativo. Se sair agora, o que foi digitado se perde.');
+        if (!leave) return;
+        window.isAssetFormDirty = false;
+    }
+
+    if (typeof isOrderFormDirty === 'function' && isOrderFormDirty() && viewId !== 'dash') {
+        const leave = confirm('Há dados preenchidos na Ordem de Serviço. Se sair agora, o que foi digitado se perde. Deseja realmente sair?');
+        if (!leave) return;
+        if (typeof closeOSForm === 'function') closeOSForm(true);
+    }
+
     if (isTrabalhadorUser()) {
         const allowed = ['home', 'dash', 'assets', 'routes'];
         if (!allowed.includes(viewId)) {
@@ -664,7 +676,8 @@ async function loadMarketData(catId) {
     if (!container) return;
 
     try {
-        const offers = await api('get_market_data', { cat_id: catId });
+        const rawOffers = await api('get_market_data', { cat_id: catId });
+        const offers = Array.isArray(rawOffers) ? rawOffers : (rawOffers && Array.isArray(rawOffers.data) ? rawOffers.data : []);
         if (offers.length === 0) {
             container.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem;">Nenhum parceiro vinculado a este item.</div>';
             return;
@@ -862,12 +875,17 @@ async function populateFormDropdowns() {
 
     // Populate Materials
     if (matSel) {
-        const catalog = await api('get_catalog');
+        const catalogData = await api('get_catalog');
+        const catalog = Array.isArray(catalogData)
+            ? catalogData
+            : (catalogData?.data || catalogData?.items || catalogData?.catalog || []);
         let matOps = '<option value="">Selecione o Produto...</option>';
-        if (Array.isArray(catalog)) {
+        if (catalog.length > 0) {
             catalog.forEach(m => {
                 matOps += `<option value="${escapeAttr(m.id)}">${escapeHtml(m.nome)} (${escapeHtml(m.fabricante || 'Geral')})</option>`;
             });
+        } else {
+            matOps += '<option value="" disabled>Nenhum produto disponível no catálogo</option>';
         }
         matSel.innerHTML = matOps;
     }
@@ -894,7 +912,7 @@ function renderOSTable() {
             if (taskFilter === 'Atrasada') {
                 const open = sit === 'pendente' || sit === 'em andamento';
                 const planned = String(t.date || t.data_planejada || '').slice(0, 10);
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayLocalISO();
                 if (!open || !planned || planned >= today) return false;
             } else if (taskFilter === 'Crítica' || taskFilter === 'Critica') {
                 const prio = String(t.prio || t.prioridade || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -923,14 +941,19 @@ function renderOSTable() {
         // Empty State
         if (filtered.length === 0) {
             const canCreate = !(typeof isTrabalhadorUser === 'function' && isTrabalhadorUser());
+            const narrowed = taskFilter !== 'all' || !!taskSearch;
             body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:60px;">
                     <div style="color:var(--text-muted);">
                         <i data-lucide="inbox" style="width:48px; height:48px; opacity:0.3; display:block; margin:0 auto 15px;"></i>
-                        <div style="font-size:1.1rem; font-weight:600; margin-bottom:8px;">Nenhuma Ordem de Serviço encontrada</div>
-                        ${canCreate ? `<div style="font-size:0.9rem; margin-bottom:20px;">Clique no botão abaixo para criar sua primeira O.S.</div>
+                        <div style="font-size:1.1rem; font-weight:600; margin-bottom:8px;">${narrowed ? 'Nenhuma ordem neste filtro' : 'Nenhuma ordem de serviço'}</div>
+                        ${narrowed
+                            ? `<div style="font-size:0.9rem;">Troque o filtro ou limpe a busca. As outras ordens continuam na lista.</div>`
+                            : (canCreate
+                                ? `<div style="font-size:0.9rem; margin-bottom:20px;">Clique no botão abaixo para criar a primeira ordem.</div>
                         <button onclick="createNewOS()" class="btn" style="padding:10px 25px; background:var(--primary);">
                             <i data-lucide="plus" style="width:16px;"></i> Nova O.S.
-                        </button>` : `<div style="font-size:0.9rem;">Nenhuma ordem atribuída no momento.</div>`}
+                        </button>`
+                                : `<div style="font-size:0.9rem;">Nenhuma ordem atribuída no momento.</div>`)}
                     </div>
                 </td></tr>`;
 
@@ -1146,8 +1169,8 @@ function createNewOS() {
     document.getElementById('f-os-prio').value = 'Média';
     document.getElementById('f-os-situacao').value = 'Pendente';
     document.getElementById('f-os-condicao').value = 'Rodando';
-    document.getElementById('f-os-dt-emissao').value = new Date().toISOString().split('T')[0];
-    document.getElementById('f-os-dt-prog').value = new Date().toISOString().split('T')[0];
+    document.getElementById('f-os-dt-emissao').value = todayLocalISO();
+    document.getElementById('f-os-dt-prog').value = todayLocalISO();
 
     document.getElementById('btn-del-os').style.display = 'none';
     document.getElementById('form-title').innerText = 'Nova Ordem de Serviço';
@@ -1185,11 +1208,12 @@ async function saveOS() {
         done: document.getElementById('f-os-situacao').value === 'Concluído'
     };
 
-    if (!os.desc) return showToast('Descrição do serviço é obrigatória.', 'warning');
+    if (!os.desc) return showToast('Descreva o serviço antes de salvar a ordem.', 'warning');
+    if (!os.ativo_id) return showToast('Escolha o ativo. Sem isso a ordem não entra na rota nem no histórico da máquina.', 'warning');
 
     try {
         const res = await api('save_task', os);
-        if (res.ok) {
+        if (res && res.ok) {
             if (os.situacao === 'Concluído') {
                 showToast('O.S. concluída. A baixa ficou no histórico do ativo.', 'success');
             } else {
@@ -1199,7 +1223,7 @@ async function saveOS() {
             selectedOS = null;
             await loadDash();
         } else {
-            showToast(res.error || 'Erro ao salvar O.S.', 'error');
+            showToast((res && res.error) || 'Erro ao salvar O.S.', 'error');
         }
     } catch (e) {
         console.error(e);
@@ -1210,7 +1234,11 @@ async function saveOS() {
 async function deleteSelectedOS() {
     if (!selectedOS) return;
     if (confirm(`Excluir permanentemente a O.S. #${selectedOS.id}?`)) {
-        await api('delete_task', { id: selectedOS.id });
+        const res = await api('delete_task', { id: selectedOS.id });
+        if (!res || res.ok === false) {
+            showToast((res && res.error) || 'A ordem não foi excluída. Ela continua na lista.', 'error');
+            return;
+        }
         showToast('O.S. excluída.', 'info');
         selectedOS = null;
         showOSForm(false);
@@ -1243,7 +1271,8 @@ async function syncAssetData(assetId) {
         // Find asset in tree or fetch its data
         // For now, assume tree is loaded in window.treeState (need to ensure this)
         // Or just fetch direct.
-        const tree = await api('get_tree');
+        const rawTree = await api('get_tree');
+        const tree = Array.isArray(rawTree) ? rawTree : (rawTree && Array.isArray(rawTree.data) ? rawTree.data : []);
         let found = null;
         function search(nodes) {
             for (const n of nodes) {
@@ -1303,7 +1332,37 @@ function printCurrentOS() {
     window.print(); // Browser will print the whole page, but our CSS handles @media print
 }
 
-function closeOSForm() {
+function isOrderFormDirty() {
+    const form = document.getElementById('os-form-container');
+    if (!form || !form.classList.contains('os-form-visible')) return false;
+
+    const serv = (document.getElementById('f-os-serv')?.value || '').trim();
+    const ativo = document.getElementById('f-os-ativo')?.value || '';
+    const obs = (document.getElementById('f-os-obsexec')?.value || '').trim();
+    const motivos = (document.getElementById('f-os-motivos')?.value || '').trim();
+    const rota = (document.getElementById('f-os-rota')?.value || '').trim();
+    const mat = document.getElementById('f-os-material')?.value || '';
+    const qtd = (document.getElementById('f-os-qtd-real')?.value || '').trim();
+
+    if (window.selectedOS) {
+        const origServ = (window.selectedOS.descricao || window.selectedOS.desc || '').trim();
+        const origObs = (window.selectedOS.obs_exec || '').trim();
+        const origMotivos = (window.selectedOS.motivos || '').trim();
+        if (serv !== origServ || obs !== origObs || motivos !== origMotivos) {
+            return true;
+        }
+        return false;
+    }
+
+    return (serv !== '' || ativo !== '' || obs !== '' || motivos !== '' || rota !== '' || mat !== '' || qtd !== '');
+}
+window.isOrderFormDirty = isOrderFormDirty;
+
+function closeOSForm(force = false) {
+    if (!force && isOrderFormDirty()) {
+        const leave = confirm('Há alterações não salvas nesta Ordem de Serviço. Se fechar agora, o que foi digitado se perde. Deseja fechar?');
+        if (!leave) return;
+    }
     selectedOS = null;
     document.querySelectorAll('#os-table-body tr').forEach(r => r.classList.remove('selected'));
     showOSForm(false);
@@ -1438,7 +1497,7 @@ function openTaskModal() {
     if (modal) modal.style.display = 'flex';
     if (descEl) descEl.value = '';
     if (respEl) respEl.value = '';
-    if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+    if (dateEl) dateEl.value = todayLocalISO();
 
     // Populate Asset List if empty
     const sel = document.getElementById('new-task-asset');
@@ -1457,7 +1516,8 @@ async function loadAssetOptions() {
         // Ideally we need a lightweight list endpoint, but get_tree is cached/fast enough for now or we filter client side)
         // Actually, let's use the catalog API since it's lighter? No, catalog is parts.
         // We use get_tree and flatten it.
-        const tree = await api('get_tree');
+        const rawTree = await api('get_tree');
+        const tree = Array.isArray(rawTree) ? rawTree : (rawTree && Array.isArray(rawTree.data) ? rawTree.data : []);
 
         let options = '<option value="">(Opcional) Geral / Sem Vínculo</option>';
 
@@ -1494,7 +1554,7 @@ async function saveNewTask() {
 
     // Save to API
     const res = await api('save_task', task);
-    if (res.ok) {
+    if (res && res.ok) {
         showToast('Ordem de serviço criada com sucesso!', 'success');
         const taskModal = document.getElementById('task-modal');
         if (taskModal) taskModal.style.display = 'none';
@@ -1535,6 +1595,7 @@ function generateAssetQRCode() {
 
     // Create Print Window
     const win = window.open('', '', 'width=450,height=550');
+    if (!win) return showToast('O navegador bloqueou a janela da etiqueta. Libere pop-ups para este site.', 'warning');
     const baseUrl = window.location.origin + window.location.pathname;
     const qrIdentifier = editingNode.qr_hash || editingNode.tag || editingNode.id;
     const url = `${baseUrl}?page=assets&qr=${encodeURIComponent(qrIdentifier)}&id=${editingNode.id}`;
@@ -1561,19 +1622,21 @@ function generateAssetQRCode() {
                 <div class="tag-badge">TAG: ${escapeHtml(editingNode.tag || 'S/N')} | QR: ${escapeHtml(editingNode.qr_hash ? editingNode.qr_hash.substring(0, 8) + '...' : editingNode.id)}</div>
                 ${editingNode.is_food_grade_required ? '<div class="food-badge">🛡️ GRAU ALIMENTÍCIO (NSF H1)</div>' : ''}
                 <div id="qrcode" class="qm"></div>
-                <div class="url-text">${url}</div>
+                <div class="url-text">${escapeHtml(url)}</div>
             </div>
             <scr` + `ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr` + `ipt>
             <scr` + `ipt>
                 setTimeout(() => {
                     if (typeof QRCode !== 'undefined') {
                         new QRCode(document.getElementById("qrcode"), { 
-                            text: "${url}", 
+                            text: ${JSON.stringify(url).replace(/</g, '\\u003c')}, 
                             width: 160, 
                             height: 160
                         });
-                        setTimeout(() => { window.print(); }, 500);
+                    } else {
+                        document.getElementById("qrcode").innerHTML = '<div style="font-size:0.75rem;color:#b91c1c;">QR indisponível (sem conexão). Use o endereço abaixo.</div>';
                     }
+                    setTimeout(() => { window.print(); }, 500);
                 }, 400);
             </scr` + `ipt>
         </body>
@@ -1583,43 +1646,53 @@ function generateAssetQRCode() {
 }
 
 async function exportCatalog(format) {
-    const list = await api('get_catalog');
-    const data = list.map(i => ({
-        Nome: i.nome,
-        Codigo: i.codigo,
-        Fabricante: i.fabricante,
-        Tipo: i.tipo,
-        Estoque: i.estoque_atual,
-        Local: i.localizacao
-    }));
+    try {
+        const raw = await api('get_catalog');
+        const list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.data) ? raw.data : []);
+        if (!list.length) return showToast('Não há itens no catálogo para exportar.', 'warning');
+        const data = list.map(i => ({
+            Nome: i.nome,
+            Codigo: i.codigo,
+            Fabricante: i.fabricante,
+            Tipo: i.tipo,
+            Estoque: i.estoque_atual,
+            Local: i.localizacao
+        }));
 
-    const ts = new Date().toISOString().slice(0, 10);
-    if (format === 'excel') {
-        if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx();
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Catalogo");
-        XLSX.writeFile(wb, `CATALOGO_LUBTEK_${ts}.xlsx`);
-    }
-    else if (format === 'pdf') {
-        if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf();
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Relatório de Catálogo - Rodrigo 3.0", 10, 10);
-        doc.autoTable({
-            head: [['Nome', 'Código', 'Fabr.', 'Tipo', 'Qtd', 'Local']],
-            body: data.map(Object.values)
-        });
-        doc.save("Catalogo_Rodrigo3.pdf");
+        const ts = new Date().toISOString().slice(0, 10);
+        if (format === 'excel') {
+            if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx();
+            if (typeof XLSX === 'undefined') return showToast('Planilha indisponível neste navegador.', 'error');
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Catalogo");
+            XLSX.writeFile(wb, `CATALOGO_LUBTEK_${ts}.xlsx`);
+        }
+        else if (format === 'pdf') {
+            if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf();
+            if (!window.jspdf || !window.jspdf.jsPDF) return showToast('PDF indisponível neste navegador.', 'error');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Relatório de Catálogo - LUB-TEK", 10, 10);
+            doc.autoTable({
+                head: [['Nome', 'Código', 'Fabr.', 'Tipo', 'Qtd', 'Local']],
+                body: data.map(Object.values)
+            });
+            doc.save("Catalogo_LUBTEK.pdf");
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Não foi possível exportar o catálogo.', 'error');
     }
 }
 
 async function exportCatalogExcel() {
     try {
         showToast('Preparando download...', 'info');
-        const list = await api('get_catalog');
+        const rawList = await api('get_catalog');
+        const list = Array.isArray(rawList) ? rawList : (rawList && Array.isArray(rawList.data) ? rawList.data : []);
 
-        if (!list || list.length === 0) return showToast('O inventário está vazio.', 'warning');
+        if (list.length === 0) return showToast('O inventário está vazio.', 'warning');
         if (typeof lubtekEnsureExcelJs === 'function') {
             try { await lubtekEnsureExcelJs(); } catch (e) {
                 return showToast('Biblioteca ExcelJS não carregada.', 'error');
@@ -1908,6 +1981,9 @@ async function exportChecklistExcel(filterFreq) {
     traverse(editingNode);
 
     if (checklistRows.length === 0) return showToast(`Nenhum ponto ${filterFreq} encontrado.`, 'info');
+
+    try { if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx(); } catch (e) { }
+    if (typeof XLSX === 'undefined') return showToast('Biblioteca Excel indisponível. Verifique a conexão e tente novamente.', 'error');
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(checklistRows);
@@ -2324,6 +2400,9 @@ async function exportLabelSheet() {
         return showToast('Nenhum ponto de lubrificação encontrado nesta hierarquia.', 'warning');
     }
 
+    try { if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx(); } catch (e) { }
+    if (typeof XLSX === 'undefined') return showToast('Biblioteca Excel indisponível. Verifique a conexão e tente novamente.', 'error');
+
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(labelRows);
 
@@ -2341,41 +2420,56 @@ async function exportLabelSheet() {
 }
 
 async function exportTasks(format) {
-    const data = tasks.map(t => ({
-        Descricao: t.desc,
-        Responsavel: t.resp,
-        Data: t.date,
-        Prioridade: t.prio,
-        Situacao: t.done ? 'Concluído' : 'Pendente'
-    }));
+    try {
+        let rows = Array.isArray(tasks) ? tasks : [];
+        if (!rows.length) {
+            const raw = await api('get_tasks');
+            rows = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.data) ? raw.data : []);
+        }
+        if (!rows.length) return showToast('Não há ordens de serviço para exportar.', 'warning');
 
-    const ts = new Date().toISOString().slice(0, 10);
-    if (format === 'excel') {
-        if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx();
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Tarefas");
-        XLSX.writeFile(wb, `ORDENS_SERVICO_${ts}.xlsx`);
-    }
-    else if (format === 'pdf') {
-        if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf();
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("Relatório de Ordens de Serviço - LUB-TEK", 10, 10);
-        doc.autoTable({
-            head: [['Descrição / Ativo', 'Responsável', 'Data Limite', 'Prioridade', 'Situação']],
-            body: data.map(Object.values),
-            theme: 'striped',
-            headStyles: { fillColor: [2, 132, 199] }
-        });
-        doc.save(`OS_LUBTEK_${ts}.pdf`);
+        const data = rows.map(t => ({
+            Descricao: t.desc,
+            Responsavel: t.resp,
+            Data: t.date,
+            Prioridade: t.prio,
+            Situacao: t.done ? 'Concluído' : (t.situacao || 'Pendente')
+        }));
+
+        const ts = new Date().toISOString().slice(0, 10);
+        if (format === 'excel') {
+            if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx();
+            if (typeof XLSX === 'undefined') return showToast('Planilha indisponível neste navegador.', 'error');
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Tarefas");
+            XLSX.writeFile(wb, `ORDENS_SERVICO_${ts}.xlsx`);
+        }
+        else if (format === 'pdf') {
+            if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf();
+            if (!window.jspdf || !window.jspdf.jsPDF) return showToast('PDF indisponível neste navegador.', 'error');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Relatório de Ordens de Serviço - LUB-TEK", 10, 10);
+            doc.autoTable({
+                head: [['Descrição / Ativo', 'Responsável', 'Data Limite', 'Prioridade', 'Situação']],
+                body: data.map(Object.values),
+                theme: 'striped',
+                headStyles: { fillColor: [2, 132, 199] }
+            });
+            doc.save(`OS_LUBTEK_${ts}.pdf`);
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Não foi possível exportar as ordens.', 'error');
     }
 }
 
 // CALCULATORS LOGIC
 function showCalc(id) {
     document.querySelectorAll('.calc-box').forEach(b => b.style.display = 'none');
-    document.getElementById(`calc-${id}`).style.display = 'block';
+    const box = document.getElementById(`calc-${id}`);
+    if (box) box.style.display = 'block';
 }
 
 async function runCalc(type) {
@@ -2429,7 +2523,10 @@ Intervalo: ${res.hours != null ? res.hours : '--'} horas (${res.days != null ? r
         }
 
         // Render Gauge
-        const ctx = document.getElementById('dn-gauge').getContext('2d');
+        const gaugeEl = document.getElementById('dn-gauge');
+        if (!gaugeEl) return;
+        try { if (typeof lubtekEnsureChart === 'function') await lubtekEnsureChart(); } catch (e) { }
+        const ctx = gaugeEl.getContext('2d');
         if (charts['dn_gauge']) charts['dn_gauge'].destroy();
 
         const max = res.max_scale || 1000000;
@@ -2576,7 +2673,7 @@ function renderCatList(list) {
         <div style="flex:1; min-width:0;">
             <div class="flex-between">
                 <div style="font-weight:600; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${i.ip ? `<span style="color:var(--primary); font-family:monospace; margin-right:4px; font-weight:800;">#${i.ip}</span>` : ''} ${escapeHtml(i.nome || 'Sem nome')}
+                    ${i.ip ? `<span style="color:var(--primary); font-family:monospace; margin-right:4px; font-weight:800;">#${escapeHtml(i.ip)}</span>` : ''} ${escapeHtml(i.nome || 'Sem nome')}
                 </div>
                 <span class="tag" style="font-size:0.65rem; padding:2px 6px; border-radius:4px; background:rgba(0,0,0,0.06); color:#334155; flex-shrink:0;">${escapeHtml(i.tipo || '')}</span>
             </div>
@@ -2806,17 +2903,17 @@ function renderDetailForm(item) {
             <!-- RIGHT: PRICE INTELLIGENCE CHART -->
             <div style="flex:1; padding:20px; background:#f8fafc; min-width:250px; display:flex; flex-direction:column;">
                 <h4 style="margin:0 0 10px 0; font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">
-                    Tendência (12 Meses)
+                    Preço por Fornecedor
                 </h4>
                 <div style="flex:1; width:100%; position:relative; min-height:120px; margin-bottom:15px;">
-                    <canvas id="market-price-trend"></canvas>
+                    <canvas id="cat-market-price-trend"></canvas>
                 </div>
 
                 <div class="card" style="padding:12px; background:white; border:1px solid var(--border); margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                          <div>
-                            <div style="font-size:0.7rem; color:var(--text-muted);">Economia Potencial</div>
-                            <div style="font-size:1.1rem; font-weight:800; color:#10b981;" id="market-savings-total">R$ --</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">Economia Potencial (vs. média)</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:#10b981;" id="cat-market-savings-total">R$ --</div>
                          </div>
                          <i data-lucide="trending-down" style="color:#10b981; opacity:0.2; width:32px; height:32px;"></i>
                     </div>
@@ -2996,12 +3093,19 @@ function locateAssetInTree(assetId) {
 
 // --- IMAGE UPLOAD LOGIC ---
 function triggerUpload(inputId) {
-    document.getElementById(inputId).click();
+    const input = document.getElementById(inputId);
+    if (input) input.click();
 }
 
 async function lubtekFormUpload(action, formData) {
     if (typeof LubtekApi !== 'undefined' && LubtekApi.upload) {
-        return LubtekApi.upload(action, formData);
+        try {
+            return await LubtekApi.upload(action, formData);
+        } catch (err) {
+            const resp = err && err.response;
+            if (resp && typeof resp === 'object') return Object.assign({ ok: false }, resp);
+            return { ok: false, error: (err && err.message) || 'Falha de conexão no envio.' };
+        }
     }
     const headers = { 'X-Requested-With': 'XMLHttpRequest' };
     if (window.csrfToken) headers['X-CSRF-TOKEN'] = window.csrfToken;
@@ -3242,11 +3346,11 @@ async function saveCatalogChanges(id) {
     };
 
     const res = await api('save_catalog_item', data);
-    if (res.ok) {
+    if (res && res.ok) {
         showToast('Item salvo com sucesso!', 'success');
         loadCatalog(); // Refresh list to update sort/filter
     } else {
-        showToast(res.error || 'Erro ao comunicar com servidor', 'error');
+        showToast((res && res.error) || 'Erro ao comunicar com servidor', 'error');
     }
 }
 
@@ -3256,14 +3360,21 @@ async function delItem(id) {
     if (!confirm(`Tem certeza que deseja excluir "${nome}" do catálogo?\n\nEsta ação é permanente e não pode ser desfeita.`)) return;
     try {
         const res = await api('delete_catalog_item', { id });
-        if (res.ok) {
+        if (res && res.ok) {
             showToast('Item excluído com sucesso!', 'success');
             if (typeof closeCatalogDetailMobile === 'function') closeCatalogDetailMobile();
-            document.getElementById('cat-detail-container').style.display = 'none';
-            document.getElementById('cat-empty').style.display = 'flex';
+            const detail = document.getElementById('cat-detail-container');
+            const empty = document.getElementById('cat-empty');
+            if (detail) detail.style.display = 'none';
+            if (empty) empty.style.display = 'flex';
             loadCatalog();
+        } else {
+            showToast((res && res.error) || 'Não foi possível excluir o item. Verifique a conexão.', 'error');
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        showToast('Erro de conexão ao excluir o item.', 'error');
+    }
 }
 
 
@@ -3791,8 +3902,17 @@ function filterTree(query) {
 // --- PLANT BUILDER LOGIC ---
 let treeState = [];
 let editingNode = null;
+Object.defineProperty(window, 'treeState', { get: () => treeState, configurable: true });
+Object.defineProperty(window, 'allNodesMap', { get: () => allNodesMap, configurable: true });
 // Restore expanded folders from LocalStorage
-let expandedNodes = new Set(JSON.parse(localStorage.getItem('expanded_nodes') || '[]'));
+let expandedNodes = new Set((() => {
+    try {
+        const saved = JSON.parse(localStorage.getItem('expanded_nodes') || '[]');
+        return Array.isArray(saved) ? saved : [];
+    } catch (e) {
+        return [];
+    }
+})());
 
 // Recursive Render with Collapsible Logic
 function renderTree(nodes = treeState, level = 0, forceExpand = false) {
@@ -4374,7 +4494,7 @@ async function executeManualMediaCleanup() {
             showToast(res.message || 'Limpeza realizada com sucesso!', 'success');
             await refreshMediaStorageStats();
         } else {
-            showToast(res.error || 'Erro ao executar limpeza.', 'error');
+            showToast((res && res.error) || 'Erro ao executar limpeza.', 'error');
         }
     } catch (e) {
         showToast('Erro de conexão ao limpar fotos órfãs.', 'error');
@@ -4604,7 +4724,7 @@ async function cleanupUnnamed() {
 
     try {
         const res = await api('cleanup_sem_nome');
-        if (res.ok) {
+        if (res && res.ok) {
             showToast(`Limpeza concluída. ${res.deleted || 0} itens removidos.`, 'success');
             loadTree();
         } else {
@@ -4734,7 +4854,7 @@ async function saveToCloudSingle() {
     try {
         const res = await api('save_asset', payload);
         if (res && res.error_code === 'GREASE_INCOMPATIBLE') {
-            const ok = confirm((res.error || 'Graxas incompatíveis.') + '\n\nConfirmar purga/limpeza completa do alojamento? Uma O.S. de lavagem será aberta.');
+            const ok = confirm(((res && res.error) || 'Graxas incompatíveis.') + '\n\nConfirmar purga/limpeza completa do alojamento? Uma O.S. de lavagem será aberta.');
             if (ok) {
                 const res2 = await api('save_asset', Object.assign({}, payload, { confirm_purge: true }));
                 if (res2 && res2.ok) {
@@ -4749,7 +4869,7 @@ async function saveToCloudSingle() {
             showToast('Alteração cancelada. O ponto não foi modificado.', 'info');
             return;
         }
-        if (res.ok) {
+        if (res && res.ok) {
             window.isAssetFormDirty = false;
             showToast('Sincronizado com Sucesso!', 'success');
 
@@ -4759,7 +4879,7 @@ async function saveToCloudSingle() {
             // Update DOM (Partial)
             updateTreeNodeDOM(editingNode);
         } else {
-            showToast(res.error || 'Erro ao salvar.', 'error');
+            showToast((res && res.error) || 'Erro ao salvar.', 'error');
         }
     } catch (e) {
         console.error(e);
@@ -4830,8 +4950,12 @@ function loadFromLocal() {
     const data = localStorage.getItem('rodrigo_plant_draft');
     if (data) {
         if (confirm('Carregar backup local?')) {
-            treeState = JSON.parse(data);
-            renderTree();
+            try {
+                const parsed = JSON.parse(data);
+                applyTreeData(Array.isArray(parsed) ? parsed : []);
+            } catch (e) {
+                showToast('Backup local corrompido ou ilegível.', 'error');
+            }
         }
     }
 }
@@ -4902,7 +5026,7 @@ async function addNode(parentId) {
             showToast('Novo nó criado e vinculado!', 'success');
         } else {
             console.warn('Save failed:', res);
-            showToast(res.error || 'Erro ao criar item.', 'error');
+            showToast((res && res.error) || 'Erro ao criar item.', 'error');
         }
     } catch (e) {
         console.error('addNode error:', e);
@@ -4961,11 +5085,11 @@ async function saveSystemSnapshot() {
     showToast('Salvando Snapshot no Servidor...', 'info');
     try {
         const res = await api('save_snapshot');
-        if (res.ok) {
+        if (res && res.ok) {
             showToast(`Snapshot salvo! (${res.assets_count} ativos)`, 'success');
             // Snapshot saved successfully
         } else {
-            throw new Error(res.error || 'Erro desconhecido');
+            throw new Error((res && res.error) || 'Erro desconhecido');
         }
     } catch (e) {
         console.error(e);
@@ -4974,18 +5098,21 @@ async function saveSystemSnapshot() {
 }
 
 async function wipeDatabase() {
-    if (!confirm('PERIGO EXTREMO!\n\nVoce tem certeza que deseja APAGAR TODO O BANCO DE DADOS?\n\nIsso excluira PERMANENTEMENTE:\n- Todas as Fabricas\n- Todos os Ativos\n- Todas as Ordens de Servico\n\nNao ha como desfazer.')) return;
-
-    if (!confirm('CONFIRMAÇÃO FINAL: Deseja realmente limpar tudo?')) return;
+    if (!confirm('Isso apaga a planta inteira: fábricas, ativos e ordens de serviço. Não há como desfazer.')) return;
+    const typed = prompt('Para confirmar, digite APAGAR em maiúsculas.');
+    if (typed !== 'APAGAR') {
+        showToast('Limpeza cancelada. Nada foi apagado.', 'info');
+        return;
+    }
 
     showToast('Resetando Sistema...', 'warning');
     try {
         const res = await api('wipe_db');
-        if (res.ok) {
+        if (res && res.ok) {
             showToast('Sistema limpo! Recarregando...', 'success');
             setTimeout(() => location.reload(), 2000);
         } else {
-            throw new Error(res.error || 'Erro ao limpar banco.');
+            throw new Error((res && res.error) || 'Erro ao limpar banco.');
         }
     } catch (e) {
         console.error(e);
@@ -5184,13 +5311,15 @@ async function deleteCurrentNode() {
     try {
         const res = await api('delete_asset', { id: editingNode.id });
 
-        if (res.ok || res.deleted) {
+        if (res && (res.ok || res.deleted)) {
             showToast('Item excluído permanentemente.', 'success');
-            document.getElementById('asset-form').style.display = 'none';
+            const assetForm = document.getElementById('asset-form');
+            if (assetForm) assetForm.style.display = 'none';
             editingNode = null;
+            window.editingNode = null;
             await loadTree();
         } else {
-            throw new Error(res.error || 'O servidor recusou a exclusão.');
+            throw new Error((res && res.error) || 'O servidor recusou a exclusão.');
         }
     } catch (e) {
         console.error('Delete Error:', e);
@@ -5202,14 +5331,14 @@ async function syncToCloud() {
     showToast('Sincronizando com banco Global...', 'info');
     try {
         const res = await api('migrate');
-        if (res.ok) {
+        if (res && res.ok) {
             showToast('Restaurando maquetes...', 'info');
             await loadTree();
             await loadCatalog();
             await loadDash();
             showToast('Pronto! Maquetes sincronizadas.', 'success');
         } else {
-            throw new Error(res.error || 'Erro na migração');
+            throw new Error((res && res.error) || 'Erro na migração');
         }
     } catch (e) {
         console.error('Deep Sync Error:', e);
@@ -5362,6 +5491,7 @@ async function importAssetsFromExcel(input) {
         } catch (excelJsErr) {
             console.warn("ExcelJS falhou, tentando fallback com SheetJS (XLSX)...", excelJsErr.message);
             // Fallback: Read using SheetJS (XLSX) which supports .xls, .csv, and legacy files
+            try { if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx(); } catch (e) { }
             if (typeof XLSX === 'undefined') {
                 throw new Error("Erro: ExcelJS falhou e a biblioteca auxiliar XLSX não está disponível.");
             }
@@ -6105,7 +6235,7 @@ async function saveOilAnalysis() {
 
     const data = {
         ativo_id: editingNode.id,
-        date: document.getElementById('mon-date').value || new Date().toISOString().split('T')[0],
+        date: document.getElementById('mon-date').value || todayLocalISO(),
         lab: document.getElementById('mon-lab').value,
         laudo: document.getElementById('mon-laudo').value,
         iso: document.getElementById('mon-iso').value,
@@ -6119,7 +6249,7 @@ async function saveOilAnalysis() {
     };
 
     const res = await api('save_analysis', data);
-    if (res.ok) {
+    if (res && res.ok) {
         showToast('Análise salva com sucesso!', 'success');
         if (res.new_status && res.new_status !== 'Ok') {
             showToast(`Status do Ativo atualizado para: ${res.new_status}`, 'warning');
@@ -6168,7 +6298,10 @@ async function loadAnalysisHistory(assetId) {
     const res = await api('get_analysis_history', { ativo_id: assetId });
     if (!res || !res.chart) return;
 
-    const ctx = document.getElementById('monitor-chart').getContext('2d');
+    const monitorEl = document.getElementById('monitor-chart');
+    if (!monitorEl) return;
+    try { if (typeof lubtekEnsureChart === 'function') await lubtekEnsureChart(); } catch (e) { }
+    const ctx = monitorEl.getContext('2d');
     if (charts['monitor']) charts['monitor'].destroy();
 
     charts['monitor'] = new Chart(ctx, {
@@ -6294,22 +6427,17 @@ async function checkMarketForProduct(productName) {
     }
 
     if (!catItem) {
-        // Even if not in catalog, show generic suggestions based on keywords
-        // This ensures the box appears even for "Graxa" if "Graxa" isn't in catalog
-        const keywords = ['graxa', 'oleo', 'rolamento', 'filtro', 'correia', 'bucha'];
-        const hit = keywords.find(k => productName.toLowerCase().includes(k));
-
-        if (!hit) {
-            document.getElementById('market-suggestion-box').style.display = 'none';
-            return;
-        }
-        // Mock a fake item for generic search
-        catItem = { id: 9999, nome: productName };
+        // Fora do catálogo: o backend resolve pelo nome (LIKE) e devolve vazio se não houver ofertas.
+        catItem = { id: productName, nome: productName };
     }
 
     // 2. Fetch Offers
     const res = await api('get_market_data', { cat_id: catItem.id });
     const offers = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+    if (window.AppState) window.AppState.set('marketOffers', offers);
+    if (typeof updateMarketSavings === 'function') updateMarketSavings(offers);
+    if (typeof renderPriceTrendChart === 'function') renderPriceTrendChart();
+    if (typeof calculateBulkPrice === 'function') calculateBulkPrice();
 
     const box = document.getElementById('market-suggestion-box');
     const list = document.getElementById('market-offers-list');
@@ -6321,8 +6449,9 @@ async function checkMarketForProduct(productName) {
     }
 
     // 3. Estimate Volume (Annual)
-    const qty = parseFloat(document.getElementById('af-qtd_material').value) || 0;
-    const period = document.getElementById('af-periodo').value || 'Mensal';
+    const qty = parseFloat(document.getElementById('af-qtd_material')?.value) || 0;
+    const period = document.getElementById('af-periodo')?.value || 'Mensal';
+    const unidMaterial = document.getElementById('af-unid_material')?.value || '';
 
     let annualMultiplier = 1;
     if (period === 'Diario') annualMultiplier = 365;
@@ -6332,8 +6461,8 @@ async function checkMarketForProduct(productName) {
     if (period === 'Bimestral') annualMultiplier = 6;
 
     const totalQty = qty * annualMultiplier;
-    const isKg = (document.getElementById('af-unid_material').value === 'g') ? totalQty / 1000 : totalQty;
-    const unitLabel = (document.getElementById('af-unid_material').value === 'g') ? 'kg' : 'unidades';
+    const isKg = (unidMaterial === 'g') ? totalQty / 1000 : totalQty;
+    const unitLabel = (unidMaterial === 'g') ? 'kg' : 'unidades';
 
     // 4. Render Smart Cards
     list.innerHTML = '';
@@ -6356,7 +6485,7 @@ async function checkMarketForProduct(productName) {
                                 ${offer.verified ? '<i data-lucide="check-circle-2" style="width:14px; color:var(--success);"></i>' : ''}
                             </div>
                             <div style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:10px;">
-                                <span>${escapeHtml(offer.rating || '4.5')}</span>
+                                <span>★ ${escapeHtml(offer.rating != null ? String(offer.rating) : '-')}</span>
                                 <span>Entrega: ${escapeHtml(offer.delivery || 'N/A')}</span>
                             </div>
                         </div>
@@ -6391,33 +6520,42 @@ async function checkMarketForProduct(productName) {
 
 // --- OIL ANALYSIS REAL-TIME CERTIFICATE ---
 document.addEventListener('input', (e) => {
-    if (!e.target.id) return;
+    if (!e.target.id || !e.target.id.startsWith('mon-')) return;
 
-    if (e.target.id === 'mon-iso') document.getElementById('v-lab-iso').innerText = e.target.value || '--/--/--';
-    if (e.target.id === 'mon-water') document.getElementById('v-lab-water').innerText = (e.target.value || '--') + ' ppm';
-    if (e.target.id === 'mon-fe') document.getElementById('v-lab-fe').innerText = e.target.value || '--';
+    const isoEl = document.getElementById('v-lab-iso');
+    const waterEl = document.getElementById('v-lab-water');
+    const feEl = document.getElementById('v-lab-fe');
+    if (e.target.id === 'mon-iso' && isoEl) isoEl.innerText = e.target.value || '--/--/--';
+    if (e.target.id === 'mon-water' && waterEl) waterEl.innerText = (e.target.value || '--') + ' ppm';
+    if (e.target.id === 'mon-fe' && feEl) feEl.innerText = e.target.value || '--';
 
-    // Dynamic Status on Certificate
     const laudo = document.getElementById('mon-laudo')?.value;
-    const statusIA = document.querySelector('#virtual-lab-report span[style*="color:var(--success)"]');
-    if (statusIA) {
-        if (laudo === 'Critico') {
-            statusIA.innerText = 'CRÍTICO / INTERROMPER';
-            statusIA.style.color = '#ef4444';
-        } else if (laudo === 'Alerta') {
-            statusIA.innerText = 'ALERTA / MONITORAR';
-            statusIA.style.color = '#f59e0b';
-        } else {
-            statusIA.innerText = 'DENTRO DO LIMITE';
-            statusIA.style.color = '#10b981';
-        }
+    const statusIA = document.getElementById('v-lab-status');
+    const badge = document.getElementById('v-lab-badge');
+    if (!statusIA) return;
+    if (laudo === 'Critico') {
+        statusIA.innerText = 'CRÍTICO / INTERROMPER';
+        statusIA.style.color = '#ef4444';
+        if (badge) { badge.innerText = 'CRÍTICO'; badge.style.color = '#ef4444'; }
+    } else if (laudo === 'Alerta') {
+        statusIA.innerText = 'ALERTA / MONITORAR';
+        statusIA.style.color = '#f59e0b';
+        if (badge) { badge.innerText = 'ALERTA'; badge.style.color = '#f59e0b'; }
+    } else if (laudo === 'Normal') {
+        statusIA.innerText = 'DENTRO DO LIMITE';
+        statusIA.style.color = '#10b981';
+        if (badge) { badge.innerText = 'AMOSTRA INFORMADA'; badge.style.color = '#10b981'; }
+    }
+    const parecer = document.getElementById('v-lab-parecer');
+    if (parecer && laudo) {
+        parecer.innerText = 'Pré-visualização do laudo informado neste formulário (' + laudo + '). O registro vale depois de salvar a amostra.';
     }
 });
 
 // --- NEW INVENTORY MARKETPLACE LOGIC ---
 async function reloadMarketAnalysis(id, name) {
     const list = document.getElementById(`market-list-${id}`);
-    const chartEl = document.getElementById('market-price-trend');
+    const chartEl = document.getElementById('cat-market-price-trend');
 
     if (!list) return;
 
@@ -6438,14 +6576,8 @@ async function reloadMarketAnalysis(id, name) {
                 <p style="margin:0;font-weight:700;">Nenhuma oferta cadastrada</p>
                 <p style="margin:8px 0 0;font-size:0.85rem;">Cadastre fornecedores reais no inventário para comparar preços.</p>
             </div>`;
-            const savEl = document.getElementById('market-savings-total');
-            if (savEl) savEl.innerText = '0';
-            const trendBest = document.getElementById('market-trend-best');
-            const trendWorst = document.getElementById('market-trend-worst');
-            const trendAvg = document.getElementById('market-trend-avg');
-            if (trendBest) trendBest.textContent = '—';
-            if (trendWorst) trendWorst.textContent = '—';
-            if (trendAvg) trendAvg.textContent = '—';
+            const savEl = document.getElementById('cat-market-savings-total');
+            if (savEl) savEl.innerText = 'R$ 0,00';
             if (chartEl && typeof Chart !== 'undefined' && typeof Chart.getChart === 'function') {
                 const existingChart = Chart.getChart(chartEl);
                 if (existingChart) existingChart.destroy();
@@ -6458,7 +6590,7 @@ async function reloadMarketAnalysis(id, name) {
         let html = '';
         const bestPrice = Number(offers[0].price) || 0;
         const avgPrice = offers.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0) / offers.length;
-        const savings = (avgPrice - bestPrice) * 12 * 5; // Anual estimado
+        const savings = avgPrice - bestPrice;
 
         offers.forEach((o, i) => {
             const isBest = i === 0;
@@ -6501,23 +6633,8 @@ async function reloadMarketAnalysis(id, name) {
         if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') lucide.createIcons();
 
         // Update Savings
-        const savEl = document.getElementById('market-savings-total');
-        if (savEl) savEl.innerText = savings > 0 ? savings.toFixed(0) : '0';
-        const savYear = document.getElementById('market-savings-year');
-        if (savYear) savYear.innerText = savings > 0 ? Number(savings).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '0';
-
-        const prices = offers.map(o => Number(o.price) || 0).filter(p => p > 0);
-        const trendBest = document.getElementById('market-trend-best');
-        const trendWorst = document.getElementById('market-trend-worst');
-        const trendAvg = document.getElementById('market-trend-avg');
-        if (prices.length) {
-            const minP = Math.min(...prices);
-            const maxP = Math.max(...prices);
-            const avgP = prices.reduce((a, b) => a + b, 0) / prices.length;
-            if (trendBest) trendBest.textContent = 'R$ ' + minP.toFixed(2).replace('.', ',');
-            if (trendWorst) trendWorst.textContent = 'R$ ' + maxP.toFixed(2).replace('.', ',');
-            if (trendAvg) trendAvg.textContent = 'R$ ' + avgP.toFixed(2).replace('.', ',');
-        }
+        const savEl = document.getElementById('cat-market-savings-total');
+        if (savEl) savEl.innerText = savings > 0 ? 'R$ ' + savings.toFixed(2).replace('.', ',') + ' / unid.' : 'R$ 0,00';
 
         // Chart — apenas com preços reais das ofertas atuais
         if (chartEl) {
@@ -6637,8 +6754,15 @@ function addSpecRow() {
 window.addSpecRow = addSpecRow;
 
 // --- CENTRALIZED EXCEL & PRINT SYSTEM ---
+function todayLocalISO() {
+    const d = new Date();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + month + '-' + day;
+}
+
 function getTodayISOStr() {
-    return new Date().toISOString().split('T')[0];
+    return todayLocalISO();
 }
 
 async function exportToExcel(data, filename, sheetName = 'Sheet1') {
@@ -6748,7 +6872,7 @@ window.downloadTechnicalReport = async function () {
         const res = window.lastSmartCalcResult;
         if (!res) {
             // Fallback to current open asset name if no calc
-            const assetName = document.getElementById('af-name').value || 'Ativo sem Nome';
+            const assetName = document.getElementById('af-name')?.value || (window.editingNode && window.editingNode.nome) || 'Ativo sem Nome';
             doc.setTextColor(0, 0, 0);
             doc.text(`Ativo: ${assetName}`, 14, 40);
             doc.text("Nenhum cálculo de engenharia realizado recentemente para este ativo.", 14, 50);
@@ -6760,7 +6884,7 @@ window.downloadTechnicalReport = async function () {
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text(`Ativo: ${document.getElementById('af-name').value || 'N/A'}`, 14, 40);
+        doc.text(`Ativo: ${document.getElementById('af-name')?.value || (window.editingNode && window.editingNode.nome) || 'N/A'}`, 14, 40);
         doc.setFont('helvetica', 'normal');
         doc.text(`Data do Laudo: ${new Date().toLocaleDateString('pt-BR')}`, 14, 46);
 
@@ -6913,14 +7037,14 @@ async function handleAssetDrop(e, targetId) {
             pai_id: (targetId === 'null' || !targetId) ? null : targetId
         });
         
-        if (res.ok) {
+        if (res && res.ok) {
             showToast('Item movido com sucesso!', 'success');
             if (targetId && targetId !== 'null') {
                 expandedNodes.add(String(targetId));
             }
             await loadTree();
         } else {
-            throw new Error(res.error || 'Erro ao mover item no servidor.');
+            throw new Error((res && res.error) || 'Erro ao mover item no servidor.');
         }
     } catch (err) {
         console.error('Move Error:', err);
@@ -7006,7 +7130,7 @@ function renderOSKanban() {
                 const sit = String(t.situacao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const open = sit === 'pendente' || sit === 'em andamento';
                 const planned = String(t.date || t.data_planejada || '').slice(0, 10);
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayLocalISO();
                 if (!open || !planned || planned >= today) return false;
             } else if (taskFilter === 'Crítica' || taskFilter === 'Critica') {
                 const prio = String(t.prio || t.prioridade || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -7122,13 +7246,13 @@ async function handleKanbanDrop(e, targetStatus) {
 
     try {
         const res = await api('save_task', t);
-        if (res.ok) {
+        if (res && res.ok) {
             showToast(`O.S. #${id} movida para ${targetStatus}`, 'success');
             await loadDash();
         } else {
             t.situacao = oldStatus;
             t.done = (oldStatus === 'Concluído');
-            showToast(res.error || 'Erro ao mover O.S.', 'error');
+            showToast((res && res.error) || 'Erro ao mover O.S.', 'error');
             renderOSKanban();
         }
     } catch (err) {

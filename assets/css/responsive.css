@@ -141,12 +141,12 @@
     }
 
     .topbar-trail {
-        font-size: 0.75rem !important;
-        max-width: 120px;
+        font-size: 0.82rem !important;
+        max-width: 240px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        flex-shrink: 1;
+        flex-shrink: 0;
     }
 
     .topbar-user {
@@ -448,16 +448,21 @@
         margin: 0 auto 14px auto;
     }
 
-    /* Offcanvas OS form — full width mobile */
+    /* Offcanvas OS form — full width mobile.
+       right:-600px deixava uma faixa visível quando a largura passava de 600px. */
     #os-form-container {
         max-width: 100% !important;
         width: 100% !important;
         border-radius: 0 !important;
+        right: -105% !important;
+        pointer-events: none;
     }
 
     #os-form-container.os-form-visible {
         max-height: 100vh !important;
         height: 100vh !important;
+        right: 0 !important;
+        pointer-events: auto;
     }
 
     /* Neural chat — quase tela cheia no mobile */

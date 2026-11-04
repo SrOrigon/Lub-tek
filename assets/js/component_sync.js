@@ -110,9 +110,9 @@ class DashboardSync {
                 if (window.ChangeDetector.hasChanged('tasks', taskArray)) {
                     window.AppState.set('tasks', taskArray);
 
-                    // Legacy compatibility - update global tasks variable if exists
-                    if (typeof window.tasks !== 'undefined') {
-                        window.tasks = taskArray;
+                    // `tasks` é um `let` global de scripts_main.js (não fica em window).
+                    if (typeof tasks !== 'undefined') {
+                        tasks = taskArray;
                     }
 
                     // Atualizar UI de ordens de servico

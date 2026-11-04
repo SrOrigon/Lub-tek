@@ -60,8 +60,8 @@
                 </div>
                 <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:25px; line-height: 1.6;">Hierarquia completa de equipamentos e ativos cadastrados.</p>
             </div>
-            <button class="btn btn-outline" style="width:100%; padding: 12px; font-weight: 700; border-radius: 10px;" onclick="printPage()"><i data-lucide="printer" style="margin-right: 8px;"></i>
-                IMPRIMIR DIGITAL TWIN</button>
+            <button class="btn btn-outline" style="width:100%; padding: 12px; font-weight: 700; border-radius: 10px;" onclick="exportFullAssetTreeExcel()"><i data-lucide="file-spreadsheet" style="margin-right: 8px;"></i>
+                BAIXAR EXCEL DA PLANTA</button>
         </div>
 
         <!-- Card 4: Conector SAP ERP (Highlighted Module) -->

@@ -26,8 +26,12 @@
     }
 
     function renderUsage(container, raw) {
-        const s = raw.summary || raw;
-        if (!s || !container) return;
+        if (!container) return;
+        const s = raw && (raw.summary || raw);
+        if (!s || raw.ok === false) {
+            container.innerHTML = '<span class="muted">Indisponível no momento.</span>';
+            return;
+        }
         const budgetWarn = s.budget_daily > 0 && s.budget_used_percent >= 85;
         container.innerHTML = `
             <div class="ai-ops-grid">
@@ -42,8 +46,12 @@
     }
 
     function renderFeedback(container, raw) {
-        const s = raw.stats || raw;
-        if (!s || !container) return;
+        if (!container) return;
+        const s = raw && (raw.stats || raw);
+        if (!s || raw.ok === false) {
+            container.innerHTML = '<span class="muted">Indisponível no momento.</span>';
+            return;
+        }
         const rate = s.accept_rate != null ? s.accept_rate + '% aceite' : 'sem dados';
         let agentsHtml = '';
         Object.keys(s.by_agent || {}).forEach(function (agent) {

@@ -99,6 +99,53 @@
             </div>
         </div>
 
+        <!-- Modal de Conclusão de Tarefa / Dosagem Real -->
+        <div id="route-done-overlay" class="route-alert-overlay" onclick="if(event.target===this)closeRouteDoneModal()">
+            <div class="route-alert-modal" role="dialog" aria-labelledby="route-done-title" style="max-width:440px;">
+                <div class="route-alert-modal-header">
+                    <i data-lucide="check-circle-2" style="width:24px;height:24px;color:#10b981;"></i>
+                    <h2 id="route-done-title" style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Concluir Lubrificação</h2>
+                    <button type="button" class="route-alert-close" onclick="closeRouteDoneModal()" aria-label="Fechar">&times;</button>
+                </div>
+                <p id="route-done-subtitle" class="route-alert-subtitle" style="margin-bottom:14px; font-size:0.85rem; color:#64748b;"></p>
+                
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:14px;">
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Lubrificante Homologado</div>
+                    <div id="route-done-material" style="font-weight:700; color:#1e293b; font-size:0.95rem;"></div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <label for="route-done-dose-amount" style="display:block; font-size:0.8rem; font-weight:700; color:#334155; margin-bottom:6px; text-transform:uppercase;">
+                        Dose Real Aplicada
+                    </label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="number" id="route-done-dose-amount" step="any" min="0" placeholder="Ex: 20"
+                            style="flex:2; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:1rem; font-weight:700;">
+                        <select id="route-done-dose-unit"
+                            style="flex:1; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.95rem; font-weight:600; background:white;">
+                            <option value="g">g</option>
+                            <option value="ml">ml</option>
+                            <option value="kg">kg</option>
+                            <option value="L">L</option>
+                            <option value="gotas">gotas</option>
+                            <option value="bombadas">bombadas</option>
+                        </select>
+                    </div>
+                    <span style="font-size:0.75rem; color:#64748b; margin-top:4px; display:block;">
+                        Informe a quantidade real gasta para a baixa correta no almoxarifado.
+                    </span>
+                </div>
+
+                <div class="route-alert-actions" style="display:flex; gap:10px;">
+                    <button type="button" class="route-alert-btn-cancel" onclick="closeRouteDoneModal()" style="flex:1;">Cancelar</button>
+                    <button type="button" id="route-done-submit-btn" class="route-alert-btn-submit" onclick="submitRouteDone()"
+                        style="flex:2; background:#10b981; border-color:#10b981; justify-content:center;">
+                        <i data-lucide="check" style="width:16px;height:16px;"></i> Confirmar Conclusão
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <style>
             .routes-header {
                 display: flex;

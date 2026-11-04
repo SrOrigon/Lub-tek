@@ -13,7 +13,11 @@
             s.src = src;
             s.async = true;
             s.onload = function () { resolve(); };
-            s.onerror = function () { reject(new Error('Failed ' + src)); };
+            s.onerror = function () {
+                delete loaded[src];
+                if (s.parentNode) s.parentNode.removeChild(s);
+                reject(new Error('Failed ' + src));
+            };
             document.head.appendChild(s);
         });
         return loaded[src];

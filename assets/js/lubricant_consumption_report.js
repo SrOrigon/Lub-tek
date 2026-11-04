@@ -188,7 +188,8 @@
             }));
 
             if (format === 'excel') {
-                if (typeof XLSX === 'undefined') return showToast('Biblioteca Excel não carregada.', 'error');
+                try { if (typeof lubtekEnsureXlsx === 'function') await lubtekEnsureXlsx(); } catch (e) { }
+                if (typeof XLSX === 'undefined') return showToast('Biblioteca Excel indisponível. Verifique a conexão e tente novamente.', 'error');
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(porEq), 'Por equipamento');
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detalhe), 'Ponto a ponto');
@@ -198,7 +199,8 @@
             }
 
             if (format === 'pdf') {
-                if (!window.jspdf) return showToast('Biblioteca PDF não carregada.', 'error');
+                try { if (typeof lubtekEnsureJsPdf === 'function') await lubtekEnsureJsPdf(); } catch (e) { }
+                if (!window.jspdf) return showToast('Biblioteca PDF indisponível. Verifique a conexão e tente novamente.', 'error');
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
                 doc.setFontSize(14);

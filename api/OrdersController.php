@@ -128,7 +128,7 @@ class OrdersController
 
             return DB::safeExecute(function ($db) use ($id, $situacao, $now, $completionDate, $executionDateOnly, $executedAt, $syncedAt, $idempotencyKey, $dosageAmount, $dosageUnit) {
                 // A. Busca os dados atuais da OS antes de atualizar
-                $stmtOS = $db->prepare("SELECT situacao, materiais FROM ordens WHERE id = ?");
+                $stmtOS = $db->prepare("SELECT situacao, materiais, ativo_id FROM ordens WHERE id = ?");
                 $stmtOS->execute([$id]);
                 $osAtual = $stmtOS->fetch(PDO::FETCH_ASSOC);
 
@@ -1227,6 +1227,176 @@ class OrdersController
             'current_tenant' => $currentTenant,
             'tenants' => $rows,
         ];
+    }
+
+    /**
+     * Baixa de campo: concluir a rota encerra as ordens de rotina/preventiva
+     * abertas daquele ponto e empurra a próxima lubrificação.
+     * Deixa ordens corretivas ou alertas de campo intocados.
+     *
+     * @return array{closed:int[],stamped:bool,warning:?string}
+     */
+    public function completeOpenOrdersForAsset(int $ativoId, ?float $appliedAmount = null, ?string $appliedUnit = null): array
+    {
+        if ($ativoId <= 0) {
+            return ['closed' => [], 'stamped' => false, 'warning' => null];
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT id, tipo_manutencao, prioridade, descricao, responsavel FROM ordens
+             WHERE ativo_id = ?
+               AND situacao NOT IN ('Concluído', 'Concluída', 'Cancelada', 'Cancelado')"
+        );
+        $stmt->execute([$ativoId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Filtra para baixar apenas preventivas / rotinas, NUNCA corretivas ou alertas de campo
+        $routineIds = [];
+        foreach ($rows as $row) {
+            $tipo = function_exists('mb_strtolower')
+                ? mb_strtolower((string) ($row['tipo_manutencao'] ?? ''), 'UTF-8')
+                : strtolower((string) ($row['tipo_manutencao'] ?? ''));
+            $prio = function_exists('mb_strtolower')
+                ? mb_strtolower((string) ($row['prioridade'] ?? ''), 'UTF-8')
+                : strtolower((string) ($row['prioridade'] ?? ''));
+            $desc = (string) ($row['descricao'] ?? '');
+
+            // Não encerra corretiva nem alerta de campo em aberto no mancal
+            if (
+                strpos($tipo, 'corret') !== false
+                || strpos($prio, 'crit') !== false
+                || strpos($prio, 'emerg') !== false
+                || stripos($desc, '[corretiva') !== false
+                || stripos($desc, '[alerta') !== false
+            ) {
+                continue;
+            }
+
+            // Encerra apenas rotina / preventiva / tarefa fixa
+            $isRoutine = false;
+            if ($tipo === 'preventiva' || $tipo === 'rotina' || $tipo === '' || LubricationSchedule::isRoutineOrderRow($row)) {
+                $isRoutine = true;
+            }
+
+            if ($isRoutine) {
+                $routineIds[] = (int) $row['id'];
+            }
+        }
+
+        $name = trim((string) ($this->user['name'] ?? $this->user['nome'] ?? ''));
+        if ($name !== '' && $routineIds) {
+            $assign = $this->db->prepare(
+                "UPDATE ordens SET responsavel = ?
+                 WHERE id = ? AND (responsavel IS NULL OR TRIM(responsavel) = '')"
+            );
+            foreach ($routineIds as $id) {
+                $assign->execute([$name, $id]);
+            }
+        }
+
+        // Determina a dosagem: prioriza a informada pelo técnico, senão usa a do cadastro
+        $dosage = null;
+        if ($appliedAmount !== null && $appliedAmount > 0) {
+            $dosage = [
+                'amount' => (float) $appliedAmount,
+                'unit' => ($appliedUnit !== null && trim($appliedUnit) !== '') ? trim($appliedUnit) : 'g',
+            ];
+        } elseif (isset($this->input['dosage_amount']) && is_numeric($this->input['dosage_amount']) && (float) $this->input['dosage_amount'] > 0) {
+            $dosage = [
+                'amount' => (float) $this->input['dosage_amount'],
+                'unit' => !empty($this->input['dosage_unit']) ? trim((string) $this->input['dosage_unit']) : 'g',
+            ];
+        } else {
+            $dosage = $this->plannedDosageForAsset($ativoId);
+        }
+
+        // Validação de catálogo de lubrificante: se o ponto tem lubrificante mas não existe no catálogo, avisa
+        $catalogWarning = $this->checkLubricantInCatalog($ativoId);
+
+        $closed = [];
+        foreach ($routineIds as $id) {
+            $payload = [
+                'id' => $id,
+                'situacao' => 'Concluído',
+                'executed_at' => date('Y-m-d H:i:s'),
+            ];
+            if ($dosage) {
+                $payload['dosage_amount'] = $dosage['amount'];
+                $payload['dosage_unit'] = $dosage['unit'];
+            }
+            $this->executeSaveTask($payload);
+            $closed[] = $id;
+        }
+
+        // Sempre avança a data da intervenção do ponto na rota
+        $stamped = $this->stampRouteCompletion($ativoId);
+
+        return [
+            'closed' => $closed,
+            'stamped' => $stamped,
+            'warning' => $catalogWarning,
+        ];
+    }
+
+    private function checkLubricantInCatalog(int $ativoId): ?string
+    {
+        $stmt = $this->db->prepare('SELECT dados_tecnicos FROM ativos WHERE id = ?');
+        $stmt->execute([$ativoId]);
+        $tech = json_decode((string) $stmt->fetchColumn(), true);
+        if (!is_array($tech)) {
+            return null;
+        }
+        $lub = trim((string) ($tech['material'] ?? $tech['lubrificante'] ?? $tech['ponto_lub'] ?? ''));
+        if ($lub === '' || $lub === '—' || $lub === '-') {
+            return null;
+        }
+
+        $find = $this->db->prepare("SELECT id, nome FROM catalogo WHERE LOWER(nome) LIKE LOWER(?) LIMIT 1");
+        $find->execute(['%' . $lub . '%']);
+        $cat = $find->fetch(PDO::FETCH_ASSOC);
+        if (!$cat) {
+            return "O lubrificante '{$lub}' previsto no ponto não possui produto correspondente no catálogo do almoxarifado. A baixa de estoque não pôde ser debitada.";
+        }
+        return null;
+    }
+
+    private function plannedDosageForAsset(int $ativoId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT dados_tecnicos FROM ativos WHERE id = ?');
+        $stmt->execute([$ativoId]);
+        $tech = json_decode((string) $stmt->fetchColumn(), true);
+        if (!is_array($tech)) {
+            return null;
+        }
+        $amount = $tech['qtd_material'] ?? $tech['quantidade'] ?? null;
+        if (!is_numeric($amount) || (float) $amount <= 0) {
+            return null;
+        }
+        $unit = trim((string) ($tech['unid_material'] ?? $tech['unidade'] ?? 'g'));
+        return ['amount' => (float) $amount, 'unit' => $unit !== '' ? $unit : 'g'];
+    }
+
+    private function stampRouteCompletion(int $ativoId): bool
+    {
+        $stmt = $this->db->prepare('SELECT dados_tecnicos FROM ativos WHERE id = ?');
+        $stmt->execute([$ativoId]);
+        $raw = $stmt->fetchColumn();
+        if ($raw === false) {
+            return false;
+        }
+        $tech = json_decode((string) $raw, true);
+        if (!is_array($tech)) {
+            $tech = [];
+        }
+        $today = date('Y-m-d');
+        $tech['data_ultima_intervencao'] = $today;
+        $freqDays = LubricationSchedule::frequencyDays($tech);
+        if ($freqDays !== null && $freqDays > 0) {
+            $tech['data_proxima_intervencao'] = date('Y-m-d', strtotime("+{$freqDays} days"));
+        }
+        $this->db->prepare('UPDATE ativos SET dados_tecnicos = ? WHERE id = ?')
+            ->execute([json_encode($tech, JSON_UNESCAPED_UNICODE), $ativoId]);
+        return true;
     }
 
     public function deleteTask()

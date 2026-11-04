@@ -2284,6 +2284,26 @@ Amostra da Planilha (JSON):
             }
         }
 
+        $closedOrders = [];
+        $catalogWarning = null;
+        if (in_array($status, ['Concluido', 'Concluído', 'OK'], true)) {
+            require_once __DIR__ . '/api/OrdersController.php';
+            try {
+                $closer = new OrdersController($this->db, $this->user, $this->input);
+                $appliedDose = isset($this->input['dosage_amount']) && is_numeric($this->input['dosage_amount'])
+                    ? (float) $this->input['dosage_amount']
+                    : null;
+                $appliedUnit = isset($this->input['dosage_unit']) ? trim((string) $this->input['dosage_unit']) : null;
+                $done = $closer->completeOpenOrdersForAsset($id, $appliedDose, $appliedUnit);
+                $closedOrders = $done['closed'] ?? [];
+                if (!empty($done['warning'])) {
+                    $catalogWarning = $done['warning'];
+                }
+            } catch (Throwable $e) {
+                error_log('Baixa de rota não encerrou a O.S. do ativo ' . $id . ': ' . $e->getMessage());
+            }
+        }
+
         $this->db->prepare("UPDATE ativos SET status = ? WHERE id = ?")
             ->execute([$status, $id]);
 
@@ -2296,7 +2316,18 @@ Amostra da Planilha (JSON):
             $qrOk = ($assetTag !== '' && strcasecmp($assetTag, $qr) === 0);
         }
 
-        $this->success(['updated' => true, 'id' => $id, 'status' => $status, 'qr_ok' => $qrOk]);
+        $responsePayload = [
+            'updated' => true,
+            'id' => $id,
+            'status' => $status,
+            'qr_ok' => $qrOk,
+            'closed_orders' => $closedOrders,
+        ];
+        if ($catalogWarning) {
+            $responsePayload['warning'] = $catalogWarning;
+        }
+
+        $this->success($responsePayload);
     }
 
     /**
