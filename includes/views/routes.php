@@ -119,7 +119,7 @@
                         Dose Real Aplicada
                     </label>
                     <div style="display:flex; gap:8px;">
-                        <input type="number" id="route-done-dose-amount" step="any" min="0" placeholder="Ex: 20"
+                        <input type="number" id="route-done-dose-amount" step="any" min="0" placeholder="Quantidade gasta"
                             style="flex:2; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:1rem; font-weight:700;">
                         <select id="route-done-dose-unit"
                             style="flex:1; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.95rem; font-weight:600; background:white;">

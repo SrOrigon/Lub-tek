@@ -872,7 +872,7 @@ tbody tr.os-row:hover {
     }
 
     .topbar-trail {
-        max-width: 80px;
+        max-width: 150px;
     }
 }
 
@@ -880,6 +880,21 @@ tbody tr.os-row:hover {
     .lubtek-topbar {
         gap: 8px;
         padding: 8px 10px;
+    }
+    .topbar-trail {
+        font-size: 0.85rem !important;
+        max-width: none !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+    .topbar-ecosystem {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        flex-shrink: 1 !important;
+    }
+    .topbar-ecosystem::-webkit-scrollbar {
+        display: none !important;
     }
     .topbar-user span,
     .topbar-eco-btn span {

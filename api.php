@@ -2290,9 +2290,15 @@ Amostra da Planilha (JSON):
             require_once __DIR__ . '/api/OrdersController.php';
             try {
                 $closer = new OrdersController($this->db, $this->user, $this->input);
-                $appliedDose = isset($this->input['dosage_amount']) && is_numeric($this->input['dosage_amount'])
-                    ? (float) $this->input['dosage_amount']
-                    : null;
+                $appliedDose = null;
+                if (array_key_exists('dosage_amount', $this->input)) {
+                    $rawDose = $this->input['dosage_amount'];
+                    if ($rawDose !== null && $rawDose !== '' && is_numeric($rawDose)) {
+                        $appliedDose = (float) $rawDose;
+                    } else {
+                        $appliedDose = 0.0;
+                    }
+                }
                 $appliedUnit = isset($this->input['dosage_unit']) ? trim((string) $this->input['dosage_unit']) : null;
                 $done = $closer->completeOpenOrdersForAsset($id, $appliedDose, $appliedUnit);
                 $closedOrders = $done['closed'] ?? [];

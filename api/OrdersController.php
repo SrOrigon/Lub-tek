@@ -1256,25 +1256,22 @@ class OrdersController
             $tipo = function_exists('mb_strtolower')
                 ? mb_strtolower((string) ($row['tipo_manutencao'] ?? ''), 'UTF-8')
                 : strtolower((string) ($row['tipo_manutencao'] ?? ''));
-            $prio = function_exists('mb_strtolower')
-                ? mb_strtolower((string) ($row['prioridade'] ?? ''), 'UTF-8')
-                : strtolower((string) ($row['prioridade'] ?? ''));
             $desc = (string) ($row['descricao'] ?? '');
 
-            // Não encerra corretiva nem alerta de campo em aberto no mancal
+            // 1. Ordem corretiva ou alerta de campo no mesmo mancal NUNCA é baixada na rota de lubrificação
             if (
                 strpos($tipo, 'corret') !== false
-                || strpos($prio, 'crit') !== false
-                || strpos($prio, 'emerg') !== false
                 || stripos($desc, '[corretiva') !== false
                 || stripos($desc, '[alerta') !== false
             ) {
                 continue;
             }
 
-            // Encerra apenas rotina / preventiva / tarefa fixa
+            // 2. Só baixa ordens comprovadamente de rotina / preventiva / tarefa fixa de lubrificação.
+            // Ordem manual sem tipo (em branco) NÃO é baixada por engano.
+            // Ordem preventiva com prioridade crítica (ex: gerada pelo agente por atraso) É baixada na conclusão.
             $isRoutine = false;
-            if ($tipo === 'preventiva' || $tipo === 'rotina' || $tipo === '' || LubricationSchedule::isRoutineOrderRow($row)) {
+            if ($tipo === 'preventiva' || $tipo === 'rotina' || LubricationSchedule::isRoutineOrderRow($row)) {
                 $isRoutine = true;
             }
 
@@ -1296,22 +1293,35 @@ class OrdersController
 
         // Determina a dosagem: prioriza a informada pelo técnico, senão usa a do cadastro
         $dosage = null;
-        if ($appliedAmount !== null && $appliedAmount > 0) {
-            $dosage = [
-                'amount' => (float) $appliedAmount,
-                'unit' => ($appliedUnit !== null && trim($appliedUnit) !== '') ? trim($appliedUnit) : 'g',
-            ];
-        } elseif (isset($this->input['dosage_amount']) && is_numeric($this->input['dosage_amount']) && (float) $this->input['dosage_amount'] > 0) {
-            $dosage = [
-                'amount' => (float) $this->input['dosage_amount'],
-                'unit' => !empty($this->input['dosage_unit']) ? trim((string) $this->input['dosage_unit']) : 'g',
-            ];
+        if ($appliedAmount !== null) {
+            if ($appliedAmount > 0) {
+                $dosage = [
+                    'amount' => (float) $appliedAmount,
+                    'unit' => ($appliedUnit !== null && trim($appliedUnit) !== '') ? trim($appliedUnit) : 'g',
+                ];
+            } else {
+                // Técnico informou 0 ou deixou vazio explicitamente: não debita estoque
+                $dosage = null;
+            }
+        } elseif (array_key_exists('dosage_amount', $this->input)) {
+            $rawDose = $this->input['dosage_amount'];
+            if ($rawDose !== null && $rawDose !== '' && is_numeric($rawDose) && (float) $rawDose > 0) {
+                $dosage = [
+                    'amount' => (float) $rawDose,
+                    'unit' => !empty($this->input['dosage_unit']) ? trim((string) $this->input['dosage_unit']) : 'g',
+                ];
+            } else {
+                $dosage = null;
+            }
         } else {
             $dosage = $this->plannedDosageForAsset($ativoId);
         }
 
-        // Validação de catálogo de lubrificante: se o ponto tem lubrificante mas não existe no catálogo, avisa
-        $catalogWarning = $this->checkLubricantInCatalog($ativoId);
+        // Validação de catálogo de lubrificante: só verifica e alerta se houver dose sendo consumida
+        $catalogWarning = null;
+        if ($dosage !== null && $dosage['amount'] > 0) {
+            $catalogWarning = $this->checkLubricantInCatalog($ativoId);
+        }
 
         $closed = [];
         foreach ($routineIds as $id) {

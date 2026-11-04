@@ -777,7 +777,9 @@
             matEl.textContent = p.material || 'Graxa/Óleo padrão';
         }
         if (doseEl) {
-            doseEl.value = (p.quantidade !== null && p.quantidade !== undefined && p.quantidade !== '') ? p.quantidade : 20;
+            const hasQtd = (p.quantidade !== null && p.quantidade !== undefined && p.quantidade !== '' && !isNaN(p.quantidade) && Number(p.quantidade) > 0);
+            doseEl.value = hasQtd ? p.quantidade : '';
+            doseEl.placeholder = hasQtd ? '' : 'Dose gasta (deixe vazio se não aplicou)';
         }
         if (unitEl) {
             unitEl.value = p.unidade || 'g';
@@ -792,6 +794,33 @@
         currentDonePointId = null;
     }
 
+    function animateRouteCardDone(id) {
+        const cardEl = document.getElementById('route-card-' + id) || document.querySelector(`[data-id="${id}"]`);
+        if (cardEl) {
+            cardEl.style.transition = 'all 0.35s ease';
+            cardEl.style.opacity = '0';
+            cardEl.style.transform = 'translateY(-10px) scale(0.98)';
+        }
+    }
+
+    async function saveRouteStatusDirect(id, status, qrTag, dosage = null) {
+        const p = routePoints.find(x => x.id === id);
+        if (p) p.status = status;
+
+        let queue = readRouteQueue('lub_routes_queue');
+        queue = queue.filter(x => x.id !== id);
+        localStorage.setItem('lub_routes_queue', JSON.stringify(queue));
+
+        const payload = { id, status };
+        if (qrTag) payload.qr_tag = qrTag;
+        if (dosage && dosage.dosage_amount !== undefined && dosage.dosage_amount !== null) {
+            payload.dosage_amount = dosage.dosage_amount;
+            payload.dosage_unit = dosage.dosage_unit || 'g';
+        }
+
+        return await api('set_asset_status', payload);
+    }
+
     async function submitRouteDone() {
         const id = currentDonePointId;
         const p = routePoints.find(x => x.id === id);
@@ -799,7 +828,9 @@
 
         const doseEl = document.getElementById('route-done-dose-amount');
         const unitEl = document.getElementById('route-done-dose-unit');
-        const rawDose = parseFloat(doseEl?.value || '0');
+        const doseVal = (doseEl?.value || '').trim();
+        const hasDoseInput = (doseVal !== '' && !isNaN(doseVal) && Number(doseVal) > 0);
+        const rawDose = hasDoseInput ? parseFloat(doseVal) : 0;
         const unit = unitEl?.value || 'g';
 
         const submitBtn = document.getElementById('route-done-submit-btn');
@@ -809,27 +840,51 @@
         }
 
         try {
-            p.status = 'Concluido';
-            const cardEl = document.getElementById('route-card-' + id) || document.querySelector(`[data-id="${id}"]`);
-            if (cardEl) {
-                cardEl.style.transition = 'all 0.35s ease';
-                cardEl.style.opacity = '0';
-                cardEl.style.transform = 'translateY(-10px) scale(0.98)';
+            const dosagePayload = {
+                dosage_amount: hasDoseInput ? rawDose : 0,
+                dosage_unit: unit
+            };
+
+            if (isOfflineMode) {
+                p.status = 'Concluido';
+                animateRouteCardDone(id);
+                await saveRouteStatus(id, 'Concluido', p.tag || '', dosagePayload);
+                closeRouteDoneModal();
+                const doseText = hasDoseInput ? ` (${rawDose}${unit})` : ' (sem consumo)';
+                notificarSucessoCampo(`✅ ${p.name} concluído offline${doseText}. A ordem e o estoque serão sincronizados ao reconectar.`, 'warning');
+                setTimeout(() => { renderRoutes(); }, 350);
+                return;
             }
 
-            notificarSucessoCampo(
-                isOfflineMode
-                    ? `✅ ${p.name} concluído neste aparelho (${rawDose}${unit}). A ordem de serviço será baixada quando a rede voltar.`
-                    : `✅ ${p.name} concluído (${rawDose}${unit}). A ordem pendente deste ponto foi encerrada.`,
-                'success'
-            );
+            // Modo online: envia para o servidor e aguarda a resposta antes de emitir o aviso
+            const res = await saveRouteStatusDirect(id, 'Concluido', p.tag || '', dosagePayload);
 
-            await saveRouteStatus(id, 'Concluido', p.tag || '', { dosage_amount: rawDose, dosage_unit: unit });
-            closeRouteDoneModal();
+            if (isApiSuccess(res)) {
+                p.status = 'Concluido';
+                animateRouteCardDone(id);
+                closeRouteDoneModal();
 
-            setTimeout(() => {
-                renderRoutes();
-            }, 350);
+                const closedOrders = Array.isArray(res?.closed_orders) ? res.closed_orders : [];
+                const doseText = hasDoseInput ? ` (${rawDose}${unit})` : '';
+                let feedbackMsg = `✅ ${p.name} concluído${doseText}.`;
+
+                if (closedOrders.length > 0) {
+                    feedbackMsg += ` ${closedOrders.length} ordem(ns) de rotina encerrada(s).`;
+                } else {
+                    feedbackMsg += ` Próxima lubrificação atualizada na ficha do ponto.`;
+                }
+
+                if (res?.warning) {
+                    feedbackMsg += `\n⚠️ ${res.warning}`;
+                    notificarSucessoCampo(feedbackMsg, 'warning');
+                } else {
+                    notificarSucessoCampo(feedbackMsg, 'success');
+                }
+
+                setTimeout(() => { renderRoutes(); }, 350);
+            } else {
+                showToast(res?.error || 'Não foi possível concluir a tarefa no servidor.', 'error');
+            }
         } catch (e) {
             console.error('Erro ao concluir ponto:', e);
             showToast('Erro ao concluir ponto. Tente novamente.', 'error');
