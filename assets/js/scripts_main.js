@@ -7094,12 +7094,12 @@ function switchOSView(view, btn) {
     const kanbanWrap = document.getElementById('os-kanban-view-wrapper');
 
     if (view === 'table') {
-        if (tableWrap) tableWrap.style.display = 'block';
+        if (tableWrap) tableWrap.style.display = 'flex';
         if (kanbanWrap) kanbanWrap.style.display = 'none';
         if (typeof renderOSTable === 'function') renderOSTable();
     } else {
         if (tableWrap) tableWrap.style.display = 'none';
-        if (kanbanWrap) kanbanWrap.style.display = 'block';
+        if (kanbanWrap) kanbanWrap.style.display = 'flex';
         if (typeof renderOSKanban === 'function') renderOSKanban();
     }
     if (window.LubtekA11y) {

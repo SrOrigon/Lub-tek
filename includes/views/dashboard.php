@@ -224,7 +224,6 @@
 
         <div class="dash-orders-column">
         <!-- SECTION 1: OS DATA GRID (The Table) -->
-        <div id="os-table-view-wrapper">
         <div class="card dash-table-panel"
             style="padding:0; display:flex; flex-direction:column; border-radius:12px; border:1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
             <div
@@ -245,6 +244,7 @@
                     </button>
                 </div>
             </div>
+            <div id="os-table-view-wrapper" style="flex:1; display:flex; flex-direction:column; min-height:0;">
             <div class="dash-table-scroll" aria-labelledby="os-list-heading" aria-busy="false">
                     <table class="lub-table" id="os-table"
                         style="width:100%; border-collapse: collapse;">
@@ -266,10 +266,10 @@
                         </tbody>
                     </table>
             </div>
-        </div>
-        </div>
-        <div id="os-kanban-view-wrapper" style="display:none;" role="region" aria-label="Quadro kanban de ordens de serviço">
+            </div>
+        <div id="os-kanban-view-wrapper" style="display:none; flex:1; min-height:0; overflow-y:auto;" role="region" aria-label="Quadro kanban de ordens de serviço">
             <div id="kanban-board-container" class="kanban-board"></div>
+        </div>
         </div>
         </div><!-- /.dash-orders-column -->
 
@@ -604,7 +604,7 @@
             width: 100%;
             max-height: none;
             overflow-x: auto;
-            overflow-y: visible;
+            overflow-y: auto;
         }
         .dash-intel-column .ai-ops-columns {
             grid-template-columns: 1fr;
@@ -1005,7 +1005,8 @@
     }
     .dash-table-scroll {
         overflow-x: auto;
-        overflow-y: visible;
+        overflow-y: auto;
+        flex: 1 1 auto;
         scrollbar-width: thin;
         -webkit-overflow-scrolling: touch;
     }
@@ -1202,7 +1203,7 @@
         .os-agent-decisions-scroll {
             max-height: none;
             overflow-x: auto;
-            overflow-y: visible;
+            overflow-y: auto;
         }
         .dash-toolbar {
             position: sticky;

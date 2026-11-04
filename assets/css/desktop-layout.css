@@ -127,7 +127,8 @@
 
     .dash-orders-column .dash-table-scroll {
         overflow-x: auto;
-        overflow-y: visible;
+        overflow-y: auto;
+        flex: 1 1 auto;
         width: 100%;
         max-height: none;
     }
