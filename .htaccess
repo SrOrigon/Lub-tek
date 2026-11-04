@@ -112,10 +112,12 @@ RewriteRule ^sitemap\.xml$ sitemap.php [L,NC]
     ExpiresByType image/webp "access plus 1 month"
     ExpiresByType image/svg+xml "access plus 1 month"
     
-    # CSS e JavaScript (com cache busting estável LUBTEK_BUILD)
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType text/javascript "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
+    # CSS e JavaScript: não guardar por um mês.
+    # O endereço ?v=3.5.3 ficou em cache e o navegador continuou
+    # executando o script antigo depois da troca do arquivo.
+    ExpiresByType text/css "access plus 0 seconds"
+    ExpiresByType text/javascript "access plus 0 seconds"
+    ExpiresByType application/javascript "access plus 0 seconds"
     
     # Fontes Web
     ExpiresByType font/woff2 "access plus 1 month"
@@ -126,6 +128,15 @@ RewriteRule ^sitemap\.xml$ sitemap.php [L,NC]
     ExpiresByType text/html "access plus 0 seconds"
     ExpiresByType application/json "access plus 0 seconds"
 </IfModule>
+
+# JS, CSS e o service worker: o navegador pergunta de novo ao servidor
+# antes de reutilizar a cópia. Assim a publicação nova entra na hora.
+<FilesMatch "\.(js|css)$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+    </IfModule>
+</FilesMatch>
 
 # Bloquear cache em endpoints de API e sincronização offline
 <FilesMatch "^(api\.php|data\.php)$">

@@ -398,7 +398,7 @@ $__needCatalog = in_array('catalog', $__allowedJsPages, true) || in_array('asset
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      const swScript = 'sw.js';
+      const swScript = 'sw.js?v=<?php echo htmlspecialchars($BUILD_VER, ENT_QUOTES); ?>';
       navigator.serviceWorker.getRegistrations().then(function (regs) {
         regs.forEach(function (reg) {
           if (reg.active && reg.active.scriptURL && reg.active.scriptURL.indexOf('service-worker.js') !== -1) {
