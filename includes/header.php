@@ -65,11 +65,11 @@ if ($auth->isLoggedIn()) {
     <meta property="og:image" content="assets/img/system/img_69581d7fcdbbf.jpeg">
 
     <link rel="shortcut icon" href="assets/img/system/img_69581d7fcdbbf.jpeg" type="image/jpeg">
-    <link rel="stylesheet" href="assets/css/responsive.css?v=3.4.5">
-    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=3.4.5">
-    <link rel="stylesheet" href="assets/css/touch-targets.css?v=3.4.0">
-    <link rel="stylesheet" href="assets/css/ai-ops-panel.css?v=3.4.0">
-    <link rel="stylesheet" href="assets/css/a11y-global.css?v=3.4.5">
+    <link rel="stylesheet" href="assets/css/responsive.css?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.5.4'); ?>">
+    <link rel="stylesheet" href="assets/css/desktop-layout.css?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.5.4'); ?>">
+    <link rel="stylesheet" href="assets/css/touch-targets.css?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.5.4'); ?>">
+    <link rel="stylesheet" href="assets/css/ai-ops-panel.css?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.5.4'); ?>">
+    <link rel="stylesheet" href="assets/css/a11y-global.css?v=<?php echo htmlspecialchars($BUILD_VER ?? '3.5.4'); ?>">
     <!-- Modern Fonts & Icons -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap"
