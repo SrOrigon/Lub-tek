@@ -32,10 +32,10 @@
             <div style="position:relative;">
                 <label for="os-search" class="sr-only">Localizar ordem de serviço</label>
                 <i data-lucide="search" aria-hidden="true"
-                    style="position:absolute; left:12px; top:12px; width:16px; color:var(--text-muted);"></i>
+                    style="position:absolute; right:12px; top:12px; width:16px; color:var(--text-muted);"></i>
                 <input type="search" id="os-search" placeholder="Localizar O.S..." oninput="filterOSText(this.value)"
                     autocomplete="off" aria-describedby="os-search-hint"
-                    style="padding:10px 10px 10px 38px; font-size:0.9rem; width:220px; border-radius:10px; height:42px; border:1px solid var(--border);">
+                    style="padding:10px 38px 10px 10px; font-size:0.9rem; width:220px; border-radius:10px; height:42px; border:1px solid var(--border);">
                 <span id="os-search-hint" class="sr-only">Filtra a tabela de ordens enquanto você digita</span>
             </div>
             <button type="button" class="btn btn-sm btn-action" onclick="createNewOS()" data-gestor-only

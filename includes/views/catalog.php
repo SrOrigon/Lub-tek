@@ -24,10 +24,10 @@
                     </button>
                 </div>
                 <div style="position:relative; margin-bottom: 12px;">
-                   <i data-lucide="search" style="position:absolute; left:12px; top:12px; width:16px; color:var(--text-muted); opacity: 0.5;"></i>
+                   <i data-lucide="search" style="position:absolute; right:12px; top:12px; width:16px; color:var(--text-muted); opacity: 0.5;"></i>
                    <input id="cat-search" placeholder="Buscar por nome, código..."
                     aria-label="Buscar item no inventário por nome ou código"
-                    oninput="filterCatalog()" style="width:100%; padding:10px 10px 10px 38px; background:white; border-radius: 10px; border:1px solid var(--border); font-size: 0.9rem;">
+                    oninput="filterCatalog()" style="width:100%; padding:10px 38px 10px 10px; background:white; border-radius: 10px; border:1px solid var(--border); font-size: 0.9rem;">
                 </div>
                 
                 <div class="flex-between" style="gap: 10px;">

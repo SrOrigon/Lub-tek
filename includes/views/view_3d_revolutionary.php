@@ -124,7 +124,7 @@
             </div>
             <div style="margin-top:15px; position:relative;">
                 <i data-lucide="search"
-                    style="position:absolute; left:12px; top:12px; width:16px; color:rgba(14, 165, 233, 0.5);"></i>
+                    style="position:absolute; right:12px; top:12px; width:16px; color:rgba(14, 165, 233, 0.5);"></i>
                 <input id="search-3d" placeholder="Buscar ativo..." oninput="filter3DAssets()" class="hud-input">
             </div>
         </div>
@@ -288,7 +288,7 @@
         border: 1px solid rgba(14, 165, 233, 0.4);
         border-radius: 6px;
         color: #f8fafc;
-        padding: 10px 12px 10px 40px;
+        padding: 10px 40px 10px 12px;
         font-size: 0.9rem;
         font-family: 'Roboto Mono', monospace;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

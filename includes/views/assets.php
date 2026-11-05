@@ -217,10 +217,10 @@
             <div style="padding:12px; border-bottom:1px solid var(--border); background:white;">
                 <div style="position:relative;">
                     <i data-lucide="search"
-                        style="position:absolute; left:10px; top:10px; width:16px; color:var(--text-muted);"></i>
+                        style="position:absolute; right:10px; top:10px; width:16px; color:var(--text-muted);"></i>
                     <input type="text" id="tree-search-input" placeholder="Buscar unidade, tag ou equipamento..."
                         oninput="filterTree(this.value)"
-                        style="width:100%; padding:8px 8px 8px 36px; border:1px solid var(--border); border-radius:6px; font-size:0.9rem;">
+                        style="width:100%; padding:8px 36px 8px 8px; border:1px solid var(--border); border-radius:6px; font-size:0.9rem;">
                 </div>
             </div>
 
